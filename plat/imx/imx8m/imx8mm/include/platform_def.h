@@ -51,6 +51,8 @@
 
 #define HAB_RVT_BASE			U(0x00000900) /* HAB_RVT for i.MX8MM */
 
+#define DEBUG_CONSOLE			0
+
 #define IMX_BOOT_UART_BASE		U(0x30890000)
 #define IMX_BOOT_UART_CLK_IN_HZ		24000000 /* Select 24MHz oscillator */
 
