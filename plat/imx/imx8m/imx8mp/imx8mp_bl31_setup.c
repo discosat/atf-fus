@@ -109,7 +109,7 @@ static uint32_t get_spsr_for_bl33_entry(void)
 	return spsr;
 }
 
-void bl31_tzc380_setup(void)
+static void bl31_tzc380_setup(void)
 {
 	unsigned int val;
 
@@ -132,7 +132,9 @@ void bl31_tzc380_setup(void)
 void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 		u_register_t arg2, u_register_t arg3)
 {
+#if DEBUG_CONSOLE
 	static console_uart_t console;
+#endif
 	int i;
 
 	/* Enable CSU NS access permission */
@@ -150,12 +152,12 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 	mmio_write_32(IMX_IOMUX_GPR_BASE + 0x2c, 0xE1);
 
 	imx8m_caam_init();
-
+#if DEBUG_CONSOLE
 	console_imx_uart_register(IMX_BOOT_UART_BASE, IMX_BOOT_UART_CLK_IN_HZ,
 		IMX_CONSOLE_BAUDRATE, &console);
 	/* This console is only used for boot stage */
 	console_set_scope(&console.console, CONSOLE_FLAG_BOOT);
-
+#endif
 	/*
 	 * tell BL3-1 where the non-secure software image is located
 	 * and the entry state information.
