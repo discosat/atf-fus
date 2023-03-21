@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2017-2018, ARM Limited and Contributors. All rights reserved.
+# Copyright (c) 2017-2020, ARM Limited and Contributors. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -31,8 +31,14 @@ HANDLE_EA_EL3_FIRST	:= 1
 # Split out RO data into a non-executable section
 SEPARATE_CODE_AND_RODATA :=    1
 
+# Generate a Position Independent Executable
+ENABLE_PIE		:=	1
+
 TI_16550_MDR_QUIRK	:=	1
 $(eval $(call add_define,TI_16550_MDR_QUIRK))
+
+K3_USART		:=	0
+$(eval $(call add_define,K3_USART))
 
 # Allow customizing the UART baud rate
 K3_USART_BAUD		:=	115200
@@ -50,10 +56,11 @@ K3_CONSOLE_SOURCES	+=	\
 				drivers/ti/uart/aarch64/16550_console.S	\
 				${PLAT_PATH}/common/k3_console.c	\
 
+# Include GICv3 driver files
+include drivers/arm/gic/v3/gicv3.mk
+
 K3_GIC_SOURCES		+=	\
-				drivers/arm/gic/common/gic_common.c	\
-				drivers/arm/gic/v3/gicv3_main.c		\
-				drivers/arm/gic/v3/gicv3_helpers.c	\
+				${GICV3_SOURCES}			\
 				plat/common/plat_gicv3.c		\
 				${PLAT_PATH}/common/k3_gicv3.c		\
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2018, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2020, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -65,6 +65,16 @@ static ext_t tbb_ext[] = {
 		.help_msg = "HW Config file",
 		.sn = "HWConfigHash",
 		.ln = "HW Config hash",
+		.asn1_type = V_ASN1_OCTET_STRING,
+		.type = EXT_TYPE_HASH,
+		.optional = 1
+	},
+	[FW_CONFIG_HASH_EXT] = {
+		.oid = FW_CONFIG_HASH_OID,
+		.opt = "fw-config",
+		.help_msg = "Firmware Config file",
+		.sn = "FirmwareConfigHash",
+		.ln = "Firmware Config hash",
 		.asn1_type = V_ASN1_OCTET_STRING,
 		.type = EXT_TYPE_HASH,
 		.optional = 1
@@ -203,6 +213,86 @@ static ext_t tbb_ext[] = {
 		.type = EXT_TYPE_HASH,
 		.optional = 1
 	},
+	[SP_PKG1_HASH_EXT] = {
+		.oid = SP_PKG1_HASH_OID,
+		.opt = "sp-pkg1",
+		.help_msg = "Secure Partition Package1 file",
+		.sn = "SPPkg1Hash",
+		.ln = "SP Pkg1 hash (SHA256)",
+		.asn1_type = V_ASN1_OCTET_STRING,
+		.type = EXT_TYPE_HASH,
+		.optional = 1
+	},
+	[SP_PKG2_HASH_EXT] = {
+		.oid = SP_PKG2_HASH_OID,
+		.opt = "sp-pkg2",
+		.help_msg = "Secure Partition Package2 file",
+		.sn = "SPPkg2Hash",
+		.ln = "SP Pkg2 hash (SHA256)",
+		.asn1_type = V_ASN1_OCTET_STRING,
+		.type = EXT_TYPE_HASH,
+		.optional = 1
+	},
+	[SP_PKG3_HASH_EXT] = {
+		.oid = SP_PKG3_HASH_OID,
+		.opt = "sp-pkg3",
+		.help_msg = "Secure Partition Package3 file",
+		.sn = "SPPkg3Hash",
+		.ln = "SP Pkg3 hash (SHA256)",
+		.asn1_type = V_ASN1_OCTET_STRING,
+		.type = EXT_TYPE_HASH,
+		.optional = 1
+	},
+	[SP_PKG4_HASH_EXT] = {
+		.oid = SP_PKG4_HASH_OID,
+		.opt = "sp-pkg4",
+		.help_msg = "Secure Partition Package4 file",
+		.sn = "SPPkg4Hash",
+		.ln = "SP Pkg4 hash (SHA256)",
+		.asn1_type = V_ASN1_OCTET_STRING,
+		.type = EXT_TYPE_HASH,
+		.optional = 1
+	},
+	[SP_PKG5_HASH_EXT] = {
+		.oid = SP_PKG5_HASH_OID,
+		.opt = "sp-pkg5",
+		.help_msg = "Secure Partition Package5 file",
+		.sn = "SPPkg5Hash",
+		.ln = "SP Pkg5 hash (SHA256)",
+		.asn1_type = V_ASN1_OCTET_STRING,
+		.type = EXT_TYPE_HASH,
+		.optional = 1
+	},
+	[SP_PKG6_HASH_EXT] = {
+		.oid = SP_PKG6_HASH_OID,
+		.opt = "sp-pkg6",
+		.help_msg = "Secure Partition Package6 file",
+		.sn = "SPPkg6Hash",
+		.ln = "SP Pkg6 hash (SHA256)",
+		.asn1_type = V_ASN1_OCTET_STRING,
+		.type = EXT_TYPE_HASH,
+		.optional = 1
+	},
+	[SP_PKG7_HASH_EXT] = {
+		.oid = SP_PKG7_HASH_OID,
+		.opt = "sp-pkg7",
+		.help_msg = "Secure Partition Package7 file",
+		.sn = "SPPkg7Hash",
+		.ln = "SP Pkg7 hash (SHA256)",
+		.asn1_type = V_ASN1_OCTET_STRING,
+		.type = EXT_TYPE_HASH,
+		.optional = 1
+	},
+	[SP_PKG8_HASH_EXT] = {
+		.oid = SP_PKG8_HASH_OID,
+		.opt = "sp-pkg8",
+		.help_msg = "Secure Partition Package8 file",
+		.sn = "SPPkg8Hash",
+		.ln = "SP Pkg8 hash (SHA256)",
+		.asn1_type = V_ASN1_OCTET_STRING,
+		.type = EXT_TYPE_HASH,
+		.optional = 1
+	},
 	[SCP_FWU_CFG_HASH_EXT] = {
 		.oid = SCP_FWU_CFG_HASH_OID,
 		.opt = "scp-fwu-cfg",
@@ -232,6 +322,86 @@ static ext_t tbb_ext[] = {
 		.asn1_type = V_ASN1_OCTET_STRING,
 		.type = EXT_TYPE_HASH,
 		.optional = 1
+	},
+	[DDR_FW_CONTENT_CERT_PK_EXT] = {
+		.oid = DDR_FW_CONTENT_CERT_PK_OID,
+		.sn = "DDR FirmwareContentCertPK",
+		.ln = "DDR Firmware content certificate public key",
+		.asn1_type = V_ASN1_OCTET_STRING,
+		.type = EXT_TYPE_PKEY,
+		.attr.key = DDR_FW_CONTENT_KEY
+	},
+	[DDR_IMEM_UDIMM_1D_HASH_EXT] = {
+		.oid = DDR_IMEM_UDIMM_1D_HASH_OID,
+		.opt = "ddr-immem-udimm-1d",
+		.help_msg = "DDR Firmware IMEM UDIMM 1D image file",
+		.sn = "DDR UDIMM IMEM 1D FirmwareHash",
+		.ln = "DDR UDIMM IMEM 1D Firmware hash (SHA256)",
+		.asn1_type = V_ASN1_OCTET_STRING,
+		.type = EXT_TYPE_HASH
+	},
+	[DDR_IMEM_UDIMM_2D_HASH_EXT] = {
+		.oid = DDR_IMEM_UDIMM_2D_HASH_OID,
+		.opt = "ddr-immem-udimm-2d",
+		.help_msg = "DDR Firmware IMEM UDIMM 2D image file",
+		.sn = "DDR UDIMM IMEM 2D FirmwareHash",
+		.ln = "DDR UDIMM IMEM 2D Firmware hash (SHA256)",
+		.asn1_type = V_ASN1_OCTET_STRING,
+		.type = EXT_TYPE_HASH
+	},
+	[DDR_DMEM_UDIMM_1D_HASH_EXT] = {
+		.oid = DDR_DMEM_UDIMM_1D_HASH_OID,
+		.opt = "ddr-dmmem-udimm-1d",
+		.help_msg = "DDR Firmware DMEM UDIMM 1D image file",
+		.sn = "DDR UDIMM DMEM 1D FirmwareHash",
+		.ln = "DDR UDIMM DMEM 1D Firmware hash (SHA256)",
+		.asn1_type = V_ASN1_OCTET_STRING,
+		.type = EXT_TYPE_HASH
+	},
+	[DDR_DMEM_UDIMM_2D_HASH_EXT] = {
+		.oid = DDR_DMEM_UDIMM_2D_HASH_OID,
+		.opt = "ddr-dmmem-udimm-2d",
+		.help_msg = "DDR Firmware DMEM UDIMM 2D image file",
+		.sn = "DDR UDIMM DMEM 2D FirmwareHash",
+		.ln = "DDR UDIMM DMEM 2D Firmware hash (SHA256)",
+		.asn1_type = V_ASN1_OCTET_STRING,
+		.type = EXT_TYPE_HASH
+	},
+	[DDR_IMEM_RDIMM_1D_HASH_EXT] = {
+		.oid = DDR_IMEM_RDIMM_1D_HASH_OID,
+		.opt = "ddr-immem-rdimm-1d",
+		.help_msg = "DDR Firmware IMEM RDIMM 1D image file",
+		.sn = "DDR RDIMM IMEM 1D FirmwareHash",
+		.ln = "DDR RDIMM IMEM 1D Firmware hash (SHA256)",
+		.asn1_type = V_ASN1_OCTET_STRING,
+		.type = EXT_TYPE_HASH
+	},
+	[DDR_IMEM_RDIMM_2D_HASH_EXT] = {
+		.oid = DDR_IMEM_RDIMM_2D_HASH_OID,
+		.opt = "ddr-immem-rdimm-2d",
+		.help_msg = "DDR Firmware IMEM RDIMM 2D image file",
+		.sn = "DDR RDIMM IMEM 2D FirmwareHash",
+		.ln = "DDR RDIMM IMEM 2D Firmware hash (SHA256)",
+		.asn1_type = V_ASN1_OCTET_STRING,
+		.type = EXT_TYPE_HASH
+	},
+	[DDR_DMEM_RDIMM_1D_HASH_EXT] = {
+		.oid = DDR_DMEM_RDIMM_1D_HASH_OID,
+		.opt = "ddr-dmmem-rdimm-1d",
+		.help_msg = "DDR Firmware DMEM RDIMM 1D image file",
+		.sn = "DDR RDIMM DMEM 1D FirmwareHash",
+		.ln = "DDR RDIMM DMEM 1D Firmware hash (SHA256)",
+		.asn1_type = V_ASN1_OCTET_STRING,
+		.type = EXT_TYPE_HASH
+	},
+	[DDR_DMEM_RDIMM_2D_HASH_EXT] = {
+		.oid = DDR_DMEM_RDIMM_2D_HASH_OID,
+		.opt = "ddr-dmmem-rdimm-2d",
+		.help_msg = "DDR Firmware DMEM RDIMM 2D image file",
+		.sn = "DDR RDIMM DMEM 2D FirmwareHash",
+		.ln = "DDR RDIMM DMEM 2D Firmware hash (SHA256)",
+		.asn1_type = V_ASN1_OCTET_STRING,
+		.type = EXT_TYPE_HASH
 	}
 };
 

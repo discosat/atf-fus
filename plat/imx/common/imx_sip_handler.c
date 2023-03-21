@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+#include <arch.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <services/std_svc.h>
@@ -12,14 +13,21 @@
 #include <common/debug.h>
 #include <common/runtime_svc.h>
 #include <imx_sip_svc.h>
+#include <lib/mmio.h>
+#include <lib/el3_runtime/context_mgmt.h>
 #include <sci/sci.h>
-#include <errno.h>
 
 #if defined(PLAT_imx8qm) || defined(PLAT_imx8qx) || defined(PLAT_imx8dx) || defined(PLAT_imx8dxl)
 
 #ifdef PLAT_imx8qm
 const static int ap_cluster_index[PLATFORM_CLUSTER_COUNT] = {
+#if (defined COCKPIT_A53)
+	SC_R_A53,
+#elif (defined COCKPIT_A72)
+	SC_R_A72,
+#else
 	SC_R_A53, SC_R_A72,
+#endif
 };
 #endif
 
@@ -213,11 +221,17 @@ static uint64_t imx_get_commit_hash(u_register_t x2,
 			if (*(parse) == 'g') {
 				/* Default is 7 hexadecimal digits */
 				memcpy((void *)&hash, (void *)(parse + 1), 7);
-				break;
+				return hash;
 			}
 		}
 
 	} while (parse != NULL);
+
+	/* When no tag, the build string only contains commit and dirty */
+	parse = strchr(version_string, ':');
+	if (parse && *(parse + 1) != '\0') {
+		memcpy((void *)&hash, (void *)(parse + 1), 7);
+	}
 
 	return hash;
 }
@@ -241,6 +255,55 @@ uint64_t imx_buildinfo_handler(uint32_t smc_fid,
 	return ret;
 }
 
+int imx_kernel_entry_handler(uint32_t smc_fid,
+		u_register_t x1,
+		u_register_t x2,
+		u_register_t x3,
+		u_register_t x4)
+{
+	static entry_point_info_t bl33_image_ep_info;
+	entry_point_info_t *next_image_info;
+	unsigned int mode;
+
+	if (x1 < (PLAT_NS_IMAGE_OFFSET & 0xF0000000))
+		return SMC_UNK;
+
+	mode = MODE32_svc;
+
+	next_image_info = &bl33_image_ep_info;
+
+	next_image_info->pc = x1;
+
+	next_image_info->spsr = SPSR_MODE32(mode, SPSR_T_ARM, SPSR_E_LITTLE,
+			(DAIF_FIQ_BIT | DAIF_IRQ_BIT | DAIF_ABT_BIT));
+
+	next_image_info->args.arg0 = 0;
+	next_image_info->args.arg1 = 0;
+	next_image_info->args.arg2 = x3;
+
+	SET_SECURITY_STATE(next_image_info->h.attr, NON_SECURE);
+
+	cm_init_my_context(next_image_info);
+	cm_prepare_el3_exit(NON_SECURE);
+
+	return 0;
+}
+
+#if defined(PLAT_imx8ulp)
+int imx_hifi_xrdc(uint32_t smc_fid)
+{
+#define mmio_setbits32(addr, set)              mmio_write_32(addr, mmio_read_32(addr) | (set))
+#define mmio_clrbits32(addr, clear)            mmio_write_32(addr, mmio_read_32(addr) & ~(clear))
+	mmio_setbits32(0x2da50008, BIT_32(19) | BIT_32(17) | BIT_32(18));
+	mmio_clrbits32(0x2da50008, BIT_32(16));
+
+	extern int xrdc_apply_hifi_config(void);
+	xrdc_apply_hifi_config();
+
+	return 0;
+}
+#endif
+
 #if SC_CONSOLE
 int putchar(int c)
 {
@@ -250,25 +313,3 @@ int putchar(int c)
 	return c;
 }
 #endif
-
-int fips_config_handler(uint32_t smc_fid,
-			u_register_t x1,
-			u_register_t x2,
-			u_register_t x3,
-			u_register_t x4)
-{
-	sc_err_t sc_err = SC_ERR_NOTFOUND;
-	uint8_t cmd = x1;
-	uint8_t mode;
-
-	switch (cmd) {
-	case IMX_SIP_FIPS_CONFIG_SET:
-		mode = x2;
-		sc_err = sc_seco_set_fips_mode(ipc_handle, mode, NULL);
-		break;
-	default:
-		break;
-	}
-
-	return (sc_err == SC_ERR_NONE) ? 0 : -EINVAL;
-}

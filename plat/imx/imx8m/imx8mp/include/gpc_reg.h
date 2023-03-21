@@ -82,6 +82,10 @@
 #define MASTER1_MAPPING			BIT(1)
 #define MASTER2_MAPPING			BIT(2)
 
+#define TMR_TCD2_SHIFT			0
+#define TMC_TMR_SHIFT			10
+#define TRC1_TMC_SHIFT			20
+
 #define MIPI_PHY1_PWR_REQ		BIT(0)
 #define PCIE_PHY_PWR_REQ		BIT(1)
 #define USB1_PHY_PWR_REQ		BIT(2)
@@ -142,6 +146,6 @@
 #define MEDIAMIX_ISPDWP_PGC		0xf80
 #define DDRMIX_PGC			0xfc0
 
-#define IRQ_IMR_NUM			5U
+#define IRQ_IMR_NUM			U(5)
 
 #endif /* GPC_REG_H */

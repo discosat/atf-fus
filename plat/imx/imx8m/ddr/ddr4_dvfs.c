@@ -150,9 +150,9 @@ void sw_pstate(uint32_t pstate, uint32_t drate)
 		;
 }
 
-void ddr4_swffc(struct dram_info *dram_info, unsigned int pstate)
+void ddr4_swffc(struct dram_info *info, unsigned int pstate)
 {
-	uint32_t drate = dram_info->timing_info->fsp_table[pstate];
+	uint32_t drate = info->timing_info->fsp_table[pstate];
 
 	/*
 	 * 1. set SWCTL.sw_done to disable quasi-dynamic register
@@ -218,7 +218,7 @@ void ddr4_swffc(struct dram_info *dram_info, unsigned int pstate)
 		;
 
 	sw_pstate(pstate, drate);
-	dram_cfg_all_mr(dram_info, pstate);
+	dram_cfg_all_mr(info, pstate);
 
 	/* 23. Enable HIF commands by setting DBG1.dis_hif=0. */
 	mmio_clrbits_32(DDRC_DBG1(0), (0x1 << 1));

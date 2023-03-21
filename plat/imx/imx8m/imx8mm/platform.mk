@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2019, ARM Limited and Contributors. All rights reserved.
+# Copyright (c) 2019-2020, ARM Limited and Contributors. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -11,17 +11,16 @@ PLAT_INCLUDES		:=	-Iplat/imx/common/include		\
 				-Iplat/imx/imx8m/include		\
 				-Iplat/imx/imx8m/imx8mm/include
 
+# Include GICv3 driver files
+include drivers/arm/gic/v3/gicv3.mk
+
 IMX_DRAM_SOURCES	:=	plat/imx/imx8m/ddr/dram.c		\
 				plat/imx/imx8m/ddr/clock.c		\
 				plat/imx/imx8m/ddr/dram_retention.c	\
 				plat/imx/imx8m/ddr/ddr4_dvfs.c		\
 				plat/imx/imx8m/ddr/lpddr4_dvfs.c
 
-IMX_GIC_SOURCES		:=	drivers/arm/gic/v3/gicv3_helpers.c	\
-				drivers/arm/gic/v3/arm_gicv3_common.c   \
-				drivers/arm/gic/v3/gic500.c             \
-				drivers/arm/gic/v3/gicv3_main.c		\
-				drivers/arm/gic/common/gic_common.c	\
+IMX_GIC_SOURCES		:=	${GICV3_SOURCES}			\
 				plat/common/plat_gicv3.c		\
 				plat/common/plat_psci_common.c		\
 				plat/imx/common/plat_imx8_gic.c
@@ -62,6 +61,9 @@ $(eval $(call add_define,BL32_BASE))
 
 BL32_SIZE		?=	0x2000000
 $(eval $(call add_define,BL32_SIZE))
+
+IMX_BOOT_UART_BASE	?=	0x30890000
+$(eval $(call add_define,IMX_BOOT_UART_BASE))
 
 ifeq (${SPD},trusty)
 	BL31_CFLAGS    +=      -DPLAT_XLAT_TABLES_DYNAMIC=1

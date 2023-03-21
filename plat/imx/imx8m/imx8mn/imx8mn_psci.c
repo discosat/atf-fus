@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 NXP
+ * Copyright 2019-2020 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -9,7 +9,6 @@
 #include <arch.h>
 #include <arch_helpers.h>
 #include <common/debug.h>
-#include <lib/mmio.h>
 #include <lib/psci/psci.h>
 
 #include <gpc.h>

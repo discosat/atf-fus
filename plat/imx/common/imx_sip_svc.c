@@ -10,6 +10,7 @@
 #include <lib/pmf/pmf.h>
 #include <tools_share/uuid.h>
 #include <imx_sip_svc.h>
+#include <drivers/scmi-msg.h>
 
 static int32_t imx_sip_setup(void)
 {
@@ -26,6 +27,18 @@ static uintptr_t imx_sip_handler(unsigned int smc_fid,
 			u_register_t flags)
 {
 	switch (smc_fid) {
+	case IMX_SIP_AARCH32:
+		SMC_RET1(handle, imx_kernel_entry_handler(smc_fid, x1, x2, x3, x4));
+		break;
+#if defined(PLAT_imx8ulp)
+	case IMX_SIP_SCMI:
+		scmi_smt_fastcall_smc_entry(0);
+		SMC_RET1(handle, 0);
+		break;
+	case IMX_SIP_HIFI_XRDC:
+		SMC_RET1(handle, imx_hifi_xrdc(smc_fid));
+		break;
+#endif
 #if defined(PLAT_imx8mq)
 	case IMX_SIP_GET_SOC_INFO:
 		SMC_RET1(handle, imx_soc_info_handler(smc_fid, x1, x2, x3));
@@ -71,10 +84,6 @@ static uintptr_t imx_sip_handler(unsigned int smc_fid,
 		return imx_otp_handler(smc_fid, handle, x1, x2);
 	case IMX_SIP_MISC_SET_TEMP:
 		SMC_RET1(handle, imx_misc_set_temp_handler(smc_fid, x1, x2, x3, x4));
-#ifdef FIPS_CONFIG
-	case IMX_SIP_FIPS_CONFIG:
-		SMC_RET1(handle, fips_config_handler(smc_fid, x1, x2, x3, x4));
-#endif
 #endif
 	case  IMX_SIP_BUILDINFO:
 		SMC_RET1(handle, imx_buildinfo_handler(smc_fid, x1, x2, x3, x4));

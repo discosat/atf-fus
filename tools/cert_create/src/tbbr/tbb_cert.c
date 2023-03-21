@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2018, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2020, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -28,9 +28,10 @@ static cert_t tbb_certs[] = {
 			TRUSTED_FW_NVCOUNTER_EXT,
 			TRUSTED_BOOT_FW_HASH_EXT,
 			TRUSTED_BOOT_FW_CONFIG_HASH_EXT,
-			HW_CONFIG_HASH_EXT
+			HW_CONFIG_HASH_EXT,
+			FW_CONFIG_HASH_EXT
 		},
-		.num_ext = 4
+		.num_ext = 5
 	},
 	[TRUSTED_KEY_CERT] = {
 		.id = TRUSTED_KEY_CERT,
@@ -164,6 +165,27 @@ static cert_t tbb_certs[] = {
 		},
 		.num_ext = 3
 	},
+	[SIP_SECURE_PARTITION_CONTENT_CERT] = {
+		.id = SIP_SECURE_PARTITION_CONTENT_CERT,
+		.opt = "sip-sp-cert",
+		.help_msg = "SiP owned Secure Partition Content Certificate (output file)",
+		.fn = NULL,
+		.cn = "SiP owned Secure Partition Content Certificate",
+		.key = TRUSTED_WORLD_KEY,
+		.issuer = SIP_SECURE_PARTITION_CONTENT_CERT,
+		.ext = {
+			TRUSTED_FW_NVCOUNTER_EXT,
+			SP_PKG1_HASH_EXT,
+			SP_PKG2_HASH_EXT,
+			SP_PKG3_HASH_EXT,
+			SP_PKG4_HASH_EXT,
+			SP_PKG5_HASH_EXT,
+			SP_PKG6_HASH_EXT,
+			SP_PKG7_HASH_EXT,
+			SP_PKG8_HASH_EXT,
+		},
+		.num_ext = 9
+	},
 	[FWU_CERT] = {
 		.id = FWU_CERT,
 		.opt = "fwu-cert",
@@ -178,6 +200,54 @@ static cert_t tbb_certs[] = {
 			FWU_HASH_EXT
 		},
 		.num_ext = 3
+	},
+	[DDR_FW_KEY_CERT] = {
+		.id = DDR_FW_KEY_CERT,
+		.opt = "ddr-fw-key-cert",
+		.help_msg = "DDR Firmware Key Certificate (output file)",
+		.fn = NULL,
+		.cn = "DDR Firmware Key Certificate",
+		.key = TRUSTED_WORLD_KEY,
+		.issuer = DDR_FW_KEY_CERT,
+		.ext = {
+			TRUSTED_FW_NVCOUNTER_EXT,
+			DDR_FW_CONTENT_CERT_PK_EXT
+		},
+		.num_ext = 2
+	},
+	[DDR_UDIMM_FW_CONTENT_CERT] = {
+		.id = DDR_UDIMM_FW_CONTENT_CERT,
+		.opt = "ddr-udimm-fw-cert",
+		.help_msg = "DDR UDIMM Firmware Content Certificate (output file)",
+		.fn = NULL,
+		.cn = "DDR UDIMM Firmware Content Certificate",
+		.key = DDR_FW_CONTENT_KEY,
+		.issuer = DDR_UDIMM_FW_CONTENT_CERT,
+		.ext = {
+			TRUSTED_FW_NVCOUNTER_EXT,
+			DDR_IMEM_UDIMM_1D_HASH_EXT,
+			DDR_IMEM_UDIMM_2D_HASH_EXT,
+			DDR_DMEM_UDIMM_1D_HASH_EXT,
+			DDR_DMEM_UDIMM_2D_HASH_EXT
+		},
+		.num_ext = 5
+	},
+	[DDR_RDIMM_FW_CONTENT_CERT] = {
+		.id = DDR_RDIMM_FW_CONTENT_CERT,
+		.opt = "ddr-rdimm-fw-cert",
+		.help_msg = "DDR RDIMM Firmware Content Certificate (output file)",
+		.fn = NULL,
+		.cn = "DDR RDIMM Firmware Content Certificate",
+		.key = DDR_FW_CONTENT_KEY,
+		.issuer = DDR_RDIMM_FW_CONTENT_CERT,
+		.ext = {
+			TRUSTED_FW_NVCOUNTER_EXT,
+			DDR_IMEM_RDIMM_1D_HASH_EXT,
+			DDR_IMEM_RDIMM_2D_HASH_EXT,
+			DDR_DMEM_RDIMM_1D_HASH_EXT,
+			DDR_DMEM_RDIMM_2D_HASH_EXT
+		},
+		.num_ext = 5
 	}
 };
 

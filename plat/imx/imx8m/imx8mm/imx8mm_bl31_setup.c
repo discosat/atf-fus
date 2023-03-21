@@ -60,6 +60,7 @@ static const struct imx_rdc_cfg rdc[] = {
 	/* peripherals domain permission */
 	RDC_PDAPn(RDC_PDAP_UART4, D1R | D1W),
 	RDC_PDAPn(RDC_PDAP_UART2, D0R | D0W | D1R | D1W),
+	RDC_PDAPn(RDC_PDAP_UART1, D0R | D0W),
 
 	/* memory region */
 
@@ -130,7 +131,7 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 		u_register_t arg2, u_register_t arg3)
 {
 #if DEBUG_CONSOLE
-	static console_uart_t console;
+	static console_t console;
 #endif
 	int i;
 
@@ -150,7 +151,7 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 	console_imx_uart_register(IMX_BOOT_UART_BASE, IMX_BOOT_UART_CLK_IN_HZ,
 		IMX_CONSOLE_BAUDRATE, &console);
 	/* This console is only used for boot stage */
-	console_set_scope(&console.console, CONSOLE_FLAG_BOOT);
+	console_set_scope(&console, CONSOLE_FLAG_BOOT);
 #endif
 	/*
 	 * tell BL3-1 where the non-secure software image is located

@@ -4,34 +4,32 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include <stdlib.h>
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
 
 #include <common/debug.h>
 #include <drivers/arm/tzc380.h>
 #include <drivers/delay_timer.h>
 #include <lib/mmio.h>
 #include <lib/psci/psci.h>
-#include <lib/smccc.h>
-#include <platform_def.h>
-#include <services/std_svc.h>
 
 #include <gpc.h>
+#include <imx_aipstz.h>
 #include <imx_sip_svc.h>
+#include <platform_def.h>
 #include <plat_imx8.h>
 
-#define FSL_SIP_CONFIG_GPC_PM_DOMAIN	0x03
+#define CCGR(x)		(0x4000 + (x) * 0x10)
 #define IMR_NUM		U(5)
-#define CCGR(x)		(0x4000 + (x) * 16)
 
 struct imx_noc_setting {
-       uint32_t domain_id;
-       uint32_t start;
-       uint32_t end;
-       uint32_t prioriy;
-       uint32_t mode;
-       uint32_t socket_qos_en;
+	uint32_t domain_id;
+	uint32_t start;
+	uint32_t end;
+	uint32_t prioriy;
+	uint32_t mode;
+	uint32_t socket_qos_en;
 };
 
 enum clk_type {
@@ -75,42 +73,40 @@ enum pu_domain_id {
 
 /* PU domain, add some hole to minimize the uboot change */
 static struct imx_pwr_domain pu_domains[20] = {
-	[MIPI_PHY1] = IMX_PD_DOMAIN(MIPI_PHY1),
-	[PCIE_PHY] = IMX_PD_DOMAIN(PCIE_PHY),
-	[USB1_PHY] = IMX_PD_DOMAIN(USB1_PHY),
-	[USB2_PHY] = IMX_PD_DOMAIN(USB2_PHY),
-	[MLMIX] = IMX_MIX_DOMAIN(MLMIX),
-	[AUDIOMIX] = IMX_MIX_DOMAIN(AUDIOMIX),
-	[GPU2D] = IMX_PD_DOMAIN(GPU2D),
-	[GPUMIX] = IMX_MIX_DOMAIN(GPUMIX),
-	[VPUMIX] = IMX_MIX_DOMAIN(VPUMIX),
-	[GPU3D] = IMX_PD_DOMAIN(GPU3D),
-	[MEDIAMIX] = IMX_MIX_DOMAIN(MEDIAMIX),
-	[VPU_G1] = IMX_PD_DOMAIN(VPU_G1),
-	[VPU_G2] = IMX_PD_DOMAIN(VPU_G2),
-	[VPU_H1] = IMX_PD_DOMAIN(VPU_H1),
-	[HDMIMIX] = IMX_MIX_DOMAIN(HDMIMIX),
-	[HDMI_PHY] = IMX_PD_DOMAIN(HDMI_PHY),
-	[MIPI_PHY2] = IMX_PD_DOMAIN(MIPI_PHY2),
-	[HSIOMIX] = IMX_MIX_DOMAIN(HSIOMIX),
-	[MEDIAMIX_ISPDWP] = IMX_PD_DOMAIN(MEDIAMIX_ISPDWP),
+	[MIPI_PHY1] = IMX_PD_DOMAIN(MIPI_PHY1, false),
+	[PCIE_PHY] = IMX_PD_DOMAIN(PCIE_PHY, false),
+	[USB1_PHY] = IMX_PD_DOMAIN(USB1_PHY, true),
+	[USB2_PHY] = IMX_PD_DOMAIN(USB2_PHY, true),
+	[MLMIX] = IMX_MIX_DOMAIN(MLMIX, false),
+	[AUDIOMIX] = IMX_MIX_DOMAIN(AUDIOMIX, false),
+	[GPU2D] = IMX_PD_DOMAIN(GPU2D, false),
+	[GPUMIX] = IMX_MIX_DOMAIN(GPUMIX, false),
+	[VPUMIX] = IMX_MIX_DOMAIN(VPUMIX, false),
+	[GPU3D] = IMX_PD_DOMAIN(GPU3D, false),
+	[MEDIAMIX] = IMX_MIX_DOMAIN(MEDIAMIX, false),
+	[VPU_G1] = IMX_PD_DOMAIN(VPU_G1, false),
+	[VPU_G2] = IMX_PD_DOMAIN(VPU_G2, false),
+	[VPU_H1] = IMX_PD_DOMAIN(VPU_H1, false),
+	[HDMIMIX] = IMX_MIX_DOMAIN(HDMIMIX, false),
+	[HDMI_PHY] = IMX_PD_DOMAIN(HDMI_PHY, false),
+	[MIPI_PHY2] = IMX_PD_DOMAIN(MIPI_PHY2, false),
+	[HSIOMIX] = IMX_MIX_DOMAIN(HSIOMIX, false),
+	[MEDIAMIX_ISPDWP] = IMX_PD_DOMAIN(MEDIAMIX_ISPDWP, false),
 };
 
 static struct imx_noc_setting noc_setting[] = {
-	{ MLMIX, 0x180, 0x180, 0x80000303, 0x0, 0x0},
-	{ AUDIOMIX, 0x200, 0x200, 0x80000303, 0x0, 0x0},
-	{ AUDIOMIX, 0x280, 0x480, 0x80000404, 0x0, 0x0},
-	{ GPUMIX, 0x500, 0x580, 0x80000303, 0x0, 0x0},
-	{ HDMIMIX, 0x600, 0x680, 0x80000202, 0x0, 0x1},
-	{ HDMIMIX, 0x700, 0x700, 0x80000505, 0x0, 0x0},
-	{ HSIOMIX, 0x780, 0x900, 0x80000303, 0x0, 0x0},
-	{ MEDIAMIX, 0x980, 0xb80, 0x80000202, 0x0, 0x1},
-	{ MEDIAMIX_ISPDWP, 0xc00, 0xd00, 0x80000707, 0x0, 0x0},
-	//can't access VPU NoC if only power up VPUMIX,
-	//need to power up both NoC and IP
-	{ VPU_G1, 0xd80, 0xd80, 0x80000303, 0x0, 0x0},
-	{ VPU_G2, 0xe00, 0xe00, 0x80000303, 0x0, 0x0},
-	{ VPU_H1, 0xe80, 0xe80, 0x80000303, 0x0, 0x0}
+	{MLMIX, 0x180, 0x180, 0x80000303, 0x0, 0x0},
+	{AUDIOMIX, 0x200, 0x200, 0x80000303, 0x0, 0x0},
+	{AUDIOMIX, 0x280, 0x480, 0x80000404, 0x0, 0x0},
+	{GPUMIX, 0x500, 0x580, 0x80000303, 0x0, 0x0},
+	{HDMIMIX, 0x600, 0x680, 0x80000202, 0x0, 0x1},
+	{HDMIMIX, 0x700, 0x700, 0x80000505, 0x0, 0x0},
+	{HSIOMIX, 0x780, 0x900, 0x80000303, 0x0, 0x0},
+	{MEDIAMIX, 0x980, 0xb80, 0x80000202, 0x0, 0x1},
+	{MEDIAMIX_ISPDWP, 0xc00, 0xd00, 0x80000707, 0x0, 0x0},
+	{VPU_G1, 0xd80, 0xd80, 0x80000303, 0x0, 0x0},
+	{VPU_G2, 0xe00, 0xe00, 0x80000303, 0x0, 0x0},
+	{VPU_H1, 0xe80, 0xe80, 0x80000303, 0x0, 0x0}
 };
 
 static struct clk_setting hsiomix_clk[] = {
@@ -119,115 +115,89 @@ static struct clk_setting hsiomix_clk[] = {
 	{ 0x45c0, 0x0, CCM_CCGR },
 };
 
+static struct aipstz_cfg aipstz5[] = {
+	{IMX_AIPSTZ5, 0x77777777, 0x77777777, .opacr = {0x0, 0x0, 0x0, 0x0, 0x0}, },
+	{0},
+};
+
 static unsigned int pu_domain_status;
 
-static void imx_config_noc(uint32_t domain_id)
+static void imx_noc_qos(unsigned int domain_id)
 {
-	int i;
+	unsigned int i;
 	uint32_t hurry;
 
 	if (domain_id == HDMIMIX) {
-		mmio_write_32(0x32fc0220, 0x22018);
-		mmio_write_32(0x32fc0220, 0x22010);
+		mmio_write_32(IMX_HDMI_CTL_BASE + TX_CONTROL1, 0x22018);
+		mmio_write_32(IMX_HDMI_CTL_BASE + TX_CONTROL1, 0x22010);
 
-		//set GPR to make lcdif read hurry level 0x7
-		hurry = mmio_read_32 (0x32fc0200);
+		/* set GPR to make lcdif read hurry level 0x7 */
+		hurry = mmio_read_32(IMX_HDMI_CTL_BASE + TX_CONTROL0);
 		hurry |= 0x00077000;
-		mmio_write_32 (0x32fc0200, hurry);
+		mmio_write_32(IMX_HDMI_CTL_BASE + TX_CONTROL0, hurry);
 	}
 
 	if (domain_id == MEDIAMIX) {
-              /* handle mediamix special */
-              mmio_write_32(0x32ec0000, 0x1FFFFFF);
-              mmio_write_32(0x32ec0004, 0x1FFFFFF);
-              mmio_write_32(0x32ec0008, 0x40030000);
+		/* handle mediamix special */
+		mmio_write_32(IMX_MEDIAMIX_CTL_BASE + RSTn_CSR, 0x1FFFFFF);
+		mmio_write_32(IMX_MEDIAMIX_CTL_BASE + CLK_EN_CSR, 0x1FFFFFF);
+		mmio_write_32(IMX_MEDIAMIX_CTL_BASE + RST_DIV, 0x40030000);
 
-              //set GPR to make lcdif read hurry level 0x7
-              hurry = mmio_read_32 (0x32ec004c);
-              hurry |= 0xfc00;
-              mmio_write_32 (0x32ec004c, hurry);
-              //set GPR to make isi write hurry level 0x7
-              hurry = mmio_read_32 (0x32ec0050);
-              hurry |= 0x1ff00000;
-              mmio_write_32 (0x32ec0050, hurry);
+		/* set GPR to make lcdif read hurry level 0x7 */
+		hurry = mmio_read_32(IMX_MEDIAMIX_CTL_BASE + LCDIF_ARCACHE_CTRL);
+		hurry |= 0xfc00;
+		mmio_write_32(IMX_MEDIAMIX_CTL_BASE + LCDIF_ARCACHE_CTRL, hurry);
+		/* set GPR to make isi write hurry level 0x7 */
+		hurry = mmio_read_32(IMX_MEDIAMIX_CTL_BASE + ISI_CACHE_CTRL);
+		hurry |= 0x1ff00000;
+		mmio_write_32(IMX_MEDIAMIX_CTL_BASE + ISI_CACHE_CTRL, hurry);
 	}
 
 	/* set MIX NoC */
-	for (i=0; i<sizeof(noc_setting)/sizeof(struct imx_noc_setting); i++) {
+	for (i = 0; i < ARRAY_SIZE(noc_setting); i++) {
 		if (noc_setting[i].domain_id == domain_id) {
 			udelay(50);
 			uint32_t offset = noc_setting[i].start;
+
 			while (offset <= noc_setting[i].end) {
-				mmio_write_32 (0x32700000 + offset + 0x8, noc_setting[i].prioriy);
-				mmio_write_32 (0x32700000 + offset + 0xc, noc_setting[i].mode);
-				mmio_write_32 (0x32700000 + offset + 0x18, noc_setting[i].socket_qos_en);
+				mmio_write_32(IMX_NOC_BASE + offset + 0x8, noc_setting[i].prioriy);
+				mmio_write_32(IMX_NOC_BASE + offset + 0xc, noc_setting[i].mode);
+				mmio_write_32(IMX_NOC_BASE + offset + 0x18, noc_setting[i].socket_qos_en);
 				offset += 0x80;
 			}
 		}
 	}
 }
 
-void imx_aips5_init(void)
-{
-	/* config the AIPSTZ5, since it depends on power up audio mix */
-	mmio_write_32(0x30df0000, 0x77777777);
-	mmio_write_32(0x30df0004, 0x77777777);
-	mmio_write_32(0x30df0040, 0x0);
-	mmio_write_32(0x30df0044, 0x0);
-	mmio_write_32(0x30df0048, 0x0);
-	mmio_write_32(0x30df004c, 0x0);
-	mmio_write_32(0x30df0050, 0x0);
-}
-
-void wait_memrepair_done(uint32_t domain_id)
-{
-	switch(domain_id) {
-	case HDMIMIX:
-		mmio_clrsetbits_32(IMX_SRC_BASE + 0x94, 0x7 << 4, 0x0 << 4);
-		break;
-	case AUDIOMIX:
-		mmio_clrsetbits_32(IMX_SRC_BASE + 0x94, 0x7 << 4, 0x1 << 4);
-		break;
-	case MLMIX:
-		mmio_clrsetbits_32(IMX_SRC_BASE + 0x94, 0x7 << 4, 0x2 << 4);
-		break;
-	case VPU_G1:
-		mmio_clrsetbits_32(IMX_SRC_BASE + 0x94, 0x7 << 4, 0x4 << 4);
-		break;
-	case VPU_H1:
-		mmio_clrsetbits_32(IMX_SRC_BASE + 0x94, 0x7 << 4, 0x5 << 4);
-		break;
-	default:
-		return;
-	}
-
-	do {
-	} while (!(mmio_read_32(IMX_SRC_BASE + 0x94) & BIT(8)));
-}
-
 void imx_gpc_pm_domain_enable(uint32_t domain_id, bool on)
 {
-	struct imx_pwr_domain *pwr_domain = &pu_domains[domain_id];
-	int i;
+	struct imx_pwr_domain *pwr_domain;
+	unsigned int i;
+
+	if (domain_id >= ARRAY_SIZE(pu_domains))
+		return;
+
+	pwr_domain = &pu_domains[domain_id];
 
 	if (domain_id == HSIOMIX) {
 		for (i = 0; i < ARRAY_SIZE(hsiomix_clk); i++) {
 			hsiomix_clk[i].val = mmio_read_32(IMX_CCM_BASE + hsiomix_clk[i].offset);
-				mmio_setbits_32(IMX_CCM_BASE + hsiomix_clk[i].offset,
+			mmio_setbits_32(IMX_CCM_BASE + hsiomix_clk[i].offset,
 					hsiomix_clk[i].type == CCM_ROOT_SLICE ? BIT(28) : 0x3);
-			}
+		}
 	}
 
 	if (on) {
-		if (pwr_domain->need_sync)
+		if (pwr_domain->need_sync) {
 			pu_domain_status |= (1 << domain_id);
+		}
 
 		if (domain_id == HDMIMIX) {
 			/* assert the reset */
-			mmio_write_32(0x32fc0020, 0x0);
+			mmio_write_32(IMX_HDMI_CTL_BASE + RTX_RESET_CTL0, 0x0);
 			/* enable all th function clock */
-			mmio_write_32(0x32fc0040, 0xFFFFFFFF);
-			mmio_write_32(0x32fc0050, 0x7ffff87e);
+			mmio_write_32(IMX_HDMI_CTL_BASE + RTX_CLK_CTL0, 0xFFFFFFFF);
+			mmio_write_32(IMX_HDMI_CTL_BASE + RTX_CLK_CTL1, 0x7ffff87e);
 		}
 
 		if (domain_id == VPU_H1)
@@ -240,31 +210,33 @@ void imx_gpc_pm_domain_enable(uint32_t domain_id, bool on)
 		mmio_setbits_32(IMX_GPC_BASE + PU_PGC_UP_TRG, pwr_domain->pwr_req);
 
 		/* wait for power request done */
-		while (mmio_read_32(IMX_GPC_BASE + PU_PGC_UP_TRG) & pwr_domain->pwr_req);
-
-		/* wait for memory repair done */
-		wait_memrepair_done(domain_id);
+		while (mmio_read_32(IMX_GPC_BASE + PU_PGC_UP_TRG) & pwr_domain->pwr_req)
+			;
 
 		if (domain_id == HDMIMIX) {
+			/* wait for memory repair done for HDMIMIX */
+			while (!(mmio_read_32(IMX_SRC_BASE + 0x94) & BIT(8)))
+				;
 			/* disable all the function clock */
-			mmio_write_32(0x32fc0040, 0x0);
-			mmio_write_32(0x32fc0050, 0x0);
+			mmio_write_32(IMX_HDMI_CTL_BASE + RTX_CLK_CTL0, 0x0);
+			mmio_write_32(IMX_HDMI_CTL_BASE + RTX_CLK_CTL1, 0x0);
 			/* deassert the reset */
-			mmio_write_32(0x32fc0020, 0xffffffff);
+			mmio_write_32(IMX_HDMI_CTL_BASE + RTX_RESET_CTL0, 0xffffffff);
 			/* enable all the clock again */
-			mmio_write_32(0x32fc0040, 0xFFFFFFFF);
-			mmio_write_32(0x32fc0050, 0x7ffff87e);
+			mmio_write_32(IMX_HDMI_CTL_BASE + RTX_CLK_CTL0, 0xFFFFFFFF);
+			mmio_write_32(IMX_HDMI_CTL_BASE + RTX_CLK_CTL1, 0x7ffff87e);
 		}
 
-		if (domain_id == HSIOMIX)
+		if (domain_id == HSIOMIX) {
 			/* enable HSIOMIX clock */
-			mmio_write_32 (0x32f10000, 0x2);
+			mmio_write_32(IMX_HSIOMIX_CTL_BASE, 0x2);
+		}
 
 		if (domain_id == VPU_H1)
 			mmio_setbits_32(IMX_VPU_BLK_BASE + 0x4, BIT(2));
 
 		/* handle the ADB400 sync */
-		if (!pwr_domain->init_on && pwr_domain->need_sync) {
+		if (pwr_domain->need_sync) {
 			/* clear adb power down request */
 			mmio_setbits_32(IMX_GPC_BASE + GPC_PU_PWRHSK, pwr_domain->adb400_sync);
 
@@ -273,24 +245,30 @@ void imx_gpc_pm_domain_enable(uint32_t domain_id, bool on)
 				;
 		}
 
-		imx_config_noc(domain_id);
+		imx_noc_qos(domain_id);
 
 		/* AIPS5 config is lost when audiomix is off, so need to re-init it */
-		if (domain_id == AUDIOMIX)
-			imx_aips5_init();
+		if (domain_id == AUDIOMIX) {
+			imx_aipstz_init(aipstz5);
+		}
 	} else {
+		if (pwr_domain->always_on) {
+			return;
+		}
+
 		if (imx_m4_lpa_active() && domain_id == AUDIOMIX)
 			return;
  
-		/* keep the USB PHY always on currently */
-		if (domain_id == USB1_PHY || domain_id == USB2_PHY)
-			return;
-
-		if (pwr_domain->need_sync)
+		if (pwr_domain->need_sync) {
 			pu_domain_status &= ~(1 << domain_id);
+		}
+
+		if (domain_id == HDMIMIX) {
+			mmio_setbits_32(0x32fc0040, 0xc02);
+		}
 
 		/* handle the ADB400 sync */
-		if (!pwr_domain->init_on && pwr_domain->need_sync) {
+		if (pwr_domain->need_sync) {
 			/* set adb power down request */
 			mmio_clrbits_32(IMX_GPC_BASE + GPC_PU_PWRHSK, pwr_domain->adb400_sync);
 
@@ -306,21 +284,21 @@ void imx_gpc_pm_domain_enable(uint32_t domain_id, bool on)
 		mmio_setbits_32(IMX_GPC_BASE + PU_PGC_DN_TRG, pwr_domain->pwr_req);
 
 		/* wait for power request done */
-		while (mmio_read_32(IMX_GPC_BASE + PU_PGC_DN_TRG) & pwr_domain->pwr_req);
+		while (mmio_read_32(IMX_GPC_BASE + PU_PGC_DN_TRG) & pwr_domain->pwr_req)
+			;
 
 		if (domain_id == HDMIMIX) {
 			/* disable all the clocks of HDMIMIX */
-			mmio_write_32(0x32fc0040, 0x0);
-			mmio_write_32(0x32fc0050, 0x0);
+			mmio_write_32(IMX_HDMI_CTL_BASE + 0x40, 0x0);
+			mmio_write_32(IMX_HDMI_CTL_BASE + 0x50, 0x0);
 		}
 	}
 
 	if (domain_id == HSIOMIX) {
-		for (i = 0; i < ARRAY_SIZE(hsiomix_clk); i++)
+		for (i = 0; i < ARRAY_SIZE(hsiomix_clk); i++) {
 			mmio_write_32(IMX_CCM_BASE + hsiomix_clk[i].offset, hsiomix_clk[i].val);
+		}
 	}
-
-	pwr_domain->init_on = false;
 }
 
 static void imx8mm_tz380_init(void)
@@ -394,8 +372,8 @@ uint32_t pd_init_on[] = {
 
 void imx_gpc_init(void)
 {
-	unsigned int val;
-	int i;
+	uint32_t val;
+	unsigned int i;
 
 	/* mask all the wakeup irq by default */
 	for (i = 0; i < IMR_NUM; i++) {
@@ -408,9 +386,9 @@ void imx_gpc_init(void)
 
 	val = mmio_read_32(IMX_GPC_BASE + LPCR_A53_BSC);
 	/* use GIC wake_request to wakeup C0~C3 from LPM */
-	val |= 0x30c00000;
+	val |= CORE_WKUP_FROM_GIC;
 	/* clear the MASTER0 LPM handshake */
-	val &= ~(1 << 6);
+	val &= ~MASTER0_LPM_HSK;
 	mmio_write_32(IMX_GPC_BASE + LPCR_A53_BSC, val);
 
 	/* clear MASTER1 & MASTER2 mapping in CPU0(A53) */
@@ -433,7 +411,7 @@ void imx_gpc_init(void)
 	mmio_write_32(IMX_GPC_BASE + COREx_PGC_PCR(3) + 0x4, 0x401);
 	mmio_write_32(IMX_GPC_BASE + PLAT_PGC_PCR + 0x4, 0x401);
 	mmio_write_32(IMX_GPC_BASE + PGC_SCU_TIMING,
-		      (0x59 << 10) | 0x5B | (0x2 << 20));
+		      (0x59 << TMC_TMR_SHIFT) | 0x5B | (0x2 << TRC1_TMC_SHIFT));
 
 	/* set DUMMY PDN/PUP ACK by default for A53 domain */
 	mmio_write_32(IMX_GPC_BASE + PGC_ACK_SEL_A53,
@@ -449,7 +427,7 @@ void imx_gpc_init(void)
 	val &= ~(0x3f << SLPCR_RBC_COUNT_SHIFT);
 	/* set the STBY_COUNT to 0x5, (128 * 30)us */
 	val &= ~(0x7 << SLPCR_STBY_COUNT_SHFT);
-	val |= (0x7 << SLPCR_STBY_COUNT_SHFT);
+	val |= (0x5 << SLPCR_STBY_COUNT_SHFT);
 	mmio_write_32(IMX_GPC_BASE + SLPCR, val);
 
 	/*
@@ -460,12 +438,10 @@ void imx_gpc_init(void)
 	mmio_clrbits_32(IMX_SRC_BASE + SRC_OTG1PHY_SCR, 0x1);
 	mmio_clrbits_32(IMX_SRC_BASE + SRC_OTG2PHY_SCR, 0x1);
 
-	/* enable all power domain by default for bringup purpose */
-	mmio_write_32(0x303844f0, 0x3);
-	mmio_write_32(0x30384570, 0x3);
-
-	for (i = 0; i < 102; i++)
-		mmio_write_32(0x30384000 + i * 16, 0x3);
+	/* enable all the power domain by default */
+	for (i = 0; i < 101; i++) {
+		mmio_write_32(IMX_CCM_BASE + CCGR(i), 0x3);
+	}
 
 	for (i = 0; i < ARRAY_SIZE(pd_init_on); i++)
 		imx_gpc_pm_domain_enable(pd_init_on[i], true);

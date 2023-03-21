@@ -18,6 +18,13 @@ You can find additional definitions in the `Arm Glossary`_.
    API
       Application Programming Interface
 
+   AT
+      Address Translation
+
+   BTI
+      Branch Target Identification. An Armv8.5 extension providing additional
+      control flow integrity around indirect branches and their targets.
+
    CoT
    COT
       Chain of Trust
@@ -32,8 +39,14 @@ You can find additional definitions in the `Arm Glossary`_.
    DS-5
       Arm Development Studio 5
 
+   DSU
+      DynamIQ Shared Unit
+
    DT
       Device Tree
+
+   DTB
+      Device Tree Blob
 
    EL
       Exception Level
@@ -41,8 +54,14 @@ You can find additional definitions in the `Arm Glossary`_.
    EHF
       Exception Handling Framework
 
+   FCONF
+      Firmware Configuration Framework
+
    FDT
       Flattened Device Tree
+
+   FFA
+      Firmware Framework for A-class processors
 
    FIP
       Firmware Image Package
@@ -72,6 +91,10 @@ You can find additional definitions in the `Arm Glossary`_.
    MPIDR
       Multiprocessor Affinity Register
 
+   MTE
+      Memory Tagging Extension. An optional Armv8.5 extension that enables
+      hardware-assisted memory tagging.
+
    OEN
       Owning Entity Number
 
@@ -84,8 +107,14 @@ You can find additional definitions in the `Arm Glossary`_.
    PDD
       Platform Design Document
 
+   PAUTH
+      Pointer Authentication. An optional extension introduced in Armv8.3.
+
    PMF
       Performance Measurement Framework
+
+   PSA
+      Platform Security Architecture
 
    PSCI
       Power State Coordination Interface
@@ -129,14 +158,16 @@ You can find additional definitions in the `Arm Glossary`_.
    SP
       Secure Partition
 
-   SPCI
-      Secure Partition Client Interface
-
    SPD
       Secure Payload Dispatcher
 
    SPM
       Secure Partition Manager
+
+   SSBS
+      Speculative Store Bypass Safe. Introduced in Armv8.5, this configuration
+      bit can be set by software to allow or prevent the hardware from
+      performing speculative operations.
 
    SVE
       Scalable Vector Extension
@@ -167,6 +198,9 @@ You can find additional definitions in the `Arm Glossary`_.
 
    TZC
       TrustZone Controller
+
+   UBSAN
+      Undefined Behavior Sanitizer
 
    UEFI
       Unified Extensible Firmware Interface

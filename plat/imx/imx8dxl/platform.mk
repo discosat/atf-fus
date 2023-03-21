@@ -10,11 +10,10 @@ include lib/xlat_tables_v2/xlat_tables.mk
 PLAT_INCLUDES		:=	-Iplat/imx/imx8dxl/include		\
 				-Iplat/imx/common/include		\
 
-IMX_GIC_SOURCES	:=		drivers/arm/gic/v3/gicv3_helpers.c	\
-				drivers/arm/gic/v3/arm_gicv3_common.c	\
-				drivers/arm/gic/v3/gic500.c		\
-				drivers/arm/gic/v3/gicv3_main.c		\
-				drivers/arm/gic/common/gic_common.c	\
+# Include GICv3 driver files
+include drivers/arm/gic/v3/gicv3.mk
+
+IMX_GIC_SOURCES	:=		${GICV3_SOURCES}			\
 				plat/common/plat_gicv3.c		\
 				plat/imx/common/plat_imx8_gic.c
 
@@ -40,6 +39,12 @@ ENABLE_CPU_DYNAMIC_RETENTION := 1
 $(eval $(call add_define,ENABLE_CPU_DYNAMIC_RETENTION))
 ENABLE_L2_DYNAMIC_RETENTION := 1
 $(eval $(call add_define,ENABLE_L2_DYNAMIC_RETENTION))
+
+IMX_DEBUG_UART		?= 	0
+$(eval $(call add_define,IMX_USE_UART${IMX_DEBUG_UART}))
+
+DEBUG_CONSOLE		?= 	0
+$(eval $(call add_define,DEBUG_CONSOLE))
 
 BL32_BASE		?=	0x96000000
 $(eval $(call add_define,BL32_BASE))
