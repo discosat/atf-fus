@@ -32,12 +32,7 @@
 #define TRUSTY_PARAMS_LEN_BYTES      (4096*2)
 int data_section_restore_flag = 0x1;
 
-IMPORT_SYM(unsigned long, __COHERENT_RAM_START__, BL31_COHERENT_RAM_START);
-IMPORT_SYM(unsigned long, __COHERENT_RAM_END__, BL31_COHERENT_RAM_END);
-IMPORT_SYM(unsigned long, __RO_START__, BL31_RO_START);
-IMPORT_SYM(unsigned long, __RO_END__, BL31_RO_END);
 IMPORT_SYM(unsigned long, __RW_START__, BL31_RW_START);
-IMPORT_SYM(unsigned long, __RW_END__, BL31_RW_END);
 IMPORT_SYM(unsigned long, __DATA_START__, BL31_DATA_START);
 IMPORT_SYM(unsigned long, __DATA_END__, BL31_DATA_END);
 
@@ -379,22 +374,19 @@ void imx8_partition_resources(void)
 void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 				u_register_t arg2, u_register_t arg3)
 {
-	unsigned int count = (BL31_DATA_END - BL31_DATA_START) / 4;
-	unsigned int *data = (unsigned int *)(BL31_LIMIT - (BL31_DATA_END - BL31_DATA_START));
-	unsigned *ptr = (unsigned int *)BL31_DATA_START;
-	int i;
+	unsigned int count = (BL31_DATA_END - BL31_DATA_START);
+	unsigned char *data = (unsigned char *)(BL31_LIMIT - (BL31_DATA_END - BL31_DATA_START));
+	unsigned char *ptr = (unsigned char *)BL31_DATA_START;
 
 	if (data_section_restore_flag == 0x1) {
 		data_section_restore_flag = 0x2;
-		for (i = 0; i < count; i++)
-			*(data++) = *(ptr++);
+		memcpy(data, ptr, count);
 	} else {
-		for (i = 0; i < count; i++)
-			*(ptr++) = *(data++);
+		memcpy(ptr, data, count);
 	}
 
 #if DEBUG_CONSOLE
-	static console_lpuart_t console;
+	static console_t console;
 
 	console_list = 0;
 #endif
@@ -464,13 +456,13 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 
 void bl31_plat_arch_setup(void)
 {
-	unsigned long ro_start = BL31_RO_START;
-	unsigned long ro_size = BL31_RO_END - BL31_RO_START;
+	unsigned long ro_start = BL_CODE_BASE;
+	unsigned long ro_size = BL_CODE_END - BL_CODE_BASE;
 	unsigned long rw_start = BL31_RW_START;
-	unsigned long rw_size = BL31_RW_END - BL31_RW_START;
+	unsigned long rw_size = BL_END - BL31_RW_START;
 #if USE_COHERENT_MEM
-	unsigned long coh_start = BL31_COHERENT_RAM_START;
-	unsigned long coh_size = BL31_COHERENT_RAM_END - BL31_COHERENT_RAM_START;
+	unsigned long coh_start = BL_COHERENT_RAM_BASE;
+	unsigned long coh_size = BL_COHERENT_RAM_END - BL_COHERENT_RAM_BASE;
 #endif
 
 	mmap_add_region(ro_start, ro_start, ro_size,

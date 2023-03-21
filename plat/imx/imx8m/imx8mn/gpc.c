@@ -1,27 +1,25 @@
 /*
- * Copyright 2019 NXP
+ * Copyright 2019-2020 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include <stdlib.h>
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
 
 #include <common/debug.h>
 #include <drivers/arm/tzc380.h>
 #include <drivers/delay_timer.h>
 #include <lib/mmio.h>
 #include <lib/psci/psci.h>
-#include <lib/smccc.h>
-#include <platform_def.h>
-#include <services/std_svc.h>
 
 #include <gpc.h>
 #include <imx_sip_svc.h>
+#include <platform_def.h>
 #include <plat_imx8.h>
 
-#define CCGR(x)		(0x4000 + (x) * 16)
+#define CCGR(x)		(0x4000 + (x) * 0x10)
 
 enum pu_domain_id {
 	HSIOMIX,
@@ -33,21 +31,28 @@ enum pu_domain_id {
 
 /* PU domain, add some hole to minimize the uboot change */
 static struct imx_pwr_domain pu_domains[11] = {
-	[HSIOMIX] = IMX_MIX_DOMAIN(HSIOMIX),
-	[OTG1] = IMX_PD_DOMAIN(OTG1),
-	[GPUMIX] = IMX_MIX_DOMAIN(GPUMIX),
-	[DISPMIX] = IMX_MIX_DOMAIN(DISPMIX),
-	[MIPI] = IMX_PD_DOMAIN(MIPI),
+	[HSIOMIX] = IMX_MIX_DOMAIN(HSIOMIX, false),
+	[OTG1] = IMX_PD_DOMAIN(OTG1, true),
+	[GPUMIX] = IMX_MIX_DOMAIN(GPUMIX, false),
+	[DISPMIX] = IMX_MIX_DOMAIN(DISPMIX, false),
+	[MIPI] = IMX_PD_DOMAIN(MIPI, true),
 };
 
 static unsigned int pu_domain_status;
 
 void imx_gpc_pm_domain_enable(uint32_t domain_id, bool on)
 {
-	struct imx_pwr_domain *pwr_domain = &pu_domains[domain_id];
+	struct imx_pwr_domain *pwr_domain;
+
+	if (domain_id >= ARRAY_SIZE(pu_domains))
+		return;
+
+	pwr_domain = &pu_domains[domain_id];
 
 	if (on) {
-		pu_domain_status |= (1 << domain_id);
+		if (pwr_domain->need_sync) {
+			pu_domain_status |= (1 << domain_id);
+		}
 
 		/* HSIOMIX has no PU bit, so skip for it */
 		if (domain_id != HSIOMIX) {
@@ -70,7 +75,7 @@ void imx_gpc_pm_domain_enable(uint32_t domain_id, bool on)
 		}
 
 		/* handle the ADB400 sync */
-		if (!pwr_domain->init_on && pwr_domain->need_sync) {
+		if (pwr_domain->need_sync) {
 			/* clear adb power down request */
 			mmio_setbits_32(IMX_GPC_BASE + GPC_PU_PWRHSK, pwr_domain->adb400_sync);
 
@@ -85,7 +90,7 @@ void imx_gpc_pm_domain_enable(uint32_t domain_id, bool on)
 			return;
 
 		/* handle the ADB400 sync */
-		if (!pwr_domain->init_on && pwr_domain->need_sync) {
+		if (pwr_domain->need_sync) {
 
 			/* set adb power down request */
 			mmio_clrbits_32(IMX_GPC_BASE + GPC_PU_PWRHSK, pwr_domain->adb400_sync);
@@ -107,8 +112,6 @@ void imx_gpc_pm_domain_enable(uint32_t domain_id, bool on)
 			while (mmio_read_32(IMX_GPC_BASE + PU_PGC_DN_TRG) & pwr_domain->pwr_req);
 		}
 	}
-
-	pwr_domain->init_on = false;
 }
 
 static void imx8mm_tz380_init(void)
@@ -185,9 +188,9 @@ void imx_gpc_init(void)
 
 	val = mmio_read_32(IMX_GPC_BASE + LPCR_A53_BSC);
 	/* use GIC wake_request to wakeup C0~C3 from LPM */
-	val |= 0x30c00000;
+	val |= CORE_WKUP_FROM_GIC;
 	/* clear the MASTER0 LPM handshake */
-	val &= ~(1 << 6);
+	val &= ~MASTER0_LPM_HSK;
 	mmio_write_32(IMX_GPC_BASE + LPCR_A53_BSC, val);
 
 	/* clear MASTER1 & MASTER2 mapping in CPU0(A53) */
@@ -210,7 +213,7 @@ void imx_gpc_init(void)
 	mmio_write_32(IMX_GPC_BASE + COREx_PGC_PCR(3) + 0x4, 0x401);
 	mmio_write_32(IMX_GPC_BASE + PLAT_PGC_PCR + 0x4, 0x401);
 	mmio_write_32(IMX_GPC_BASE + PGC_SCU_TIMING,
-		      (0x59 << 10) | 0x5B | (0x2 << 20));
+		      (0x59 << TMC_TMR_SHIFT) | 0x5B | (0x2 << TRC1_TMC_SHIFT));
 
 	/* set DUMMY PDN/PUP ACK by default for A53 domain */
 	mmio_write_32(IMX_GPC_BASE + PGC_ACK_SEL_A53,

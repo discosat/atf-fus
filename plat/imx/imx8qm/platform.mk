@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015-2018, ARM Limited and Contributors. All rights reserved.
+# Copyright (c) 2015-2020, ARM Limited and Contributors. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -10,11 +10,10 @@ include lib/xlat_tables_v2/xlat_tables.mk
 PLAT_INCLUDES		:=	-Iplat/imx/imx8qm/include		\
 				-Iplat/imx/common/include		\
 
-IMX_GIC_SOURCES	:=		drivers/arm/gic/v3/gicv3_helpers.c	\
-				drivers/arm/gic/v3/arm_gicv3_common.c   \
-				drivers/arm/gic/v3/gic500.c             \
-				drivers/arm/gic/v3/gicv3_main.c		\
-				drivers/arm/gic/common/gic_common.c	\
+# Include GICv3 driver files
+include drivers/arm/gic/v3/gicv3.mk
+
+IMX_GIC_SOURCES	:=		${GICV3_SOURCES}			\
 				plat/common/plat_gicv3.c		\
 				plat/common/plat_psci_common.c		\
 				plat/imx/common/plat_imx8_gic.c
@@ -44,17 +43,25 @@ ERRATA_A53_835769	:=	1
 ERRATA_A53_843419	:=	1
 ERRATA_A53_855873	:=	1
 
+IMX_DEBUG_UART		?= 	0
+$(eval $(call add_define,IMX_USE_UART${IMX_DEBUG_UART}))
+
+DEBUG_CONSOLE		?= 	0
+$(eval $(call add_define,DEBUG_CONSOLE))
+
 ENABLE_CPU_DYNAMIC_RETENTION := 1
 $(eval $(call add_define,ENABLE_CPU_DYNAMIC_RETENTION))
 ENABLE_L2_DYNAMIC_RETENTION := 1
 $(eval $(call add_define,ENABLE_L2_DYNAMIC_RETENTION))
 
-BL32_BASE		?=	0xfe000000
-$(eval $(call add_define,BL32_BASE))
-
-BL32_SIZE		?=	0x2000000
-$(eval $(call add_define,BL32_SIZE))
-
 ifeq (${SPD},trusty)
 	BL31_CFLAGS    +=      -DPLAT_XLAT_TABLES_DYNAMIC=1
+endif
+
+# pass macros that allow building ATF in 2 flavors for Cockpit
+ifdef COCKPIT_A53
+        $(eval $(call add_define,COCKPIT_A53))
+endif
+ifdef COCKPIT_A72
+        $(eval $(call add_define,COCKPIT_A72))
 endif

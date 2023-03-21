@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2020, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -9,7 +9,7 @@
 #include <arch.h>
 #include <common/bl_common.h>
 #include <el3_common_macros.S>
-#include <lib/pmf/pmf_asm_macros.S>
+#include <lib/pmf/aarch64/pmf_asm_macros.S>
 #include <lib/runtime_instr.h>
 #include <lib/xlat_tables/xlat_mmu_helpers.h>
 
@@ -23,6 +23,25 @@
 	 */
 
 func bl31_entrypoint
+#if (defined COCKPIT_A53) || (defined COCKPIT_A72)
+	/*
+	 * running on cluster Cortex-A53:
+	 * => proceed to bl31 with errata
+	 */
+	mrs	x20, mpidr_el1
+	ands	x20, x20, #MPIDR_CLUSTER_MASK	/* Test Affinity 1 */
+	beq	bl31_entrypoint_proceed_errata
+
+	/*
+	 * running on cluster Cortex-A72:
+	 * => trampoline to 0xC00000xx
+	 * where bl31 version for A72 stands
+	 */
+	mov	x20, #0xC0000000
+	add	x20, x20, #bl31_entrypoint_proceed - bl31_entrypoint
+	br	x20
+bl31_entrypoint_proceed_errata:
+#endif
 #ifdef PLAT_imx8qm
 	ldr    x21, stm
 	ldr    w20, =0x80000000
@@ -59,6 +78,9 @@ func bl31_entrypoint
 	str    w20, [x21]
 	str    w20, [x21] /* 32 */
 #endif
+#if (defined COCKPIT_A53) || (defined COCKPIT_A72)
+bl31_entrypoint_proceed:
+#endif
 	/* ---------------------------------------------------------------
 	 * Stash the previous bootloader arguments x0 - x3 for later use.
 	 * ---------------------------------------------------------------
@@ -67,17 +89,6 @@ func bl31_entrypoint
 	mov	x21, x1
 	mov	x22, x2
 	mov	x23, x3
-
-	/* --------------------------------------------------------------------
-	 * If PIE is enabled, fixup the Global descriptor Table and dynamic
-	 * relocations
-	 * --------------------------------------------------------------------
-	 */
-#if ENABLE_PIE
-	mov_imm	x0, BL31_BASE
-	mov_imm	x1, BL31_LIMIT
-	bl	fixup_gdt_reloc
-#endif /* ENABLE_PIE */
 
 #if !RESET_TO_BL31
 	/* ---------------------------------------------------------------------
@@ -95,7 +106,8 @@ func bl31_entrypoint
 		_secondary_cold_boot=0				\
 		_init_memory=0					\
 		_init_c_runtime=1				\
-		_exception_vectors=runtime_exceptions
+		_exception_vectors=runtime_exceptions		\
+		_pie_fixup_size=BL31_LIMIT - BL31_BASE
 #else
 
 	/* ---------------------------------------------------------------------
@@ -110,7 +122,8 @@ func bl31_entrypoint
 		_secondary_cold_boot=!COLD_BOOT_SINGLE_CPU	\
 		_init_memory=1					\
 		_init_c_runtime=1				\
-		_exception_vectors=runtime_exceptions
+		_exception_vectors=runtime_exceptions		\
+		_pie_fixup_size=BL31_LIMIT - BL31_BASE
 
 	/* ---------------------------------------------------------------------
 	 * For RESET_TO_BL31 systems, BL31 is the first bootloader to run so
@@ -155,13 +168,17 @@ func bl31_entrypoint
 	 * caches and participate in coherency.
 	 * --------------------------------------------------------------------
 	 */
-	adr	x0, __DATA_START__
-	adr	x1, __DATA_END__
+	adrp	x0, __DATA_START__
+	add	x0, x0, :lo12:__DATA_START__
+	adrp	x1, __DATA_END__
+	add	x1, x1, :lo12:__DATA_END__
 	sub	x1, x1, x0
 	bl	clean_dcache_range
 
-	adr	x0, __BSS_START__
-	adr	x1, __BSS_END__
+	adrp	x0, __BSS_START__
+	add	x0, x0, :lo12:__BSS_START__
+	adrp	x1, __BSS_END__
+	add	x1, x1, :lo12:__BSS_END__
 	sub	x1, x1, x0
 	bl	clean_dcache_range
 
@@ -169,7 +186,9 @@ func bl31_entrypoint
 endfunc bl31_entrypoint
 
 .ltorg
+.align	3
 stm:
+	/* A53: the MU_SR register address in MU0A */
 	.quad 0x5D1B0020
 
 	/* --------------------------------------------------------------------
@@ -214,7 +233,8 @@ func bl31_warm_entrypoint
 		_secondary_cold_boot=0				\
 		_init_memory=0					\
 		_init_c_runtime=0				\
-		_exception_vectors=runtime_exceptions
+		_exception_vectors=runtime_exceptions		\
+		_pie_fixup_size=0
 
 	/*
 	 * We're about to enable MMU and participate in PSCI state coordination.

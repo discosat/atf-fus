@@ -26,6 +26,8 @@
 #define IMX_SIP_BUILDINFO			0xC2000003
 #define IMX_SIP_BUILDINFO_GET_COMMITHASH	0x00
 
+#define IMX_SIP_DDR_DVFS		0xc2000004
+
 #define IMX_SIP_SRC			0xc2000005
 #define IMX_SIP_SRC_M4_START		0x00
 #define IMX_SIP_SRC_M4_STARTED		0x01
@@ -60,10 +62,15 @@
 
 #define IMX_SIP_MISC_SET_TEMP		0xC200000C
 
-#define IMX_SIP_DDR_DVFS		0xc2000004
+#define IMX_SIP_AARCH32			0xC20000FD
 
-#define IMX_SIP_FIPS_CONFIG		0xc200000D
-#define IMX_SIP_FIPS_CONFIG_SET		0x1
+int imx_kernel_entry_handler(uint32_t smc_fid, u_register_t x1,
+			     u_register_t x2, u_register_t x3,
+			     u_register_t x4);
+
+#define IMX_SIP_SCMI			0xC20000FE
+
+#define IMX_SIP_HIFI_XRDC               0xC200000E
 
 #if defined(PLAT_imx8mq)
 int imx_soc_info_handler(uint32_t smc_fid, u_register_t x1,
@@ -105,11 +112,11 @@ int imx_misc_set_temp_handler(uint32_t smc_fid, u_register_t x1,
 			      u_register_t x2, u_register_t x3,
 			      u_register_t x4);
 int imx_get_cpu_rev(uint32_t *cpu_id, uint32_t *cpu_rev);
-int fips_config_handler(uint32_t smc_fid, u_register_t x1, u_register_t x2,
-			u_register_t x3, u_register_t x4);
 #endif
 uint64_t imx_buildinfo_handler(uint32_t smc_fid, u_register_t x1,
 			       u_register_t x2, u_register_t x3,
 			       u_register_t x4);
+int scmi_handler(uint32_t smc_fid, u_register_t x1, u_register_t x2, u_register_t x3);
+int imx_hifi_xrdc(uint32_t smc_fid);
 
 #endif /* __IMX_SIP_SVC_H__ */

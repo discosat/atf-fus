@@ -16,7 +16,7 @@
 #define LPM_MODE(local_state)		((local_state) == PLAT_WAIT_RET_STATE ? A53_LPM_WAIT : A53_LPM_STOP)
 
 #define DSM_MODE_MASK	BIT(31)
-
+#define CORE_WKUP_FROM_GIC		(IRQ_SRC_C0 | IRQ_SRC_C1 | IRQ_SRC_C2 | IRQ_SRC_C3)
 #define A53_CORE_WUP_SRC(core_id)	(1 << ((core_id) < 2 ? 28 + (core_id) : 22 + (core_id) - 2))
 #define COREx_PGC_PCR(core_id)		(0x800 + (core_id) * 0x40)
 #define COREx_WFI_PDN(core_id)		(1 << ((core_id) < 2 ? (core_id) * 2 : ((core_id) - 2) * 2 + 16))
@@ -28,22 +28,22 @@
 
 #define IMR_MASK_ALL	0xffffffff
 
-#define IMX_PD_DOMAIN(name)				\
+#define IMX_PD_DOMAIN(name, on)				\
 	{						\
 		.pwr_req = name##_PWR_REQ,		\
 		.pgc_offset = name##_PGC,		\
 		.need_sync = false,			\
-		.init_on = true,			\
+		.always_on = (on),			\
 	}
 
-#define IMX_MIX_DOMAIN(name)				\
+#define IMX_MIX_DOMAIN(name, on)			\
 	{						\
 		.pwr_req = name##_PWR_REQ,		\
 		.pgc_offset = name##_PGC,		\
 		.adb400_sync = name##_ADB400_SYNC,	\
 		.adb400_ack = name##_ADB400_ACK,	\
 		.need_sync = true,			\
-		.init_on = true,			\
+		.always_on = (on),			\
 	}
 
 struct imx_pwr_domain {
@@ -52,7 +52,7 @@ struct imx_pwr_domain {
 	uint32_t adb400_ack;
 	uint32_t pgc_offset;
 	bool need_sync;
-	bool init_on;
+	bool always_on;
 };
 
 struct pll_override {

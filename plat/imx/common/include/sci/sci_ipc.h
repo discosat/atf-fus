@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2015-2019, ARM Limited and Contributors. All rights reserved.
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
  * Copyright 2017-2019 NXP
  *

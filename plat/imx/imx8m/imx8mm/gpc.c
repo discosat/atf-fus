@@ -15,7 +15,6 @@
 #include <lib/psci/psci.h>
 #include <lib/smccc.h>
 #include <platform_def.h>
-#include <services/std_svc.h>
 
 #include <gpc.h>
 #include <imx_sip_svc.h>
@@ -42,20 +41,20 @@ enum pu_domain_id {
 
 /* PU domain */
 static struct imx_pwr_domain pu_domains[] = {
-	IMX_MIX_DOMAIN(HSIOMIX),
-	IMX_PD_DOMAIN(PCIE),
-	IMX_PD_DOMAIN(OTG1),
-	IMX_PD_DOMAIN(OTG2),
-	IMX_MIX_DOMAIN(GPUMIX),
-	IMX_MIX_DOMAIN(VPUMIX),
-	IMX_PD_DOMAIN(VPU_G1),
-	IMX_PD_DOMAIN(VPU_G2),
-	IMX_PD_DOMAIN(VPU_H1),
-	IMX_MIX_DOMAIN(DISPMIX),
-	IMX_PD_DOMAIN(MIPI),
+	IMX_MIX_DOMAIN(HSIOMIX, false),
+	IMX_PD_DOMAIN(PCIE, false),
+	IMX_PD_DOMAIN(OTG1, true),
+	IMX_PD_DOMAIN(OTG2, true),
+	IMX_MIX_DOMAIN(GPUMIX, false),
+	IMX_MIX_DOMAIN(VPUMIX, false),
+	IMX_PD_DOMAIN(VPU_G1, false),
+	IMX_PD_DOMAIN(VPU_G2, false),
+	IMX_PD_DOMAIN(VPU_H1, false),
+	IMX_MIX_DOMAIN(DISPMIX, false),
+	IMX_PD_DOMAIN(MIPI, false),
 	/* below two domain only for ATF internal use */
-	IMX_MIX_DOMAIN(GPU2D),
-	IMX_MIX_DOMAIN(GPU3D),
+	IMX_MIX_DOMAIN(GPU2D, false),
+	IMX_MIX_DOMAIN(GPU3D, false),
 };
 
 static unsigned int pu_domain_status;
@@ -121,7 +120,12 @@ void vpu_sft_reset_deassert(uint32_t domain_id)
 
 void imx_gpc_pm_domain_enable(uint32_t domain_id, bool on)
 {
-	struct imx_pwr_domain *pwr_domain = &pu_domains[domain_id];
+	struct imx_pwr_domain *pwr_domain;
+
+	if (domain_id >= ARRAY_SIZE(pu_domains))
+		return;
+
+	pwr_domain = &pu_domains[domain_id];
 
 	if (on) {
 		pu_domain_status |= (1 << domain_id);
@@ -199,7 +203,7 @@ void imx_gpc_pm_domain_enable(uint32_t domain_id, bool on)
 		}
 
 		/* handle the ADB400 sync */
-		if (!pwr_domain->init_on && pwr_domain->need_sync) {
+		if (pwr_domain->need_sync) {
 			/* clear adb power down request */
 			mmio_setbits_32(IMX_GPC_BASE + GPC_PU_PWRHSK, pwr_domain->adb400_sync);
 
@@ -245,7 +249,7 @@ void imx_gpc_pm_domain_enable(uint32_t domain_id, bool on)
 		}
 
 		/* handle the ADB400 sync */
-		if (!pwr_domain->init_on && pwr_domain->need_sync) {
+		if (pwr_domain->need_sync) {
 			/* set adb power down request */
 			mmio_clrbits_32(IMX_GPC_BASE + GPC_PU_PWRHSK, pwr_domain->adb400_sync);
 
@@ -286,8 +290,6 @@ void imx_gpc_pm_domain_enable(uint32_t domain_id, bool on)
 				;
 		}
 	}
-
-	pwr_domain->init_on = false;
 }
 
 static void imx8mm_tz380_init(void)

@@ -1,15 +1,17 @@
 #
-# Copyright 2019 NXP
+# Copyright 2019-2020 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
 
-# Translation tables library
-include lib/xlat_tables_v2/xlat_tables.mk
-
 PLAT_INCLUDES		:=	-Iplat/imx/common/include		\
 				-Iplat/imx/imx8m/include		\
 				-Iplat/imx/imx8m/imx8mn/include
+# Translation tables library
+include lib/xlat_tables_v2/xlat_tables.mk
+
+# Include GICv3 driver files
+include drivers/arm/gic/v3/gicv3.mk
 
 IMX_DRAM_SOURCES	:=	plat/imx/imx8m/ddr/dram.c		\
 				plat/imx/imx8m/ddr/clock.c		\
@@ -17,11 +19,8 @@ IMX_DRAM_SOURCES	:=	plat/imx/imx8m/ddr/dram.c		\
 				plat/imx/imx8m/ddr/ddr4_dvfs.c		\
 				plat/imx/imx8m/ddr/lpddr4_dvfs.c
 
-IMX_GIC_SOURCES		:=	drivers/arm/gic/v3/gicv3_helpers.c	\
-				drivers/arm/gic/v3/arm_gicv3_common.c   \
-				drivers/arm/gic/v3/gic500.c             \
-				drivers/arm/gic/v3/gicv3_main.c		\
-				drivers/arm/gic/common/gic_common.c	\
+
+IMX_GIC_SOURCES		:=	${GICV3_SOURCES}			\
 				plat/common/plat_gicv3.c		\
 				plat/common/plat_psci_common.c		\
 				plat/imx/common/plat_imx8_gic.c
@@ -45,9 +44,9 @@ BL31_SOURCES		+=	plat/imx/common/imx8_helpers.S			\
 				drivers/arm/tzc/tzc380.c			\
 				drivers/delay_timer/delay_timer.c		\
 				drivers/delay_timer/generic_delay_timer.c	\
-				${XLAT_TABLES_LIB_SRCS}				\
 				${IMX_DRAM_SOURCES}				\
-				${IMX_GIC_SOURCES}
+				${IMX_GIC_SOURCES}				\
+				${XLAT_TABLES_LIB_SRCS}
 
 USE_COHERENT_MEM	:=	1
 RESET_TO_BL31		:=	1
@@ -62,6 +61,9 @@ $(eval $(call add_define,BL32_BASE))
 
 BL32_SIZE		?=	0x2000000
 $(eval $(call add_define,BL32_SIZE))
+
+IMX_BOOT_UART_BASE	?=	0x30890000
+$(eval $(call add_define,IMX_BOOT_UART_BASE))
 
 ifeq (${SPD},trusty)
 	BL31_CFLAGS    +=      -DPLAT_XLAT_TABLES_DYNAMIC=1

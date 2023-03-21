@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2016-2020, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -67,7 +67,63 @@ toc_entry_t toc_entries[] = {
 		.uuid = UUID_NON_TRUSTED_FIRMWARE_BL33,
 		.cmdline_name = "nt-fw"
 	},
+	/* DDR PHY firmwares */
+	{
+		.name = "DDR UDIMM PHY IMEM 1d FW",
+		.uuid = UUID_DDR_IMEM_UDIMM_1D,
+		.cmdline_name = "ddr-immem-udimm-1d"
+	},
+	{
+		.name = "DDR UDIMM PHY IMEM 2d FW",
+		.uuid = UUID_DDR_IMEM_UDIMM_2D,
+		.cmdline_name = "ddr-immem-udimm-2d"
+	},
+	{
+		.name = "DDR UDIMM PHY DMEM 1d FW",
+		.uuid = UUID_DDR_DMEM_UDIMM_1D,
+		.cmdline_name = "ddr-dmmem-udimm-1d"
+	},
+	{
+		.name = "DDR UDIMM PHY DMEM 2d FW",
+		.uuid = UUID_DDR_DMEM_UDIMM_2D,
+		.cmdline_name = "ddr-dmmem-udimm-2d"
+	},
+	{
+		.name = "DDR RDIMM PHY IMEM 1d FW",
+		.uuid = UUID_DDR_IMEM_RDIMM_1D,
+		.cmdline_name = "ddr-immem-rdimm-1d"
+	},
+	{
+		.name = "DDR RDIMM PHY IMEM 2d FW",
+		.uuid = UUID_DDR_IMEM_RDIMM_2D,
+		.cmdline_name = "ddr-immem-rdimm-2d"
+	},
+	{
+		.name = "DDR RDIMM PHY DMEM 1d FW",
+		.uuid = UUID_DDR_DMEM_RDIMM_1D,
+		.cmdline_name = "ddr-dmmem-rdimm-1d"
+	},
+	{
+		.name = "DDR RDIMM PHY DMEM 2d FW",
+		.uuid = UUID_DDR_DMEM_RDIMM_2D,
+		.cmdline_name = "ddr-dmmem-rdimm-2d"
+	},
+	{
+		.name = "FUSE PROV FW",
+		.uuid = UUID_FUSE_PROV,
+		.cmdline_name = "fuse-prov"
+	},
+	{
+		.name = "FUSE UPGRADE FW",
+		.uuid = UUID_FUSE_UP,
+		.cmdline_name = "fuse-upgrade"
+	},
 	/* Dynamic Configs */
+	{
+		.name = "FW_CONFIG",
+		.uuid = UUID_FW_CONFIG,
+		.cmdline_name = "fw-config"
+	},
 	{
 		.name = "HW_CONFIG",
 		.uuid = UUID_HW_CONFIG,
@@ -78,6 +134,7 @@ toc_entry_t toc_entries[] = {
 		.uuid = UUID_TB_FW_CONFIG,
 		.cmdline_name = "tb-fw-config"
 	},
+
 	{
 		.name = "SOC_FW_CONFIG",
 		.uuid = UUID_SOC_FW_CONFIG,
@@ -124,6 +181,11 @@ toc_entry_t toc_entries[] = {
 		.uuid = UUID_NON_TRUSTED_FW_KEY_CERT,
 		.cmdline_name = "nt-fw-key-cert"
 	},
+	{
+		.name = "DDR Firmware key certificate",
+		.uuid = UUID_DDR_FW_KEY_CERT,
+		.cmdline_name = "ddr-fw-key-cert"
+	},
 
 	/* Content certificates */
 	{
@@ -150,6 +212,26 @@ toc_entry_t toc_entries[] = {
 		.name = "Non-Trusted Firmware content certificate",
 		.uuid = UUID_NON_TRUSTED_FW_CONTENT_CERT,
 		.cmdline_name = "nt-fw-cert"
+	},
+	{
+		.name = "SiP owned Secure Partition content certificate",
+		.uuid = UUID_SIP_SECURE_PARTITION_CONTENT_CERT,
+		.cmdline_name = "sip-sp-cert"
+	},
+	{
+		.name = "Platform owned Secure Partition content certificate",
+		.uuid = UUID_PLAT_SECURE_PARTITION_CONTENT_CERT,
+		.cmdline_name = "plat-sp-cert"
+	},
+	{
+		.name = "DDR UDIMM Firmware content certificate",
+		.uuid = UUID_DDR_UDIMM_FW_CONTENT_CERT,
+		.cmdline_name = "ddr-udimm-fw-cert"
+	},
+	{
+		.name = "DDR RDIMM Firmware content certificate",
+		.uuid = UUID_DDR_RDIMM_FW_CONTENT_CERT,
+		.cmdline_name = "ddr-rdimm-fw-cert"
 	},
 	{
 		.name = NULL,

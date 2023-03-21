@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2015-2019, ARM Limited and Contributors. All rights reserved.
  * Copyright 2017-2019 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause

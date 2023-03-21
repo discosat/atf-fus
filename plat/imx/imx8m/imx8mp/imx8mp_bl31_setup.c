@@ -1,13 +1,11 @@
 /*
- * Copyright 2019-2020 NXP
+ * Copyright 2020 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include <assert.h>
 #include <stdbool.h>
-
-#include <platform_def.h>
 
 #include <arch_helpers.h>
 #include <common/bl_common.h>
@@ -28,25 +26,17 @@
 #include <imx_rdc.h>
 #include <imx8m_caam.h>
 #include <imx8m_csu.h>
+#include <platform_def.h>
 #include <plat_imx8.h>
 
 #define TRUSTY_PARAMS_LEN_BYTES      (4096*2)
 
 static const mmap_region_t imx_mmap[] = {
-	MAP_REGION_FLAT(IMX_GIC_BASE, IMX_GIC_SIZE, MT_DEVICE | MT_RW),
-	MAP_REGION_FLAT(IMX_AIPS_BASE, IMX_AIPS_SIZE, MT_DEVICE | MT_RW), /* AIPS map */
-	MAP_REGION_FLAT(OCRAM_S_BASE, OCRAM_S_SIZE, MT_DEVICE | MT_RW), /* OCRAM_S */
-	MAP_REGION_FLAT(IMX_DDRPHY_BASE, IMX_DDR_IPS_SIZE, MT_DEVICE | MT_RW), /* DDRMIX */
-	MAP_REGION_FLAT(IMX_CAAM_RAM_BASE, IMX_CAAM_RAM_SIZE, MT_MEMORY | MT_RW), /* CAMM RAM */
-	MAP_REGION_FLAT(IMX_NS_OCRAM_BASE, IMX_NS_OCRAM_SIZE, MT_MEMORY | MT_RW), /* NS OCRAM */
-	MAP_REGION_FLAT(IMX_ROM_BASE, IMX_ROM_SIZE, MT_MEMORY | MT_RO), /* ROM code */
-	MAP_REGION_FLAT(IMX_DRAM_BASE, IMX_DRAM_SIZE, MT_MEMORY | MT_RW | MT_NS), /* DRAM */
-	MAP_REGION_FLAT(IMX_NOC_BASE, IMX_NOC_SIZE, MT_DEVICE | MT_RW), /* NOC QoS */
-	MAP_REGION_FLAT(IMX_VPU_BLK_BASE, IMX_VPU_BLK_SIZE, MT_DEVICE | MT_RW), /* VPU BLK CTL */
-	{0},
+	GIC_MAP, AIPS_MAP, OCRAM_S_MAP, DDRC_MAP,
+	NOC_MAP, CAAM_RAM_MAP, NS_OCRAM_MAP,
+	ROM_MAP, DRAM_MAP, VPU_BLK_CTL_MAP, TCM_MAP, {0},
 };
 
-/* AIPSTZ5 resides in Audiomix, it will be init along with audiomix power domain */
 static const struct aipstz_cfg aipstz[] = {
 	{IMX_AIPSTZ1, 0x77777777, 0x77777777, .opacr = {0x0, 0x0, 0x0, 0x0, 0x0}, },
 	{IMX_AIPSTZ2, 0x77777777, 0x77777777, .opacr = {0x0, 0x0, 0x0, 0x0, 0x0}, },
@@ -62,6 +52,7 @@ static const struct imx_rdc_cfg rdc[] = {
 	/* peripherals domain permission */
 	RDC_PDAPn(RDC_PDAP_UART2, D0R | D0W),
 	RDC_PDAPn(RDC_PDAP_WDOG1, D0R | D0W),
+	RDC_PDAPn(RDC_PDAP_RDC, D0R | D0W | D1R),
 
 	/* memory region */
 
@@ -83,7 +74,6 @@ static const struct imx_csu_cfg csu_cfg[] = {
 	/* Sentinel */
 	{0}
 };
-
 
 static entry_point_info_t bl32_image_ep_info;
 static entry_point_info_t bl33_image_ep_info;
@@ -109,7 +99,7 @@ static uint32_t get_spsr_for_bl33_entry(void)
 	return spsr;
 }
 
-void bl31_tzc380_setup(void)
+static void bl31_tzc380_setup(void)
 {
 	unsigned int val;
 
@@ -121,7 +111,7 @@ void bl31_tzc380_setup(void)
 
 	/*
 	 * Need to substact offset 0x40000000 from CPU address when
-	 * programming tzasc region for i.mx8mm.
+	 * programming tzasc region for i.mx8mp.
 	 */
 
 	/* Enable 1G-5G S/NS RW */
@@ -132,8 +122,9 @@ void bl31_tzc380_setup(void)
 void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 		u_register_t arg2, u_register_t arg3)
 {
-	static console_uart_t console;
-	int i;
+	static console_t console;
+	unsigned int val;
+	unsigned int i;
 
 	/* Enable CSU NS access permission */
 	for (i = 0; i < 64; i++) {
@@ -147,14 +138,16 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 	imx_csu_init(csu_cfg);
 
 	/* config the ocram memory range for secure access */
-	mmio_write_32(IMX_IOMUX_GPR_BASE + 0x2c, 0xE1);
+	mmio_write_32(IMX_IOMUX_GPR_BASE + 0x2c, 0x4E1);
+	val = mmio_read_32(IMX_IOMUX_GPR_BASE + 0x2c);
+	mmio_write_32(IMX_IOMUX_GPR_BASE + 0x2c, val | 0x3DFF0000);
 
 	imx8m_caam_init();
 
 	console_imx_uart_register(IMX_BOOT_UART_BASE, IMX_BOOT_UART_CLK_IN_HZ,
 		IMX_CONSOLE_BAUDRATE, &console);
 	/* This console is only used for boot stage */
-	console_set_scope(&console.console, CONSOLE_FLAG_BOOT);
+	console_set_scope(&console, CONSOLE_FLAG_BOOT);
 
 	/*
 	 * tell BL3-1 where the non-secure software image is located
@@ -237,10 +230,13 @@ void bl31_platform_setup(void)
 
 entry_point_info_t *bl31_plat_get_next_image_ep_info(unsigned int type)
 {
-	if (type == NON_SECURE)
+	if (type == NON_SECURE) {
 		return &bl33_image_ep_info;
-	if (type == SECURE)
+	}
+
+	if (type == SECURE) {
 		return &bl32_image_ep_info;
+	}
 
 	return NULL;
 }
@@ -257,7 +253,6 @@ void plat_trusty_set_boot_args(aapcs64_params_t *args) {
 	args->arg2 = TRUSTY_PARAMS_LEN_BYTES;
 }
 #endif
-
 
 #if defined (CSU_RDC_TEST)
 static const struct imx_rdc_cfg rdc_for_test[] = {
