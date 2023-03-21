@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -33,26 +33,28 @@ int plat_get_nv_ctr(void *cookie, unsigned int *nv_ctr)
 {
 	const char *oid;
 	uint32_t uid_num;
-	uint32_t val = 0;
+	uint32_t val = 0U;
 
 	assert(cookie != NULL);
 	assert(nv_ctr != NULL);
 
 	oid = (const char *)cookie;
-	if (strcmp(oid, TRUSTED_FW_NVCOUNTER_OID) == 0)
-		uid_num = 3;
-	else if (strcmp(oid, NON_TRUSTED_FW_NVCOUNTER_OID) == 0)
-		uid_num = 4;
-	else
+	if (strcmp(oid, TRUSTED_FW_NVCOUNTER_OID) == 0) {
+		uid_num = 3U;
+	} else if (strcmp(oid, NON_TRUSTED_FW_NVCOUNTER_OID) == 0) {
+		uid_num = 4U;
+	} else {
 		return 1;
+	}
 
 	val = sfp_read_oem_uid(uid_num);
 
 	INFO("SFP Value read is %x from UID %d\n", val, uid_num);
-	if (!val)
-		*nv_ctr = 0;
-	else
-		*nv_ctr = (32 - __builtin_clz(val));
+	if (val == 0U) {
+		*nv_ctr = 0U;
+	} else {
+		*nv_ctr = (32U - __builtin_clz(val));
+	}
 
 	INFO("NV Counter value for UID %d is %d\n", uid_num, *nv_ctr);
 	return 0;
@@ -67,23 +69,25 @@ int plat_set_nv_ctr(void *cookie, unsigned int nv_ctr)
 	assert(cookie != NULL);
 
 	/* Counter values upto 32 are supported */
-	if (nv_ctr > 32)
+	if (nv_ctr > 32U) {
 		return 1;
+	}
 
 	oid = (const char *)cookie;
-	if (strcmp(oid, TRUSTED_FW_NVCOUNTER_OID) == 0)
-		uid_num = 3;
-	else if (strcmp(oid, NON_TRUSTED_FW_NVCOUNTER_OID) == 0)
-		uid_num = 4;
-	else
+	if (strcmp(oid, TRUSTED_FW_NVCOUNTER_OID) == 0) {
+		uid_num = 3U;
+	} else if (strcmp(oid, NON_TRUSTED_FW_NVCOUNTER_OID) == 0) {
+		uid_num = 4U;
+	} else {
 		return 1;
-
-	sfp_val = (1 << (nv_ctr - 1));
+	}
+	sfp_val = (1U << (nv_ctr - 1));
 
 	if (sfp_write_oem_uid(uid_num, sfp_val) == 1) {
 		/* Enable POVDD on board */
-		if (board_enable_povdd())
+		if (board_enable_povdd()) {
 			sfp_program_fuses();
+		}
 
 		/* Disable POVDD on board */
 		board_disable_povdd();

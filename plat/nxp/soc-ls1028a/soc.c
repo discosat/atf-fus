@@ -4,40 +4,41 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include <arch.h>
-#include <cassert.h>
-#include <mmio.h>
-#include <errata.h>
-#include <cci.h>
 #include <endian.h>
-#include <common/debug.h>
-#include <lib/xlat_tables/xlat_tables_v2.h>
 
+#include <arch.h>
+#include <caam.h>
+#include <cassert.h>
+#include <cci.h>
+#include <common/debug.h>
+#include <dcfg.h>
+#include <i2c.h>
+#include <lib/xlat_tables/xlat_tables_v2.h>
 #include <ls_interconnect.h>
-#include <platform_def.h>
-#include <plat_common.h>
-#include <plat_tzc400.h>
+#include <mmio.h>
+#ifdef POLICY_FUSE_PROVISION
+#include <nxp_gpio.h>
+#endif
 #if TRUSTED_BOARD_BOOT
 #include <nxp_smmu.h>
 #endif
-#if POLICY_OTA
-#include <ls_ota.h>
-#endif
+#include <nxp_timer.h>
+#include <plat_console.h>
+#include <plat_gic.h>
+#include <plat_tzc400.h>
+#include <pmu.h>
+#include <scfg.h>
 #if defined(NXP_SFP_ENABLED)
 #include <sfp.h>
 #endif
-#include <pmu.h>
-#include <dcfg.h>
-#include <scfg.h>
-#include <nxp_timer.h>
-#include <plat_console.h>
-#include <soc.h>
-#include <plat_gic.h>
-#include <i2c.h>
-#include <caam.h>
+
+#include <errata.h>
 #ifdef CONFIG_OCRAM_ECC_EN
 #include <ocram.h>
 #endif
+#include "plat_common.h"
+#include "platform_def.h"
+#include "soc.h"
 
 static dcfg_init_info_t dcfg_init_data = {
 	.g_nxp_dcfg_addr = NXP_DCFG_ADDR,
@@ -60,7 +61,7 @@ static struct soc_type soc_list[] =  {
 CASSERT(NUMBER_OF_CLUSTERS && NUMBER_OF_CLUSTERS <= 256,
 	assert_invalid_ls1028a_cluster_count);
 
-/******************************************************************************
+/*
  * Function returns the base counter frequency
  * after reading the first entry at CNTFID0 (0x20 offset).
  *
@@ -68,7 +69,7 @@ CASSERT(NUMBER_OF_CLUSTERS && NUMBER_OF_CLUSTERS <= 256,
  *   1. ARM common code for PSCI management.
  *   2. ARM Generic Timer init.
  *
- *****************************************************************************/
+ */
 unsigned int plat_get_syscnt_freq2(void)
 {
 	unsigned int counter_base_frequency;
@@ -83,14 +84,19 @@ unsigned int plat_get_syscnt_freq2(void)
 }
 
 #ifdef IMAGE_BL2
+
+#ifdef POLICY_FUSE_PROVISION
+static gpio_init_info_t gpio_init_data = {
+	.gpio1_base_addr = NXP_GPIO1_ADDR,
+	.gpio2_base_addr = NXP_GPIO2_ADDR,
+	.gpio3_base_addr = NXP_GPIO3_ADDR,
+};
+#endif
+
 void soc_preload_setup(void)
 {
 }
 
-/*******************************************************************************
- * This function implements soc specific erratas
- * This is called before DDR is initialized or MMU is enabled
- ******************************************************************************/
 void soc_early_init(void)
 {
 	uint8_t num_clusters, cores_per_cluster;
@@ -127,6 +133,7 @@ void soc_early_init(void)
 		 */
 		uint32_t secure_region = (NXP_OCRAM_SIZE - NXP_SD_BLOCK_BUF_SIZE);
 		uint32_t mask = secure_region/TZPC_BLOCK_SIZE;
+
 		mmio_write_32(NXP_OCRAM_TZPC_ADDR, mask);
 
 		/* Add the entry for buffer in MMU Table */
@@ -155,10 +162,11 @@ void soc_early_init(void)
 	 */
 #ifndef MBEDTLS_X509
 	/* Initialize the crypto accelerator if enabled */
-	if (is_sec_enabled() == false)
-		INFO("SEC is disabled.\n");
-	else
+	if (is_sec_enabled()) {
 		sec_init(NXP_CAAM_ADDR);
+	} else {
+		INFO("SEC is disabled.\n");
+	}
 #endif
 #endif
 
@@ -191,9 +199,9 @@ void soc_bl2_prepare_exit(void)
 #endif
 }
 
-/*****************************************************************************
+/*
  * This function returns the boot device based on RCW_SRC
- ****************************************************************************/
+ */
 enum boot_device get_boot_dev(void)
 {
 	enum boot_device src = BOOT_DEVICE_NONE;
@@ -225,15 +233,10 @@ enum boot_device get_boot_dev(void)
 		break;
 	}
 
-#if POLICY_OTA
-	if (ota_status_check() == 0)
-		src = BOOT_DEVICE_EMMC;
-#endif
-
 	return src;
 }
 
-/*****************************************************************************
+/*
  * This function sets up access permissions on memory regions
  ****************************************************************************/
 void soc_mem_access(void)
@@ -265,10 +268,10 @@ void soc_mem_access(void)
 #else
 
 static unsigned char _power_domain_tree_desc[NUMBER_OF_CLUSTERS + 2];
-/*******************************************************************************
+/*
  * This function dynamically constructs the topology according to
  *  SoC Flavor and returns it.
- ******************************************************************************/
+ */
 const unsigned char *plat_get_power_domain_tree_desc(void)
 {
 	uint8_t num_clusters, cores_per_cluster;
@@ -288,10 +291,10 @@ const unsigned char *plat_get_power_domain_tree_desc(void)
 	return _power_domain_tree_desc;
 }
 
-/*******************************************************************************
+/*
  * This function returns the core count within the cluster corresponding to
  * `mpidr`.
- ******************************************************************************/
+ */
 unsigned int plat_ls_get_cluster_core_count(u_register_t mpidr)
 {
 	uint8_t num_clusters, cores_per_cluster;
@@ -333,9 +336,7 @@ void soc_platform_setup(void)
 	enable_init_timer();
 }
 
-/*******************************************************************************
- * This function initializes the soc from the BL31 module
- ******************************************************************************/
+/* This function initializes the soc from the BL31 module */
 void soc_init(void)
 {
 	uint8_t num_clusters, cores_per_cluster;
@@ -354,19 +355,18 @@ void soc_init(void)
 	 */
 	cci_init(NXP_CCI_ADDR, cci_map, ARRAY_SIZE(cci_map));
 
-	/*
-	 * Enable Interconnect coherency for the primary CPU's cluster.
-	 */
+	/* Enable Interconnect coherency for the primary CPU's cluster. */
 	plat_ls_interconnect_enter_coherency(num_clusters);
 
 	/* Set platform security policies */
 	_set_platform_security();
 
 	/* Init SEC Engine which will be used by SiP */
-	if (is_sec_enabled() == false)
-		INFO("SEC is disabled.\n");
-	else
+	if (is_sec_enabled()) {
 		sec_init(NXP_CAAM_ADDR);
+	} else {
+		INFO("SEC is disabled.\n");
+	}
 }
 
 #ifdef NXP_WDOG_RESTART
@@ -391,10 +391,8 @@ void soc_runtime_setup(void)
 #endif
 }
 
-/*******************************************************************************
- * This function returns the total number of cores in the SoC
- ******************************************************************************/
-unsigned int get_tot_num_cores()
+/* This function returns the total number of cores in the SoC. */
+unsigned int get_tot_num_cores(void)
 {
 	uint8_t num_clusters, cores_per_cluster;
 
@@ -402,10 +400,8 @@ unsigned int get_tot_num_cores()
 	return (num_clusters * cores_per_cluster);
 }
 
-/*******************************************************************************
- * This function returns the PMU IDLE Cluster mask.
- ******************************************************************************/
-unsigned int get_pmu_idle_cluster_mask()
+/* This function returns the PMU IDLE Cluster mask. */
+unsigned int get_pmu_idle_cluster_mask(void)
 {
 	uint8_t num_clusters, cores_per_cluster;
 
@@ -413,10 +409,8 @@ unsigned int get_pmu_idle_cluster_mask()
 	return ((1 << num_clusters) - 2);
 }
 
-/*******************************************************************************
- * This function returns the PMU Flush Cluster mask.
- ******************************************************************************/
-unsigned int get_pmu_flush_cluster_mask()
+/* This function returns the PMU Flush Cluster mask. */
+unsigned int get_pmu_flush_cluster_mask(void)
 {
 	uint8_t num_clusters, cores_per_cluster;
 
@@ -424,19 +418,23 @@ unsigned int get_pmu_flush_cluster_mask()
 	return ((1 << num_clusters) - 2);
 }
 
-/*******************************************************************************
- * This function returns the PMU idle core mask.
- ******************************************************************************/
-unsigned int get_pmu_idle_core_mask()
+/* This function returns the PMU idle core mask. */
+unsigned int get_pmu_idle_core_mask(void)
 {
-	return ((1 << get_tot_num_cores()) - 2) ;
+	return ((1 << get_tot_num_cores()) - 2);
 }
 
-/*******************************************************************************
- * Function to return the SoC SYS CLK
- ******************************************************************************/
+/* Function to return the SoC SYS CLK */
 unsigned int get_sys_clk(void)
 {
 	return NXP_SYSCLK_FREQ;
 }
 #endif
+
+/*
+ * This function sets up DTB address to be passed to next boot stage
+ */
+void plat_set_dt_address(entry_point_info_t *image_info)
+{
+	image_info->args.arg3 = BL32_FDT_OVERLAY_ADDR;
+}

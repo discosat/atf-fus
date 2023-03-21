@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 NXP
+ * Copyright 2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -44,8 +44,8 @@
 #define SVR_LS2041A			0x870914
 
 /* PORSR1 */
-#define PORSR1_RCW_MASK		0xFF800000
-#define PORSR1_RCW_SHIFT	23
+#define PORSR1_RCW_MASK			0xFF800000
+#define PORSR1_RCW_SHIFT		23
 
 /* CFG_RCW_SRC[6:0] */
 #define RCW_SRC_TYPE_MASK		0x70
@@ -58,10 +58,10 @@
  * 1. SERAIL NOR (QSPI)
  * 2. OTHERS (SD/MMC, SPI, I2C1
  */
-#define RCW_SRC_SERIAL_MASK	0x7F
-#define QSPI_VAL		0x62
-#define SDHC_VAL		0x40
-#define EMMC_VAL		0x41
+#define RCW_SRC_SERIAL_MASK		0x7F
+#define QSPI_VAL			0x62
+#define SDHC_VAL			0x40
+#define EMMC_VAL			0x41
 
 
 /* Number of cores in platform */
@@ -91,10 +91,10 @@
 #define CPUECTLR_INS_PREFETCH_MASK	0x1800000000
 #define CPUECTLR_DAT_PREFETCH_MASK	0x0300000000
 #define OSDLR_EL1_DLK_LOCK		0x1
-#define CNTP_CTL_EL0_EN		0x1
+#define CNTP_CTL_EL0_EN			0x1
 #define CNTP_CTL_EL0_IMASK		0x2
 /* set to 0 if the clusters are not symmetrical */
-#define SYMMETRICAL_CLUSTERS			1
+#define SYMMETRICAL_CLUSTERS		1
 
 /*
  * pwr mgmt features supported in the soc-specific code:

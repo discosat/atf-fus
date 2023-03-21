@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 NXP
+ * Copyright 2018-2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -37,15 +37,16 @@ dram_regions_info_t *get_dram_regions_info(void)
 static void populate_dram_regions_info(void)
 {
 	long long dram_remain_size = dram_regions_info.total_dram_size;
-	uint8_t reg_id = 0;
+	uint8_t reg_id = 0U;
 
 	dram_regions_info.region[reg_id].addr = NXP_DRAM0_ADDR;
 	dram_regions_info.region[reg_id].size =
 			dram_remain_size > NXP_DRAM0_MAX_SIZE ?
 				NXP_DRAM0_MAX_SIZE : dram_remain_size;
 
-	if (dram_regions_info.region[reg_id].size != NXP_DRAM0_SIZE)
-		NOTICE("Incorrect DRAM0 size is defined in platform_def.h\n");
+	if (dram_regions_info.region[reg_id].size != NXP_DRAM0_SIZE) {
+		ERROR("Incorrect DRAM0 size is defined in platform_def.h\n");
+	}
 
 	dram_remain_size -= dram_regions_info.region[reg_id].size;
 	dram_regions_info.region[reg_id].size -= (NXP_SECURE_DRAM_SIZE
@@ -92,7 +93,7 @@ static uint32_t ls_get_spsr_for_bl32_entry(void)
 	 * The Secure Payload Dispatcher service is responsible for
 	 * setting the SPSR prior to entry into the BL32 image.
 	 */
-	return 0;
+	return 0U;
 }
 #endif
 
@@ -157,8 +158,9 @@ void bl2_el3_early_platform_setup(u_register_t arg0 __unused,
 	/* Initialise the IO layer and register platform IO devices */
 	plat_io_setup();
 
-	if (dram_regions_info.total_dram_size > 0)
+	if (dram_regions_info.total_dram_size > 0) {
 		populate_dram_regions_info();
+	}
 
 #ifdef NXP_NV_SW_MAINT_LAST_EXEC_DATA
 	read_nv_app_data();
@@ -177,10 +179,10 @@ void bl2_el3_early_platform_setup(u_register_t arg0 __unused,
  ******************************************************************************/
 void ls_bl2_el3_plat_arch_setup(void)
 {
-	unsigned int flags = 0;
+	unsigned int flags = 0U;
 	/* Initialise the IO layer and register platform IO devices */
 	ls_setup_page_tables(
-#if SEPARATE_RW_AND_NOLOAD
+#if SEPARATE_BL2_NOLOAD_REGION
 			      BL2_START,
 			      BL2_LIMIT - BL2_START,
 #else
@@ -198,8 +200,9 @@ void ls_bl2_el3_plat_arch_setup(void)
 			      );
 
 	if ((dram_regions_info.region[0].addr == 0)
-		&& (dram_regions_info.total_dram_size == 0))
+		&& (dram_regions_info.total_dram_size == 0)) {
 		flags = XLAT_TABLE_NC;
+	}
 
 #ifdef AARCH32
 	enable_mmu_secure(0);
@@ -275,6 +278,13 @@ void bl2_plat_preload_setup(void)
 {
 
 	soc_preload_setup();
+
+#ifdef DDR_INIT
+	if (dram_regions_info.total_dram_size <= 0) {
+		ERROR("Asserting as the DDR is not initialized yet.");
+		assert(false);
+	}
+#endif
 
 	if ((dram_regions_info.region[0].addr == 0)
 		&& (dram_regions_info.total_dram_size > 0)) {

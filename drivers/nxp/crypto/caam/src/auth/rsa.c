@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -68,7 +68,7 @@ static int rsa_public_verif_sec(uint8_t *sign, uint8_t *to,
 
 	/* Finally, generate the requested random data bytes */
 	ret = run_descriptor_jr(&jobdesc);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Error in running descriptor\n");
 		ret = -1;
 	}
@@ -115,14 +115,15 @@ static int construct_img_encoded_hash_second(uint8_t *hash, uint8_t hash_len,
 	int i;
 	int ret = 0;
 
-	if (hash_len != SHA256_BYTES)
+	if (hash_len != SHA256_BYTES) {
 		return -1;
+	}
 
 	/* Key length = Modulus length */
-	len = (key_len / 2) - 1;
+	len = (key_len / 2U) - 1U;
 	representative = encoded_hash_second;
-	representative[0] = 0;
-	representative[1] = 1;	/* block type 1 */
+	representative[0] = 0U;
+	representative[1] = 1U;	/* block type 1 */
 
 	padding = &representative[2];
 	digest = &representative[1] + len - 32;
@@ -133,14 +134,15 @@ static int construct_img_encoded_hash_second(uint8_t *hash, uint8_t hash_len,
 	memset(padding, 0xff, separator - padding);
 
 	/* fill byte pointed by separator */
-	*separator = 0;
+	*separator = 0U;
 
 	/* fill SHA-256 DER value  pointed by HashId */
 	memcpy(hash_id, hash_identifier, sizeof(hash_identifier));
 
 	/* fill hash pointed by Digest */
-	for (i = 0; i < SHA256_BYTES; i++)
+	for (i = 0; i < SHA256_BYTES; i++) {
 		digest[i] = hash[i];
+	}
 
 	return ret;
 }
@@ -156,19 +158,19 @@ int rsa_verify_signature(void *hash_ptr, unsigned int hash_len,
 	ret = construct_img_encoded_hash_second(hash_ptr, hash_len,
 						img_encoded_hash_second,
 						pk_len);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Encoded Hash Failure\n");
 		return CRYPTO_ERR_SIGNATURE;
 	}
 
 	ret = rsa_public_verif_sec(sig_ptr, encoded_hash, pk_ptr, pk_len / 2);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("RSA signature Failure\n");
 		return CRYPTO_ERR_SIGNATURE;
 	}
 
 	ret = memcmp(img_encoded_hash_second, encoded_hash, sig_len);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Comparison Failure\n");
 		return CRYPTO_ERR_SIGNATURE;
 	}

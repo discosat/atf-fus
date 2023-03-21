@@ -1,5 +1,5 @@
 #
-# Copyright 2020 NXP
+# Copyright 2021 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -8,17 +8,15 @@ ifeq (${ADD_TZASC},)
 
 ADD_TZASC		:= 1
 
-TZASC_DRIVERS_PATH	:=  ${PLAT_DRIVERS_PATH}/tzc
-
-PLAT_INCLUDES		+= -I$(TZASC_DRIVERS_PATH)
+PLAT_INCLUDES		+= -I$(PLAT_DRIVERS_INCLUDE_PATH)/tzc
 
 ifeq ($(TZC_ID), TZC400)
 TZASC_SOURCES		+= drivers/arm/tzc/tzc400.c\
-			   $(TZASC_DRIVERS_PATH)/plat_tzc400.c
+			   $(PLAT_DRIVERS_PATH)/tzc/plat_tzc400.c
 else
 ifeq ($(TZC_ID), TZC380)
 TZASC_SOURCES		+= drivers/arm/tzc/tzc380.c\
-			   $(TZASC_DRIVERS_PATH)/plat_tzc380.c
+			   $(PLAT_DRIVERS_PATH)/tzc/plat_tzc380.c
 else
 ifeq ($(TZC_ID), NONE)
     $(info -> No TZC present on platform)
@@ -40,4 +38,3 @@ endif
 endif
 
 endif
-

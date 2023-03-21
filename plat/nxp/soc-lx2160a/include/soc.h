@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -52,12 +52,7 @@
 #define FLEXSPI_NOR		0xf
 /* End: Macros used by soc.c: get_boot_dev */
 
-/*
- * SVR Definition of LX2160A
- * (not include major and minor rev)
- * These info is listed in Table 344. LX2160A Personality
- * summary of LX2160ARM(Reference Manual)
- */
+/* SVR Definition (not include major and minor rev) */
 #define SVR_LX2160A		0x873601
 #define SVR_LX2160E		0x873610
 #define SVR_LX2160C		0x873600
@@ -71,12 +66,7 @@
 #define SVR_LX2080C		0x873602
 #define SVR_LX2080N		0x873613
 
-/*
- * SVR Definition of SoC LX2162A
- * (not include major and minor rev)
- * These info is listed in Table 331. LX2162A Personality
- * summary of LX2162ARM(Reference Manual)
- */
+/* SVR Definition of SoC LX2162A. */
 #define SVR_LX2162A		0x873609
 #define SVR_LX2162E		0x873618
 #define SVR_LX2162C		0x873608
@@ -112,7 +102,7 @@
 #define NXP_PLATFORM_CLK_DIVIDER	2
 #define NXP_UART_CLK_DIVIDER		4
 
-/* Start: Macros used by lx2160.S */
+/* Start: Macros used by lx2160a.S */
 #define MPIDR_AFFINITY0_MASK			0x00FF
 #define MPIDR_AFFINITY1_MASK			0xFF00
 #define CPUECTLR_DISABLE_TWALK_PREFETCH		0x4000000000
@@ -124,7 +114,7 @@
 #define CNTP_CTL_EL0_IMASK			0x2
 /* set to 0 if the clusters are not symmetrical */
 #define SYMMETRICAL_CLUSTERS			1
-/* End: Macros used by lx2160.S */
+/* End: Macros used by lx2160a.S */
 
 /* Start: Macros used by lib/psci files */
 #define SYSTEM_PWR_DOMAINS 1
@@ -163,7 +153,8 @@
 #ifndef __ASSEMBLER__
 
 void set_base_freq_CNTFID0(void);
-void soc_init_lowlevel(void);
+void soc_init_start(void);
+void soc_init_finish(void);
 void soc_init_percpu(void);
 void _soc_set_start_addr(unsigned long addr);
 void _set_platform_security(void);

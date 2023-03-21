@@ -7,8 +7,8 @@
 
 #include <common/debug.h>
 
-#include <plat_common.h>
 #include <plat_gic.h>
+#include <plat_common.h>
 #include <plat_psci.h>
 #ifdef NXP_WARM_BOOT
 #include <plat_warm_rst.h>

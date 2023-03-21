@@ -6,9 +6,8 @@
  */
 #include <stdint.h>
 #include <stdlib.h>
-#include <lib/xlat_tables/xlat_tables_v2.h>
 
-#include "ifc_nor.h"
+#include <lib/xlat_tables/xlat_tables_v2.h>
 
 int ifc_nor_init(uintptr_t flash_addr, size_t flash_size)
 {

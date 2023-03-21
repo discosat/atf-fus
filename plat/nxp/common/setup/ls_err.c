@@ -36,10 +36,11 @@ void plat_error_handler(int err)
 #if TRUSTED_BOARD_BOOT
 		/* For SB production mode i.e ITS = 1 */
 		if (sb == true) {
-			if (mode == 1)
+			if (mode == 1U) {
 				transition_snvs_soft_fail();
-			else
+			} else {
 				transition_snvs_non_secure();
+			}
 		}
 #endif
 		break;

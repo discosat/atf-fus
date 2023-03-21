@@ -1,6 +1,5 @@
 #
-# Copyright (c) 2015, 2016 Freescale Semiconductor, Inc.
-# Copyright 2017-2018, 2021 NXP
+# Copyright 2022 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -42,7 +41,7 @@ CONSOLE		:=	NS16550
 ERRATA_A53_855873              :=      1
 
 # OCRAM_MAP
-OCRAM_START_ADDR := 0x10000000
+OCRAM_START_ADDR :=	0x10000000
 OCRAM_SIZE := 0x20000
 # Location of BL2 on OCRAM
 # Required by create_pbl tool.
@@ -63,6 +62,19 @@ NXP_ROM_RSVD	:=	0x8000
 BL2_HDR_LOC_ADDR	?=	$(shell echo $$(( $(OCRAM_START_ADDR) + $(OCRAM_SIZE) - $(NXP_ROM_RSVD) - $(CSF_HDR_SZ))))
 # Covert to HEX to be used by create_pbl.mk
 BL2_HDR_LOC	:=	$$(echo "obase=16; ${BL2_HDR_LOC_ADDR}" | bc)
+
+# Define Endianness of each module
+NXP_GUR_ENDIANNESS	:=	BE
+NXP_DDR_ENDIANNESS	:=	BE
+NXP_SEC_ENDIANNESS	:=	BE
+NXP_SFP_ENDIANNESS	:=	BE
+NXP_SNVS_ENDIANNESS	:=	BE
+NXP_ESDHC_ENDIANNESS	:=	BE
+NXP_QSPI_ENDIANNESS	:=	BE
+NXP_FSPI_ENDIANNESS	:=	BE
+NXP_SCFG_ENDIANNESS	:=	BE
+NXP_GPIO_ENDIANNESS	:=	BE
+NXP_IFC_ENDIANNESS	:=	BE
 
 NXP_SFP_VER		:= 3_2
 

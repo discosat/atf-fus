@@ -2,6 +2,7 @@
  * Copyright 2018-2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
+ *
  */
 
 #include <assert.h>
@@ -13,39 +14,37 @@
 #include <ccn.h>
 #include <common/debug.h>
 #include <dcfg.h>
-#include <errata.h>
 #ifdef I2C_INIT
 #include <i2c.h>
 #endif
 #include <lib/mmio.h>
 #include <lib/xlat_tables/xlat_tables_v2.h>
 #include <ls_interconnect.h>
-#include <ls_interrupt_mgmt.h>
 #ifdef POLICY_FUSE_PROVISION
 #include <nxp_gpio.h>
 #endif
-#if TRUSTED_BOARD_BOOT
 #include <nxp_smmu.h>
-#endif
 #include <nxp_timer.h>
 #include <plat_console.h>
 #include <plat_gic.h>
-#ifdef NXP_NV_SW_MAINT_LAST_EXEC_DATA
-#include <plat_nv_storage.h>
-#endif
 #include <plat_tzc400.h>
-#ifdef NXP_WARM_BOOT
-#include <plat_warm_rst.h>
-#endif
 #include <pmu.h>
 #if defined(NXP_SFP_ENABLED)
 #include <sfp.h>
 #endif
+
+#include <errata.h>
 #ifdef CONFIG_OCRAM_ECC_EN
 #include <ocram.h>
 #endif
-
+#include <ls_interrupt_mgmt.h>
 #include "plat_common.h"
+#ifdef NXP_NV_SW_MAINT_LAST_EXEC_DATA
+#include <plat_nv_storage.h>
+#endif
+#ifdef NXP_WARM_BOOT
+#include <plat_warm_rst.h>
+#endif
 #include "platform_def.h"
 #include "soc.h"
 
@@ -144,15 +143,17 @@ static gpio_init_info_t gpio_init_data = {
 
 static void soc_interconnect_config(void)
 {
-	unsigned long long val = 0x0;
+	unsigned long long val = 0x0U;
 	uint8_t num_clusters, cores_per_cluster;
 
-	get_cluster_info(soc_list, ARRAY_SIZE(soc_list), &num_clusters, &cores_per_cluster);
+	get_cluster_info(soc_list, ARRAY_SIZE(soc_list),
+			&num_clusters, &cores_per_cluster);
 
-	if (num_clusters == 6)
+	if (num_clusters == 6U) {
 		ccn_init(&plat_six_cluster_ccn_desc);
-	else
+	} else {
 		ccn_init(&plat_ccn_desc);
+	}
 
 	/*
 	 * Enable Interconnect coherency for the primary CPU's cluster.
@@ -194,22 +195,22 @@ static void soc_interconnect_config(void)
 	ccn_write_node_reg(NODE_TYPE_HNI, 30, SA_AUX_CTRL_REG_OFFSET, val);
 
 #if POLICY_PERF_WRIOP
-	uint16_t wriop_rni = 0;
+	uint16_t wriop_rni = 0U;
 
-	if (POLICY_PERF_WRIOP == 1)
-		wriop_rni = 7;
-	else if (POLICY_PERF_WRIOP == 2)
-		wriop_rni = 23;
-	else {
-		assert(0);
+	if (POLICY_PERF_WRIOP == 1) {
+		wriop_rni = 7U;
+	} else if (POLICY_PERF_WRIOP == 2) {
+		wriop_rni = 23U;
+	} else {
 		ERROR("Incorrect WRIOP selected.\n");
+		panic();
 	}
 
 	val = ccn_read_node_reg(NODE_TYPE_RNI, wriop_rni,
-							SA_AUX_CTRL_REG_OFFSET);
+				SA_AUX_CTRL_REG_OFFSET);
 	val |= ENABLE_WUO;
 	ccn_write_node_reg(NODE_TYPE_HNI, wriop_rni, SA_AUX_CTRL_REG_OFFSET,
-									val);
+			   val);
 #else
 	val = ccn_read_node_reg(NODE_TYPE_RNI, 17, SA_AUX_CTRL_REG_OFFSET);
 	val |= ENABLE_WUO;
@@ -226,9 +227,9 @@ void soc_preload_setup(void)
 #endif
 	info_dram_regions->total_dram_size =
 #if defined(NXP_WARM_BOOT)
-					init_ddr(warm_reset);
+						init_ddr(warm_reset);
 #else
-					init_ddr();
+						init_ddr();
 #endif
 }
 
@@ -282,6 +283,12 @@ void soc_early_init(void)
 #if (TRUSTED_BOARD_BOOT) || defined(POLICY_FUSE_PROVISION)
 	sfp_init(NXP_SFP_ADDR);
 #endif
+
+    /*
+     * Unlock write access for SMMU SMMU_CBn_ACTLR in all Non-secure contexts.
+     */
+    smmu_cache_unlock(NXP_SMMU_ADDR);
+    INFO("SMMU Cache Unlocking is Configured.\n");
 
 #if TRUSTED_BOARD_BOOT
 	uint32_t mode;
@@ -366,10 +373,10 @@ void soc_mem_access(void)
 	const devdisr5_info_t *devdisr5_info = get_devdisr5_info();
 	dram_regions_info_t *info_dram_regions = get_dram_regions_info();
 	struct tzc400_reg tzc400_reg_list[MAX_NUM_TZC_REGION];
-	int dram_idx, index = 0;
+	int dram_idx, index = 0U;
 
-	for (dram_idx = 0; dram_idx < info_dram_regions->num_dram_regions;
-			dram_idx++) {
+	for (dram_idx = 0U; dram_idx < info_dram_regions->num_dram_regions;
+	     dram_idx++) {
 		if (info_dram_regions->region[dram_idx].size == 0) {
 			ERROR("DDR init failure, or");
 			ERROR("DRAM regions not populated correctly.\n");
@@ -383,14 +390,14 @@ void soc_mem_access(void)
 				NXP_SECURE_DRAM_SIZE, NXP_SP_SHRD_DRAM_SIZE);
 	}
 
-	if (devdisr5_info->ddrc1_present) {
+	if (devdisr5_info->ddrc1_present != 0) {
 		INFO("DDR Controller 1.\n");
 		mem_access_setup(NXP_TZC_ADDR, index,
 				tzc400_reg_list);
 		mem_access_setup(NXP_TZC3_ADDR, index,
 				tzc400_reg_list);
 	}
-	if (devdisr5_info->ddrc2_present) {
+	if (devdisr5_info->ddrc2_present != 0) {
 		INFO("DDR Controller 2.\n");
 		mem_access_setup(NXP_TZC2_ADDR, index,
 				tzc400_reg_list);
@@ -436,7 +443,7 @@ void soc_early_platform_setup2(void)
 #if LOG_LEVEL > 0
 	/* Initialize the console to provide early debug support */
 	plat_console_init(NXP_CONSOLE_ADDR,
-				NXP_UART_CLK_DIVIDER, NXP_CONSOLE_BAUDRATE);
+			  NXP_UART_CLK_DIVIDER, NXP_CONSOLE_BAUDRATE);
 #endif
 }
 
@@ -472,8 +479,11 @@ void soc_init(void)
 {
 	uint8_t num_clusters, cores_per_cluster;
 
+	get_cluster_info(soc_list, ARRAY_SIZE(soc_list),
+			&num_clusters, &cores_per_cluster);
+
 	/* low-level init of the soc */
-	soc_init_lowlevel();
+	soc_init_start();
 	_init_global_data();
 	soc_init_percpu();
 	_initialize_psci();
@@ -484,22 +494,26 @@ void soc_init(void)
 		panic();
 	}
 
-	get_cluster_info(soc_list, ARRAY_SIZE(soc_list), &num_clusters, &cores_per_cluster);
-	if (num_clusters == 6)
+	if (num_clusters == 6U) {
 		ccn_init(&plat_six_cluster_ccn_desc);
-	else
+	} else {
 		ccn_init(&plat_ccn_desc);
+	}
 
 	plat_ls_interconnect_enter_coherency(num_clusters);
 
 	/* Set platform security policies */
 	_set_platform_security();
 
+	 /* make sure any parallel init tasks are finished */
+	soc_init_finish();
+
 	/* Initialize the crypto accelerator if enabled */
-	if (is_sec_enabled() == false)
+	if (is_sec_enabled() == false) {
 		INFO("SEC is disabled.\n");
-	else
+	} else {
 		sec_init(NXP_CAAM_ADDR);
+	}
 
 }
 
@@ -510,7 +524,7 @@ static uint64_t wdog_interrupt_handler(uint32_t id, uint32_t flags,
 	uint8_t data = WDOG_RESET_FLAG;
 
 	wr_nv_app_data(WDT_RESET_FLAG_OFFSET,
-			(uint8_t *)&data, sizeof(data));
+		       (uint8_t *)&data, sizeof(data));
 
 	mmio_write_32(NXP_RST_ADDR + RSTCNTL_OFFSET, SW_RST_REQ_INIT);
 
@@ -526,3 +540,11 @@ void soc_runtime_setup(void)
 #endif
 }
 #endif
+
+/*
+ * This function sets up DTB address to be passed to next boot stage
+ */
+void plat_set_dt_address(entry_point_info_t *image_info)
+{
+	image_info->args.arg3 = 0;
+}

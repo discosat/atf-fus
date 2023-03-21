@@ -9,6 +9,7 @@ Platform Ports
 
    allwinner
    arm/index
+   deprecated
    meson-axg
    meson-gxbb
    meson-gxl
@@ -20,11 +21,12 @@ Platform Ports
    marvell/index
    mt8183
    mt8192
+   mt8195
    nvidia-tegra
    warp7
    imx8
    imx8m
-   ls1043a
+   nxp/index
    poplar
    qemu
    qemu-sbsa
@@ -32,6 +34,7 @@ Platform Ports
    rpi3
    rpi4
    rcar-gen3
+   rz-g2
    rockchip
    socionext-uniphier
    synquacer
@@ -40,7 +43,6 @@ Platform Ports
    xilinx-versal
    xilinx-zynqmp
    brcm-stingray
-   nxp/index
 
 This section provides a list of supported upstream *platform ports* and the
 documentation associated with them.

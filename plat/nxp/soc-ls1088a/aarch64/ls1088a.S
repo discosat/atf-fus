@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 NXP
+ * Copyright 2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -8,12 +8,12 @@
 
 #include <asm_macros.S>
 #include <lib/psci/psci.h>
+#include <nxp_timer.h>
+#include <plat_gic.h>
 
 #include "bl31_data.h"
-#include "nxp_timer.h"
-#include "platform_def.h"
-#include "plat_gic.h"
 #include "plat_psci.h"
+#include "platform_def.h"
 
 /*
  * the BASE address for these offsets is AUX_01_DATA in the
@@ -98,8 +98,8 @@
 
 /*
  * This function initialize the soc,
- * in:
- * out:
+ * in: none
+ * out: none
  * uses x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11
  */
 func soc_init_lowlevel
@@ -188,6 +188,7 @@ endfunc _set_platform_security
 /*
  * this function writes a 64-bit address to bootlocptrh/l
  * in:  x0, 64-bit address to write to BOOTLOCPTRL/H
+ * out: none
  * uses x0, x1, x2
  */
 func _soc_set_start_addr
@@ -922,10 +923,10 @@ _soc_sys_pwrdn_wfi:
 	str	w7, [x2, #EPU_EPGCR_OFFSET]
 
 	/*
-	 * A-010194: There is logic proglem
+	 * A-010194: There is logic problem
 	 * in the path of GIC-to-PMU to issue
 	 * wake request to core0
-	 * Workaournd: Re-target the wakeup interrupts
+	 * Workaround: Re-target the wakeup interrupts
 	 * to a core other than the last active core0
 	 */
 	ldr	x2, =NXP_GICD_ADDR
@@ -1478,7 +1479,7 @@ _read_reg_dcfg:
 	ret
 
 /*
- * this function setc up the TrustZone Address Space Controller (TZASC)
+ * this function sets up the TrustZone Address Space Controller (TZASC)
  * in:  none
  * out: none
  * uses x0, x1

@@ -1,5 +1,5 @@
 #
-# Copyright 2017-2020 NXP
+# Copyright 2021 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -18,4 +18,3 @@ $(DDR_PHY_H): src
 	@cp -r "$(DDR_PHY_PATH)/$@" "$(SRC_DIR)/$@"
 
 #------------------------------------------------
-

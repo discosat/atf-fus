@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -10,6 +10,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <common/debug.h>
@@ -19,10 +20,13 @@
 #include <fspi_api.h>
 #endif
 #include <lib/mmio.h>
-#include <plat_nv_storage.h>
 #ifdef NXP_COINED_BB
 #include <snvs.h>
+#else
+#include <xspi_error_codes.h>
 #endif
+
+#include <plat_nv_storage.h>
 
 /*This structure will be a static structure and
  * will be populated as first step of BL2 booting-up.
@@ -31,13 +35,13 @@
 
 static nv_app_data_t nv_app_data;
 
-uint8_t read_nv_app_data(void)
+int read_nv_app_data(void)
 {
 	int ret = 0;
 
 #ifdef NXP_COINED_BB
 	uint8_t *nv_app_data_array = (uint8_t *) &nv_app_data;
-	uint8_t offset = 0;
+	uint8_t offset = 0U;
 
 	ret = snvs_read_app_data();
 	do {
@@ -51,7 +55,7 @@ uint8_t read_nv_app_data(void)
 
 	ret = fspi_init(NXP_FLEXSPI_ADDR, NXP_FLEXSPI_FLASH_ADDR);
 
-	if (ret) {
+	if (ret != XSPI_SUCCESS) {
 		ERROR("Failed to initialized driver flexspi-nor.\n");
 		ERROR("exiting warm-reset request.\n");
 		return -ENODEV;
@@ -65,7 +69,7 @@ uint8_t read_nv_app_data(void)
 	return ret;
 }
 
-uint8_t wr_nv_app_data(int data_offset,
+int wr_nv_app_data(int data_offset,
 			uint8_t *data,
 			int data_size)
 {
@@ -88,11 +92,11 @@ uint8_t wr_nv_app_data(int data_offset,
 	uint8_t ready_to_write_val[sizeof(nv_app_data_t)];
 	uintptr_t nv_base_addr = NV_STORAGE_BASE_ADDR;
 
-	assert((nv_base_addr + data_offset + data_size) > (nv_base_addr + F_SECTOR_ERASE_SZ));
+	assert((nv_base_addr + data_offset + data_size) <= (nv_base_addr + F_SECTOR_ERASE_SZ));
 
 	ret = fspi_init(NXP_FLEXSPI_ADDR, NXP_FLEXSPI_FLASH_ADDR);
 
-	if (ret) {
+	if (ret != XSPI_SUCCESS) {
 		ERROR("Failed to initialized driver flexspi-nor.\n");
 		ERROR("exiting warm-reset request.\n");
 		return -ENODEV;
@@ -102,8 +106,9 @@ uint8_t wr_nv_app_data(int data_offset,
 
 	memset(ready_to_write_val, READY_TO_WRITE_VALUE, ARRAY_SIZE(ready_to_write_val));
 
-	if (memcmp(read_val, ready_to_write_val, data_size) == 0)
+	if (memcmp(read_val, ready_to_write_val, data_size) == 0) {
 		xspi_write(nv_base_addr + data_offset, data, data_size);
+	}
 #endif
 
 	return ret;

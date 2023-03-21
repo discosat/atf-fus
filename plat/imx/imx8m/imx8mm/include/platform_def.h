@@ -1,9 +1,11 @@
 /*
- * Copyright (c) 2019, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2021, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+#include <arch.h>
+#include <common/tbbr/tbbr_img_def.h>
 #include <lib/utils_def.h>
 
 #define PLATFORM_LINKER_FORMAT		"elf64-littleaarch64"
@@ -31,11 +33,32 @@
 #define PLAT_WAIT_RET_STATE		U(1)
 #define PLAT_STOP_OFF_STATE		U(3)
 
+#define PLAT_PRI_BITS			U(3)
+#define PLAT_SDEI_CRITICAL_PRI		0x10
+#define PLAT_SDEI_NORMAL_PRI		0x20
+#define PLAT_SDEI_SGI_PRIVATE		U(9)
+
+#if defined(NEED_BL2)
+#define BL2_BASE			U(0x920000)
+#define BL2_LIMIT			U(0x940000)
+#define BL31_BASE			U(0x900000)
+#define BL31_LIMIT			U(0x920000)
+#define IMX_FIP_BASE			U(0x40310000)
+#define IMX_FIP_SIZE			U(0x000300000)
+#define IMX_FIP_LIMIT			U(FIP_BASE + FIP_SIZE)
+
+/* Define FIP image location on eMMC */
+#define IMX_FIP_MMC_BASE		U(0x100000)
+
+#define PLAT_IMX8MM_BOOT_MMC_BASE	U(0x30B50000) /* SD */
+#else
 #define BL31_BASE			U(0x920000)
 #define BL31_LIMIT			U(0x940000)
+#endif
 
 /* non-secure uboot base */
 #define PLAT_NS_IMAGE_OFFSET		U(0x40200000)
+#define PLAT_NS_IMAGE_SIZE		U(0x00200000)
 
 #define BL32_FDT_OVERLAY_ADDR		(PLAT_NS_IMAGE_OFFSET + 0x3000000)
 
@@ -46,8 +69,13 @@
 #define PLAT_VIRT_ADDR_SPACE_SIZE	(1ull << 32)
 #define PLAT_PHY_ADDR_SPACE_SIZE	(1ull << 32)
 
+#ifdef SPD_trusty
+#define MAX_XLAT_TABLES			10
+#define MAX_MMAP_REGIONS		18
+#else
 #define MAX_XLAT_TABLES			8
 #define MAX_MMAP_REGIONS		16
+#endif
 
 #define HAB_RVT_BASE			U(0x00000900) /* HAB_RVT for i.MX8MM */
 
@@ -94,6 +122,8 @@
 #define IMX_CAAM_RAM_SIZE		U(0x10000)
 #define IMX_DRAM_BASE			U(0x40000000)
 #define IMX_DRAM_SIZE			U(0xc0000000)
+#define IMX_TCM_BASE			U(0x7E0000)
+#define IMX_TCM_SIZE			U(0x40000)
 
 #define GPV_BASE			U(0x32000000)
 #define GPV_SIZE			U(0x800000)
@@ -116,6 +146,8 @@
 #define SRC_OTG1PHY_SCR			U(0x20)
 #define SRC_OTG2PHY_SCR			U(0x24)
 #define SRC_GPR1_OFFSET			U(0x74)
+#define SRC_GPR10_OFFSET		U(0x98)
+#define SRC_GPR10_PERSIST_SECONDARY_BOOT	BIT(30)
 
 #define SRC_SCR_M4_ENABLE_MASK		BIT(3)
 #define SRC_SCR_M4C_NON_SCLR_RST_MASK  	BIT(0)
@@ -146,4 +178,13 @@
 
 #define COUNTER_FREQUENCY		8000000 /* 8MHz */
 
+#define IMX_TRUSTY_STACK_SIZE 0x100
+#define TRUSTY_SHARED_MEMORY_OBJ_SIZE (12 * 1024)
+#define IMX_SEPARATE_NOBITS_BASE	U(0x910000)
+#define IMX_SEPARATE_NOBITS_LIMIT	U(0x920000)
+
 #define IMX_WDOG_B_RESET
+
+#define MAX_IO_HANDLES			3U
+#define MAX_IO_DEVICES			2U
+#define MAX_IO_BLOCK_DEVICES		1U

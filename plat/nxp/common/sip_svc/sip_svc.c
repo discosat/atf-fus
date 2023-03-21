@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -12,31 +12,32 @@
 #include <common/runtime_svc.h>
 #include <dcfg.h>
 #include <lib/mmio.h>
+#include <tools_share/uuid.h>
+
 #include <plat_common.h>
 #include <sipsvc.h>
-#include <tools_share/uuid.h>
 
 /* Layerscape SiP Service UUID */
 DEFINE_SVC_UUID2(nxp_sip_svc_uid,
-		0x871de4ef, 0xedfc, 0x4209, 0xa4, 0x23,
-		0x8d, 0x23, 0x75, 0x9d, 0x3b, 0x9f);
+		 0x871de4ef, 0xedfc, 0x4209, 0xa4, 0x23,
+		 0x8d, 0x23, 0x75, 0x9d, 0x3b, 0x9f);
 
 #pragma weak nxp_plat_sip_handler
 static uintptr_t nxp_plat_sip_handler(unsigned int smc_fid,
-			u_register_t x1,
-			u_register_t x2,
-			u_register_t x3,
-			u_register_t x4,
-			void *cookie,
-			void *handle,
-			u_register_t flags)
+				      u_register_t x1,
+				      u_register_t x2,
+				      u_register_t x3,
+				      u_register_t x4,
+				      void *cookie,
+				      void *handle,
+				      u_register_t flags)
 {
 	ERROR("%s: unhandled SMC (0x%x)\n", __func__, smc_fid);
 	SMC_RET1(handle, SMC_UNK);
 }
 
 uint64_t el2_2_aarch32(u_register_t smc_id, u_register_t start_addr,
-			u_register_t parm1, u_register_t parm2);
+		       u_register_t parm1, u_register_t parm2);
 
 uint64_t prefetch_disable(u_register_t smc_id, u_register_t mask);
 uint64_t bl31_get_porsr1(void);
@@ -58,13 +59,13 @@ static void clean_top_32b_of_param(uint32_t smc_fid,
 
 /* This function handles Layerscape defined SiP Calls */
 static uintptr_t nxp_sip_handler(unsigned int smc_fid,
-			u_register_t x1,
-			u_register_t x2,
-			u_register_t x3,
-			u_register_t x4,
-			void *cookie,
-			void *handle,
-			u_register_t flags)
+				 u_register_t x1,
+				 u_register_t x2,
+				 u_register_t x3,
+				 u_register_t x4,
+				 void *cookie,
+				 void *handle,
+				 u_register_t flags)
 {
 	uint32_t ns;
 	uint64_t ret;
@@ -75,7 +76,7 @@ static uintptr_t nxp_sip_handler(unsigned int smc_fid,
 
 	/* Determine which security state this SMC originated from */
 	ns = is_caller_non_secure(flags);
-	if (!ns) {
+	if (ns == 0) {
 		/* SiP SMC service secure world's call */
 		;
 	} else {
@@ -92,7 +93,7 @@ static uintptr_t nxp_sip_handler(unsigned int smc_fid,
 
 		/* Return zero on failure */
 		ret = get_random((int)x1);
-		if (ret) {
+		if (ret != 0) {
 			SMC_RET2(handle, SMC_OK, ret);
 		} else {
 			SMC_RET1(handle, SMC_UNK);
@@ -154,13 +155,13 @@ static uintptr_t nxp_sip_handler(unsigned int smc_fid,
 
 /* This function is responsible for handling all SiP calls */
 static uintptr_t sip_smc_handler(unsigned int smc_fid,
-			u_register_t x1,
-			u_register_t x2,
-			u_register_t x3,
-			u_register_t x4,
-			void *cookie,
-			void *handle,
-			u_register_t flags)
+				 u_register_t x1,
+				 u_register_t x2,
+				 u_register_t x3,
+				 u_register_t x4,
+				 void *cookie,
+				 void *handle,
+				 u_register_t flags)
 {
 	switch (smc_fid & SMC_FUNC_MASK) {
 	case SIP_SVC_CALL_COUNT:
@@ -178,7 +179,7 @@ static uintptr_t sip_smc_handler(unsigned int smc_fid,
 		break;
 	default:
 		return nxp_sip_handler(smc_fid, x1, x2, x3, x4,
-				      cookie, handle, flags);
+				       cookie, handle, flags);
 	}
 }
 

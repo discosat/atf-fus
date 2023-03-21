@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -18,19 +18,31 @@ static timer_ops_t ops;
 
 uint64_t get_timer_val(uint64_t start)
 {
-	return (read_cntpct_el0() * 1000 / read_cntfrq_el0() - start);
+	uint64_t cntpct;
+
+	isb();
+	cntpct = read_cntpct_el0();
+	return (cntpct * 1000ULL / read_cntfrq_el0() - start);
 }
 
 static uint32_t timer_get_value(void)
 {
-	uint64_t cntpct = read_cntpct_el0();
+	uint64_t cntpct;
+
+	isb();
+	cntpct = read_cntpct_el0();
 #ifdef ERRATA_SOC_A008585
-	uint8_t	max_fetch_count = 10;
+	uint8_t	max_fetch_count = 10U;
 	/* This erratum number needs to be confirmed to match ARM document */
-	uint64_t temp = read_cntpct_el0();
+	uint64_t temp;
+
+	isb();
+	temp = read_cntpct_el0();
 
 	while (temp != cntpct && max_fetch_count) {
+		isb();
 		cntpct = read_cntpct_el0();
+		isb();
 		temp = read_cntpct_el0();
 		max_fetch_count--;
 	}
@@ -72,22 +84,23 @@ void delay_timer_init(uintptr_t nxp_timer_addr)
 
 	g_nxp_timer_addr = nxp_timer_addr;
 	/* Rounding off the Counter Frequency to MHZ_TICKS_PER_SEC */
-	if (counter_base_frequency > MHZ_TICKS_PER_SEC)
+	if (counter_base_frequency > MHZ_TICKS_PER_SEC) {
 		counter_base_frequency = (counter_base_frequency
 					/ MHZ_TICKS_PER_SEC)
 					* MHZ_TICKS_PER_SEC;
-	else
+	} else {
 		counter_base_frequency = (counter_base_frequency
 					/ KHZ_TICKS_PER_SEC)
 					* KHZ_TICKS_PER_SEC;
+	}
 
 	/* Value in ticks per second (Hz) */
 	div = counter_base_frequency;
 
 	/* Reduce multiplier and divider by dividing them repeatedly by 10 */
-	while ((mult % 10 == 0) && (div % 10 == 0)) {
-		mult /= 10;
-		div /= 10;
+	while ((mult % 10U == 0U) && (div % 10U == 0U)) {
+		mult /= 10U;
+		div /= 10U;
 	}
 
 	/* Enable and initialize the System level generic timer */
@@ -108,16 +121,16 @@ void ls_configure_sys_timer(uintptr_t ls_sys_timctl_base,
 {
 	unsigned int reg_val;
 
-	if (ls_config_cntacr == 1) {
-		reg_val = (1 << CNTACR_RPCT_SHIFT) | (1 << CNTACR_RVCT_SHIFT);
-		reg_val |= (1 << CNTACR_RFRQ_SHIFT) | (1 << CNTACR_RVOFF_SHIFT);
-		reg_val |= (1 << CNTACR_RWVT_SHIFT) | (1 << CNTACR_RWPT_SHIFT);
+	if (ls_config_cntacr == 1U) {
+		reg_val = (1U << CNTACR_RPCT_SHIFT) | (1U << CNTACR_RVCT_SHIFT);
+		reg_val |= (1U << CNTACR_RFRQ_SHIFT) | (1U << CNTACR_RVOFF_SHIFT);
+		reg_val |= (1U << CNTACR_RWVT_SHIFT) | (1U << CNTACR_RWPT_SHIFT);
 		mmio_write_32(ls_sys_timctl_base +
 		      CNTACR_BASE(plat_ls_ns_timer_frame_id), reg_val);
 		mmio_write_32(ls_sys_timctl_base, plat_get_syscnt_freq2());
 	}
 
-	reg_val = (1 << CNTNSAR_NS_SHIFT(plat_ls_ns_timer_frame_id));
+	reg_val = (1U << CNTNSAR_NS_SHIFT(plat_ls_ns_timer_frame_id));
 	mmio_write_32(ls_sys_timctl_base + CNTNSAR, reg_val);
 }
 

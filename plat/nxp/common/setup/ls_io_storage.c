@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -11,9 +11,6 @@
 
 #include <common/debug.h>
 #include <common/tbbr/tbbr_img_def.h>
-#ifdef CONFIG_DDR_FIP_IMAGE
-#include <ddr_io_storage.h>
-#endif
 #include <drivers/io/io_block.h>
 #include <drivers/io/io_driver.h>
 #include <drivers/io/io_fip.h>
@@ -22,8 +19,11 @@
 #ifdef FLEXSPI_NOR_BOOT
 #include <flexspi_nor.h>
 #endif
-#ifdef POLICY_FUSE_PROVISION
-#include <fuse_io.h>
+#if defined(NAND_BOOT)
+#include <ifc_nand.h>
+#endif
+#if defined(NOR_BOOT)
+#include <ifc_nor.h>
 #endif
 #if defined(QSPI_BOOT)
 #include <qspi.h>
@@ -31,19 +31,16 @@
 #if defined(SD_BOOT) || defined(EMMC_BOOT)
 #include <sd_mmc.h>
 #endif
-#if defined(NOR_BOOT)
-#include <ifc_nor.h>
-#endif
-#if defined(NAND_BOOT)
-#include <ifc_nand.h>
-#endif
-
 #include <tools_share/firmware_image_package.h>
 
+#ifdef CONFIG_DDR_FIP_IMAGE
+#include <ddr_io_storage.h>
+#endif
+#ifdef POLICY_FUSE_PROVISION
+#include <fuse_io.h>
+#endif
 #include "plat_common.h"
 #include "platform_def.h"
-
-
 
 uint32_t fip_device;
 /* IO devices */
@@ -265,8 +262,9 @@ int open_backend(const uintptr_t spec)
 	result = io_dev_init(backend_dev_handle, (uintptr_t)NULL);
 	if (result == 0) {
 		result = io_open(backend_dev_handle, spec, &local_image_handle);
-		if (result == 0)
+		if (result == 0) {
 			io_close(local_image_handle);
+		}
 	}
 	return result;
 }
@@ -349,7 +347,7 @@ int ls_qspi_io_setup(void)
 	ERROR("QSPI driver not present. Check your BUILD\n");
 
 	/* Should never reach here */
-	assert(0);
+	assert(false);
 	return -1;
 #endif
 }
@@ -365,21 +363,25 @@ int emmc_sdhc2_io_setup(void)
 			NXP_SD_BLOCK_BUF_ADDR,
 			NXP_SD_BLOCK_BUF_SIZE,
 			false);
-	if (ret)
+	if (ret != 0) {
 		return ret;
+	}
 
 	return plat_io_block_setup(PLAT_FIP_OFFSET, block_dev_spec);
 #else
 	ERROR("EMMC driver not present. Check your BUILD\n");
 
 	/* Should never reach here */
-	assert(0);
+	assert(false);
 	return -1;
 #endif
 }
 
 int emmc_io_setup(void)
 {
+/* On the platforms which only has one ESDHC controller,
+ * eMMC-boot will use the first ESDHC controller.
+ */
 #if defined(SD_BOOT) || defined(EMMC_BOOT)
 	uintptr_t block_dev_spec;
 	int ret;
@@ -389,15 +391,16 @@ int emmc_io_setup(void)
 			NXP_SD_BLOCK_BUF_ADDR,
 			NXP_SD_BLOCK_BUF_SIZE,
 			true);
-	if (ret)
+	if (ret != 0) {
 		return ret;
+	}
 
 	return plat_io_block_setup(PLAT_FIP_OFFSET, block_dev_spec);
 #else
 	ERROR("SD driver not present. Check your BUILD\n");
 
 	/* Should never reach here */
-	assert(0);
+	assert(false);
 	return -1;
 #endif
 }
@@ -410,15 +413,16 @@ int ifc_nor_io_setup(void)
 	ret = ifc_nor_init(NXP_NOR_FLASH_ADDR,
 			NXP_NOR_FLASH_SIZE);
 
-	if (ret)
+	if (ret != 0) {
 		return ret;
+	}
 
 	return plat_io_memmap_setup(NXP_NOR_FLASH_ADDR + PLAT_FIP_OFFSET);
 #else
 	ERROR("NOR driver not present. Check your BUILD\n");
 
 	/* Should never reach here */
-	assert(0);
+	assert(false);
 	return -1;
 #endif
 }
@@ -435,15 +439,17 @@ int ifc_nand_io_setup(void)
 			NXP_IFC_SRAM_BUFFER_SIZE,
 			NXP_SD_BLOCK_BUF_ADDR,
 			NXP_SD_BLOCK_BUF_SIZE);
-	if (ret)
+	if (ret != 0) {
 		return ret;
+	}
 
 	return plat_io_block_setup(PLAT_FIP_OFFSET, block_dev_spec);
 #else
+
 	ERROR("NAND driver not present. Check your BUILD\n");
 
 	/* Should never reach here */
-	assert(0);
+	assert(false);
 	return -1;
 #endif
 }
@@ -457,10 +463,11 @@ int ls_flexspi_nor_io_setup(void)
 				   NXP_FLEXSPI_FLASH_SIZE,
 				   NXP_FLEXSPI_ADDR);
 
-	if (ret) {
+	if (ret != 0) {
 		ERROR("FlexSPI NOR driver initialization error.\n");
 		/* Should never reach here */
 		assert(0);
+		panic();
 		return -1;
 	}
 
@@ -469,7 +476,7 @@ int ls_flexspi_nor_io_setup(void)
 	ERROR("FlexSPI NOR driver not present. Check your BUILD\n");
 
 	/* Should never reach here */
-	assert(0);
+	assert(false);
 	return -1;
 #endif
 }
@@ -499,12 +506,14 @@ int plat_io_setup(void)
 
 	io_setup = ls_io_setup_table[boot_dev];
 	ret = io_setup();
-	if (ret)
+	if (ret != 0) {
 		return ret;
+	}
 
 	ret = ls_io_fip_setup(boot_dev);
-	if (ret)
+	if (ret != 0) {
 		return ret;
+	}
 
 	return 0;
 }

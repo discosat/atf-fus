@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 NXP
+ * Copyright 2017-2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -16,7 +16,7 @@
 #include "jobdesc.h"
 #include "rsa.h"
 #include "sec_hw_specific.h"
-
+#include <assert.h>
 
 /* Return Length of desctiptr from first word */
 uint32_t desc_length(uint32_t *desc)
@@ -41,6 +41,8 @@ void desc_add_word(uint32_t *desc, uint32_t word)
 {
 	uint32_t len = desc_length(desc);
 
+	assert((len + 1) < MAX_DESC_SIZE_WORDS);
+
 	/* Add Word at Last */
 	uint32_t *last = desc + len;
 	*last = word;
@@ -53,6 +55,9 @@ void desc_add_word(uint32_t *desc, uint32_t word)
 void desc_add_ptr(uint32_t *desc, phys_addr_t *ptr)
 {
 	uint32_t len = desc_length(desc);
+
+	assert((len + (uint32_t) (sizeof(phys_addr_t) / sizeof(uint32_t)))
+		< MAX_DESC_SIZE_WORDS);
 
 	/* Add Word at Last */
 	phys_addr_t *last = (phys_addr_t *) (desc + len);
@@ -78,18 +83,18 @@ int cnstr_rng_jobdesc(uint32_t *desc, uint32_t state_handle,
 	phys_addr_t *phys_addr_out = vtop(out_data);
 
 	/* Current descriptor support only 64K length */
-	if (len > 0xffff)
+	if (len > U(0xffff))
 		return -1;
 	/* Additional Input not supported by current descriptor */
-	if (add_ip_len > 0)
+	if (add_ip_len > 0U)
 		return -1;
 
 	VERBOSE("Constructing descriptor\n");
 	desc_init(desc);
 	/* Class1 Alg Operation,RNG Optype, Generate */
-	desc_add_word(desc, 0xb0800000);
-	desc_add_word(desc, 0x82500000 | (state_handle << ALG_AAI_SH_SHIFT));
-	desc_add_word(desc, 0x60340000 | len);
+	desc_add_word(desc, U(0xb0800000));
+	desc_add_word(desc, U(0x82500000) | (state_handle << ALG_AAI_SH_SHIFT));
+	desc_add_word(desc, U(0x60340000) | len);
 	desc_add_ptr(desc, phys_addr_out);
 
 	return 0;
@@ -100,17 +105,17 @@ int cnstr_rng_jobdesc(uint32_t *desc, uint32_t state_handle,
 int cnstr_rng_instantiate_jobdesc(uint32_t *desc)
 {
 	desc_init(desc);
-	desc_add_word(desc, 0xb0800000);
+	desc_add_word(desc, U(0xb0800000));
 	/* Class1 Alg Operation,RNG Optype, Instantiate */
-	desc_add_word(desc, 0x82500004);
+	desc_add_word(desc, U(0x82500004));
 	/* Wait for done */
-	desc_add_word(desc, 0xa2000001);
+	desc_add_word(desc, U(0xa2000001));
 	/*Load to clear written */
-	desc_add_word(desc, 0x10880004);
+	desc_add_word(desc, U(0x10880004));
 	/*Pri Mode Reg clear */
-	desc_add_word(desc, 0x00000001);
+	desc_add_word(desc, U(0x00000001));
 	/* Generate secure keys */
-	desc_add_word(desc, 0x82501000);
+	desc_add_word(desc, U(0x82501000));
 
 	return 0;
 }
@@ -131,21 +136,21 @@ int cnstr_hw_encap_blob_jobdesc(uint32_t *desc,
 
 	desc_init(desc);
 
-	desc_add_word(desc, 0xb0800000);
+	desc_add_word(desc, U(0xb0800000));
 
 	/* Key Identifier */
 	desc_add_word(desc, (key_class | key_sz));
 	desc_add_ptr(desc, phys_key_idnfr);
 
 	/* Source Address */
-	desc_add_word(desc, 0xf0400000);
+	desc_add_word(desc, U(0xf0400000));
 	desc_add_ptr(desc, phys_addr_in);
 
 	/* In Size = 0x10 */
 	desc_add_word(desc, in_sz);
 
 	/* Out Address */
-	desc_add_word(desc, 0xf8400000);
+	desc_add_word(desc, U(0xf8400000));
 	desc_add_ptr(desc, phys_addr_out);
 
 	/* Out Size = 0x10 */
@@ -181,15 +186,15 @@ void cnstr_jobdesc_pkha_rsaexp(uint32_t *desc,
 	ptr_addr_out = vtop((void *)(out));
 
 	desc_init(desc);
-	desc_add_word(desc, 0xb0800000);
-	desc_add_word(desc, 0x02010000 | pkin->e_siz);
+	desc_add_word(desc, U(0xb0800000));
+	desc_add_word(desc, U(0x02010000) | pkin->e_siz);
 	desc_add_ptr(desc, ptr_addr_e);
-	desc_add_word(desc, 0x220c0000 | pkin->a_siz);
+	desc_add_word(desc, U(0x220c0000) | pkin->a_siz);
 	desc_add_ptr(desc, ptr_addr_a);
-	desc_add_word(desc, 0x22080000 | pkin->n_siz);
+	desc_add_word(desc, U(0x22080000) | pkin->n_siz);
 	desc_add_ptr(desc, ptr_addr_n);
-	desc_add_word(desc, 0x81800006);
-	desc_add_word(desc, 0x620d0000 | out_siz);
+	desc_add_word(desc, U(0x81800006));
+	desc_add_word(desc, U(0x620d0000) | out_siz);
 	desc_add_ptr(desc, ptr_addr_out);
 }
 
@@ -212,24 +217,24 @@ void cnstr_hash_jobdesc(uint32_t *desc, uint8_t *msg, uint32_t msgsz,
 	ptr_addr_out = (void *)vtop(digest);
 
 	desc_init(desc);
-	desc_add_word(desc, 0xb0800000);
+	desc_add_word(desc, U(0xb0800000));
 
 	/* Operation Command
 	 * OP_TYPE_CLASS2_ALG | OP_ALG_ALGSEL_SHA256 | OP_ALG_AAI_HASH |
 	 * OP_ALG_AS_INITFINAL | OP_ALG_ENCRYPT | OP_ALG_ICV_OFF)
 	 */
-	desc_add_word(desc, 0x8443000d);
+	desc_add_word(desc, U(0x8443000d));
 
-	if (msgsz > 0xffff) {
-		desc_add_word(desc, 0x25540000);	/* FIFO Load */
+	if (msgsz > U(0xffff)) {
+		desc_add_word(desc, U(0x25540000));	/* FIFO Load */
 		desc_add_ptr(desc, ptr_addr_in);	/* Pointer to msg */
 		desc_add_word(desc, msgsz);	/* Size */
-		desc_add_word(desc, 0x54200020);	/* FIFO Store */
+		desc_add_word(desc, U(0x54200020));	/* FIFO Store */
 		desc_add_ptr(desc, ptr_addr_out);	/* Pointer to Result */
 	} else {
-		desc_add_word(desc, 0x25140000 | msgsz);
+		desc_add_word(desc, U(0x25140000) | msgsz);
 		desc_add_ptr(desc, ptr_addr_in);
-		desc_add_word(desc, 0x54200020);
+		desc_add_word(desc, U(0x54200020));
 		desc_add_ptr(desc, ptr_addr_out);
 	}
 

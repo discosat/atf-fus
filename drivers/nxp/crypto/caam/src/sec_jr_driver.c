@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -62,7 +62,7 @@ void *init_job_ring(uint8_t jr_mode,
 #endif
 	/* Reset job ring in SEC hw and configure job ring registers */
 	ret = hw_reset_job_ring(job_ring);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Failed to reset hardware job ring\n");
 		return NULL;
 	}
@@ -71,12 +71,12 @@ void *init_job_ring(uint8_t jr_mode,
 		/* Enable IRQ if driver work sin interrupt mode */
 		ERROR("Enabling DONE IRQ generation on job ring\n");
 		ret = jr_enable_irqs(job_ring);
-		if (ret) {
+		if (ret != 0) {
 			ERROR("Failed to enable irqs for job ring\n");
 			return NULL;
 		}
 	}
-	if (irq_coalescing_timer || irq_coalescing_count) {
+	if ((irq_coalescing_timer != 0) || (irq_coalescing_count != 0)) {
 		hw_job_ring_set_coalescing_param(job_ring,
 						 irq_coalescing_timer,
 						 irq_coalescing_count);
@@ -108,8 +108,9 @@ int sec_release(void)
 
 	flush_job_rings();
 
-	for (i = 0; i < g_job_rings_no; i++)
+	for (i = 0; i < g_job_rings_no; i++) {
 		shutdown_job_ring(&g_job_rings[i]);
+	}
 	g_job_rings_no = 0;
 	g_driver_state = SEC_DRIVER_STATE_IDLE;
 
@@ -173,16 +174,16 @@ int dequeue_jr(void *job_ring_handle, int32_t limit)
 		}
 		VERBOSE("Jobs notified[%d]. ", notified_descs_no);
 
-		if (get_timer_val(start_time) >= CAAM_TIMEOUT)
+		if (get_timer_val(start_time) >= CAAM_TIMEOUT) {
 			break;
-
+		}
 	}
 
 	if (job_ring->jr_mode == SEC_NOTIFICATION_TYPE_IRQ) {
 
 		/* Always enable IRQ generation when in pure IRQ mode */
 		ret = jr_enable_irqs(job_ring);
-		if (ret) {
+		if (ret != 0) {
 			ERROR("Failed to enable irqs for job ring");
 			return ret;
 		}

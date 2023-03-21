@@ -3,6 +3,12 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
+#
+#------------------------------------------------------------------------------
+#
+# This file contains the basic architecture definitions that drive the build
+#
+# -----------------------------------------------------------------------------
 
 CORE_TYPE	:=	a72
 
@@ -73,6 +79,7 @@ ERRATA_DDR_A010165	:=	1
 # Enable dynamic memory mapping
 PLAT_XLAT_TABLES_DYNAMIC	:=	1
 
+# Define Endianness of each module
 NXP_GUR_ENDIANNESS	:=	LE
 NXP_DDR_ENDIANNESS	:=	LE
 NXP_SEC_ENDIANNESS	:=	LE
@@ -81,6 +88,8 @@ NXP_SNVS_ENDIANNESS	:=	LE
 NXP_ESDHC_ENDIANNESS	:=	LE
 NXP_QSPI_ENDIANNESS	:=	LE
 NXP_FSPI_ENDIANNESS	:=	LE
+NXP_SCFG_ENDIANNESS	:=	LE
+NXP_GPIO_ENDIANNESS	:=	LE
 
 NXP_SFP_VER		:=	3_4
 

@@ -5,6 +5,8 @@
  */
 
 #include <assert.h>
+#include <inttypes.h>
+#include <stdint.h>
 #include <stdbool.h>
 
 #include <platform_def.h>
@@ -245,13 +247,13 @@ void mx8_partition_resources(void)
 			if (err) {
 				ERROR("Memreg get info failed, %u\n", mr);
 			} else {
-				NOTICE("Memreg %u 0x%llx -- 0x%llx\n", mr, start, end);
+				NOTICE("Memreg %u 0x%" PRIx64 " -- 0x%" PRIx64 "\n", mr, start, end);
 				/* keep MR that overlaps or include ATF address range */
 				if ( (BL31_BASE <= start && (BL31_LIMIT - 1) >= start)
 					|| (BL31_BASE <= end && (BL31_LIMIT - 1) >= end)
 					|| (BL31_BASE >= start && (BL31_LIMIT - 1) <= end) ) {
 					mr_record = mr; /* Record the mr for ATF running */
-					NOTICE("Memreg %u 0x%llx -- 0x%llx reserved to ATF\n", mr_record, start, end);
+					NOTICE("Memreg %u 0x%" PRIx64 " -- 0x%" PRIx64 " reserved to ATF\n", mr_record, start, end);
 				}
 #if defined(SPD_opteed) || defined(SPD_trusty)
 				else if (BL32_BASE >= start && (BL32_LIMIT -1) <= end) {
@@ -264,7 +266,7 @@ void mx8_partition_resources(void)
 				else {
 					err = sc_rm_assign_memreg(ipc_handle, os_part, mr);
 					if (err)
-						ERROR("Memreg assign failed, 0x%llx -- 0x%llx, err %d\n", start, end, err);
+						ERROR("Memreg assign failed, 0x%" PRIx64 " -- 0x%" PRIx64 ", err %d\n", start, end, err);
 				}
 			}
 		}
@@ -279,22 +281,22 @@ void mx8_partition_resources(void)
 			if ((BL32_LIMIT - 1) < end) {
 				err = sc_rm_memreg_frag(ipc_handle, &mr, BL32_LIMIT , end);
 				if (err) {
-					ERROR("sc_rm_memreg_frag failed, 0x%llx -- 0x%llx\n", (sc_faddr_t)BL32_LIMIT, end);
+					ERROR("sc_rm_memreg_frag failed, 0x%" PRIx64 " -- 0x%" PRIx64 "\n", (sc_faddr_t)BL32_LIMIT, end);
 				} else {
 					err = sc_rm_assign_memreg(ipc_handle, os_part, mr);
 					if (err)
-						ERROR("Memreg assign failed, 0x%llx -- 0x%llx\n", (sc_faddr_t)BL32_LIMIT, end);
+						ERROR("Memreg assign failed, 0x%" PRIx64 " -- 0x%" PRIx64 "\n", (sc_faddr_t)BL32_LIMIT, end);
 				}
 			}
 
 			if (start < (BL32_BASE - 1)) {
 				err = sc_rm_memreg_frag(ipc_handle, &mr, start, BL32_BASE - 1);
 				if (err) {
-					ERROR("sc_rm_memreg_frag failed, 0x%llx -- 0x%llx\n", start, (sc_faddr_t)BL32_BASE - 1);
+					ERROR("sc_rm_memreg_frag failed, 0x%" PRIx64 " -- 0x%" PRIx64 "\n", start, (sc_faddr_t)BL32_BASE - 1);
 				} else {
 					err = sc_rm_assign_memreg(ipc_handle, os_part, mr);
 					if (err)
-						ERROR("Memreg assign failed, 0x%llx -- 0x%llx\n", start, (sc_faddr_t)BL32_BASE - 1);
+						ERROR("Memreg assign failed, 0x%" PRIx64 " -- 0x%" PRIx64 "\n", start, (sc_faddr_t)BL32_BASE - 1);
 				}
 			}
 		}
@@ -319,11 +321,11 @@ void mx8_partition_resources(void)
 #endif
 				err = sc_rm_memreg_frag(ipc_handle, &mr, BL31_LIMIT, reg_end);
 				if (err) {
-					ERROR("sc_rm_memreg_frag failed, 0x%llx -- 0x%llx\n", (sc_faddr_t)BL31_LIMIT, reg_end);
+					ERROR("sc_rm_memreg_frag failed, 0x%" PRIx64 " -- 0x%" PRIx64 "\n", (sc_faddr_t)BL31_LIMIT, reg_end);
 				} else {
 					err = sc_rm_assign_memreg(ipc_handle, os_part, mr);
 					if (err)
-						ERROR("Memreg assign failed, 0x%llx -- 0x%llx\n", (sc_faddr_t)BL31_LIMIT, reg_end);
+						ERROR("Memreg assign failed, 0x%" PRIx64 " -- 0x%" PRIx64 "\n", (sc_faddr_t)BL31_LIMIT, reg_end);
 				}
 			}
 #if defined(SPD_opteed) || defined(SPD_trusty)
@@ -332,11 +334,11 @@ void mx8_partition_resources(void)
 					reg_start = BL32_LIMIT;
 					err = sc_rm_memreg_frag(ipc_handle, &mr, reg_start, end);
 					if (err) {
-						ERROR("sc_rm_memreg_frag failed, 0x%llx -- 0x%llx\n", reg_start, reg_end);
+						ERROR("sc_rm_memreg_frag failed, 0x%" PRIx64 " -- 0x%" PRIx64 "\n", reg_start, reg_end);
 					} else {
 						err = sc_rm_assign_memreg(ipc_handle, os_part, mr);
 						if (err)
-							ERROR("Memreg assign failed, 0x%llx -- 0x%llx\n", reg_start, reg_end);
+							ERROR("Memreg assign failed, 0x%" PRIx64 " -- 0x%" PRIx64 "\n", reg_start, reg_end);
 					}
 				}
 			}
@@ -345,11 +347,11 @@ void mx8_partition_resources(void)
 			if (start < (BL31_BASE - 1)) {
 				err = sc_rm_memreg_frag(ipc_handle, &mr, start, BL31_BASE - 1);
 				if (err)
-					ERROR("sc_rm_memreg_frag failed, 0x%llx -- 0x%llx\n",
+					ERROR("sc_rm_memreg_frag failed, 0x%" PRIx64 " -- 0x%" PRIx64 "\n",
 						start, (sc_faddr_t)BL31_BASE - 1);
 				err = sc_rm_assign_memreg(ipc_handle, os_part, mr);
 					if (err)
-						ERROR("Memreg assign failed, 0x%llx -- 0x%llx\n",
+						ERROR("Memreg assign failed, 0x%" PRIx64 " -- 0x%" PRIx64 "\n",
 							start, (sc_faddr_t)BL31_BASE - 1);
 			}
 		}
@@ -364,11 +366,11 @@ void mx8_partition_resources(void)
 			if ((OCRAM_BASE + OCRAM_ALIAS_SIZE - 1) < end) {
 				err = sc_rm_memreg_frag(ipc_handle, &mr, OCRAM_BASE + OCRAM_ALIAS_SIZE, reg_end);
 				if (err) {
-					ERROR("sc_rm_memreg_frag failed, 0x%llx -- 0x%llx\n", (sc_faddr_t)OCRAM_BASE + OCRAM_ALIAS_SIZE, reg_end);
+					ERROR("sc_rm_memreg_frag failed, 0x%" PRIx64 " -- 0x%" PRIx64 "\n", (sc_faddr_t)OCRAM_BASE + OCRAM_ALIAS_SIZE, reg_end);
 				} else {
 					err = sc_rm_assign_memreg(ipc_handle, os_part, mr);
 					if (err)
-						ERROR("Memreg assign failed, 0x%llx -- 0x%llx\n", (sc_faddr_t)OCRAM_BASE + OCRAM_ALIAS_SIZE, reg_end);
+						ERROR("Memreg assign failed, 0x%" PRIx64 " -- 0x%" PRIx64 "\n", (sc_faddr_t)OCRAM_BASE + OCRAM_ALIAS_SIZE, reg_end);
 				}
 			}
 		}
@@ -548,6 +550,10 @@ void bl31_plat_arch_setup(void)
 
 #if defined(SPD_opteed) || defined(SPD_trusty)
 	mmap_add_region(BL32_BASE, BL32_BASE, BL32_SIZE, MT_MEMORY | MT_RW);
+#endif
+
+#ifdef IMX_SEPARATE_XLAT_TABLE
+	mmap_add_region(IMX_SEPARATE_NOBITS_BASE, IMX_SEPARATE_NOBITS_BASE, IMX_SEPARATE_NOBITS_LIMIT - IMX_SEPARATE_NOBITS_BASE, MT_MEMORY | MT_RW | MT_SECURE);
 #endif
 
 #if USE_COHERENT_MEM

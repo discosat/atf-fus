@@ -1,5 +1,5 @@
 #
-# Copyright 2018-2020 NXP
+# Copyright 2018-2022 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -10,7 +10,7 @@ BOOT_MODE	?=	qspi
 BOARD		:=	ls1046afrwy
 POVDD_ENABLE	:=	no
 
- # DDR Compilation Configs
+# DDR Compilation Configs
 CONFIG_STATIC_DDR := 0
 CONFIG_DDR_NODIMM := 1
 DDRC_NUM_DIMM	:=	0
@@ -33,7 +33,7 @@ SUPPORTED_BOOT_MODE	:=	qspi	\
 				sd
 
 # Adding platform board build info
-include plat/nxp/common/plat_common_def.mk
+include plat/nxp/common/plat_make_helper/plat_common_def.mk
 
 # Adding SoC build info
 include plat/nxp/soc-ls1046a/soc.mk

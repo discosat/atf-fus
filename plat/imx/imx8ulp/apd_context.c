@@ -8,6 +8,7 @@
 #include <stdbool.h>
 
 #include <lib/mmio.h>
+#include <drivers/delay_timer.h>
 
 #include <plat_imx8.h>
 #include <xrdc.h>
@@ -89,7 +90,9 @@ static uint32_t lpav_sim[][2] = {
 	{0x2da50034, 0x0},
 };
 
-#define GPIO_CTRL_NUM		3
+#define APD_GPIO_CTRL_NUM		2
+#define LPAV_GPIO_CTRL_NUM		1
+#define GPIO_CTRL_REG_NUM		8
 #define GPIO_PIN_MAX_NUM	32
 #define GPIO_CTX(addr, num)	\
 	{.base = (addr), .pin_num = (num), }
@@ -98,19 +101,19 @@ struct gpio_ctx {
 	/* gpio base */
 	uintptr_t base;
 	/* port control */
-	uint32_t port_ctrl[7];
+	uint32_t port_ctrl[GPIO_CTRL_REG_NUM];
 	/* GPIO ICR, Max 32 */
 	uint32_t pin_num;
 	uint32_t gpio_icr[GPIO_PIN_MAX_NUM];
 };
 
-static uint32_t gpio_ctrl_offset[7] = { 0xc, 0x10, 0x14, 0x18, 0x1c, 0x54, 0x58 };
-static struct gpio_ctx gpio_ctx[GPIO_CTRL_NUM] = {
-	GPIO_CTX(IMX_GPIOD_BASE, 24),
+static uint32_t gpio_ctrl_offset[GPIO_CTRL_REG_NUM] = { 0xc, 0x10, 0x14, 0x18, 0x1c, 0x40, 0x54, 0x58 };
+static struct gpio_ctx apd_gpio_ctx[APD_GPIO_CTRL_NUM] = {
 	GPIO_CTX(IMX_GPIOE_BASE, 24),
 	GPIO_CTX(IMX_GPIOF_BASE, 32),
 };
 
+static struct gpio_ctx lpav_gpio_ctx = GPIO_CTX(IMX_GPIOD_BASE, 24);
 /* iomuxc setting */
 #define IOMUXC_SECTION_NUM	8
 struct iomuxc_section {
@@ -130,6 +133,21 @@ struct iomuxc_section iomuxc_sections[IOMUXC_SECTION_NUM] = {
 };
 static uint32_t iomuxc_ctx[258];
 
+void apd_io_pad_off(void)
+{
+	int i, j;
+
+	/* off the PTD/E/F, need to be customized based on actual user case */
+	for (i = 0; i < 3; i++) {
+		for (j = 0; j < iomuxc_sections[i].reg_num; j++) {
+			mmio_write_32(iomuxc_sections[i].offset + j * 4, 0);
+		}
+	}
+
+	/* disable the PTD compensation */
+	mmio_write_32(IMX_SIM1_BASE + 0x48, 0x800);
+}
+
 void iomuxc_save(void)
 {
 	int i, j;
@@ -140,6 +158,8 @@ void iomuxc_save(void)
 			iomuxc_ctx[index++] = mmio_read_32(iomuxc_sections[i].offset + j * 4);
 		}
 	}
+
+	apd_io_pad_off();
 }
 
 void iomuxc_restore(void)
@@ -154,41 +174,48 @@ void iomuxc_restore(void)
 	}
 }
 
-void gpio_save(void)
+void gpio_save(struct gpio_ctx *ctx, int port_num)
 {
 	unsigned int i, j;
-	struct gpio_ctx *ctx;
 
-	for (i = 0; i < GPIO_CTRL_NUM; i++) {
-		ctx = &gpio_ctx[i];
-
+	for (i = 0; i < port_num; i++) {
 		/* save the port control setting */
-		for (j = 0; j < 7; j++)
-			ctx->port_ctrl[j] = mmio_read_32(ctx->base + gpio_ctrl_offset[j]);
-		/*
-		 * clear the permission setting to read the GPIO non-secure world setting.
-		 */
-		for (j = 0; j < 7; j++)
-			mmio_write_32(ctx->base + gpio_ctrl_offset[j], 0x0);
-
+		for (j = 0; j < GPIO_CTRL_REG_NUM; j++) {
+			if (j < 4) {
+				ctx->port_ctrl[j] = mmio_read_32(ctx->base + gpio_ctrl_offset[j]);
+				/*
+				 * clear the permission setting to read the GPIO non-secure world setting.
+				*/
+				mmio_write_32(ctx->base + gpio_ctrl_offset[j], 0x0);
+			} else {
+				ctx->port_ctrl[j] = mmio_read_32(ctx->base + gpio_ctrl_offset[j]);
+			}
+		}
 		/* save the gpio icr setting */
 		for (j = 0; j < ctx->pin_num; j++)
 			ctx->gpio_icr[j] = mmio_read_32(ctx->base + 0x80 + j * 4);
+
+		ctx++;
 	}
 }
 
-void gpio_restore(void)
+void gpio_restore(struct gpio_ctx *ctx, int port_num)
 {
 	unsigned int i, j;
-	struct gpio_ctx *ctx;
 
-	for (i = 0; i < GPIO_CTRL_NUM; i++) {
-		ctx = &gpio_ctx[i];
+	for (i = 0; i < port_num; i++) {
 		for (j = 0; j < ctx->pin_num; j++)
 			mmio_write_32(ctx->base + 0x80 + j * 4, ctx->gpio_icr[j]);
 
-		for (j = 0; j < 7; j++)
+		for (j = 4; j < GPIO_CTRL_REG_NUM; j++)
 			mmio_write_32( ctx->base + gpio_ctrl_offset[j], ctx->port_ctrl[j]);
+
+		/* permission config retore last */
+		for (j = 0; j < 4; j++) {
+			mmio_write_32( ctx->base + gpio_ctrl_offset[j], ctx->port_ctrl[j]);
+		}
+
+		ctx++;
 	}
 }
 
@@ -272,20 +299,14 @@ void wdog3_restore(void)
 	/* enable wdog3 clock */
 	mmio_write_32(IMX_PCC3_BASE + 0xa8, 0xd2800000);
 
-	/* unlock the wdog */
-	mmio_write_32(IMX_WDOG3_BASE + 0x4, 0xc520);
-	mmio_write_32(IMX_WDOG3_BASE + 0x4, 0xd928);
-
-	dsb();
-
-	/* wait for the unlock status */
-	while(!(mmio_read_32(IMX_WDOG3_BASE) & BIT(11)))
-		;
-
-	/* set the tiemout value */
-	mmio_write_32(IMX_WDOG3_BASE + 0x8, wdog3[1]);
 	/* reconfig the CS */
 	mmio_write_32(IMX_WDOG3_BASE, wdog3[0]);
+	/* set the tiemout value */
+	mmio_write_32(IMX_WDOG3_BASE + 0x8, wdog3[1]);
+
+	/* wait for the lock status */
+	while((mmio_read_32(IMX_WDOG3_BASE) & BIT(11)))
+		;
 
 	/* wait for the config done */
 	while(!(mmio_read_32(IMX_WDOG3_BASE) & BIT(10)))
@@ -346,6 +367,9 @@ void lpav_ctx_save(void)
 	for (i = 0; i < ARRAY_SIZE(lpav_sim); i++)
 		lpav_sim[i][1] = mmio_read_32(lpav_sim[i][0]);
 
+	/* Save GPIO port D */
+	gpio_save(&lpav_gpio_ctx, LPAV_GPIO_CTRL_NUM);
+
 	/* put DDR into retention */
 	dram_enter_retention();
 }
@@ -384,6 +408,7 @@ void lpav_ctx_restore(void)
 	for (i = 0; i < ARRAY_SIZE(lpav_sim); i++)
 		mmio_write_32(lpav_sim[i][0], lpav_sim[i][1]);
 
+	gpio_restore(&lpav_gpio_ctx, LPAV_GPIO_CTRL_NUM);
 	/* DDR retention exit */
 	dram_exit_retention();
 }
@@ -423,7 +448,7 @@ void imx_apd_ctx_save(unsigned int proc_num)
 
 	wdog3_save();
 
-	gpio_save();
+	gpio_save(apd_gpio_ctx, APD_GPIO_CTRL_NUM);
 
 	iomuxc_save();
 
@@ -487,7 +512,7 @@ void imx_apd_ctx_restore(unsigned int proc_num)
 
 	iomuxc_restore();
 
-	gpio_restore();
+	gpio_restore(apd_gpio_ctx, APD_GPIO_CTRL_NUM);
 
 	tpm5_restore();
 
@@ -508,6 +533,8 @@ void imx_apd_ctx_restore(unsigned int proc_num)
 	/* FIXME: make uart work for ATF */
 	mmio_write_32(0x293a0018, 0xc0000);
 
+	/* Allow M core to reset A core */
+	mmio_clrbits_32(IMX_MU0B_BASE + 0x10, BIT(2));
 	/*
 	 * Ask S400 to release caam to APD as it is owned by s400
 	 */
@@ -543,8 +570,17 @@ void imx_apd_ctx_restore(unsigned int proc_num)
 void usb_wakeup_enable(bool enable)
 {
 	if (enable) {
-		mmio_write_32(IMX_SIM1_BASE + USB_WAKEUP, USB1_PHY_DPD_WAKEUP_EN | USB0_PHY_DPD_WAKEUP_EN |
-			USB1_PHY_WAKEUP_ISO_DISABLE | USB0_PHY_WAKEUP_ISO_DISABLE);
+		mmio_setbits_32(IMX_SIM1_BASE + USB_WAKEUP, USB1_PHY_WAKEUP_ISO_DISABLE | USB0_PHY_WAKEUP_ISO_DISABLE);
+		mmio_setbits_32(IMX_SIM1_BASE + DGO_CTRL1, BIT(0));
+		while (!(mmio_read_32(IMX_SIM1_BASE + DGO_CTRL1) & BIT(1)))
+			;
+		mmio_clrbits_32(IMX_SIM1_BASE + DGO_CTRL1, BIT(0));
+		mmio_write_32(IMX_SIM1_BASE + DGO_CTRL1, BIT(1));
+
+		/* Need to delay for a while to make sure the wakeup logic can work */
+		udelay(500);
+
+		mmio_setbits_32(IMX_SIM1_BASE + USB_WAKEUP, USB1_PHY_DPD_WAKEUP_EN | USB0_PHY_DPD_WAKEUP_EN);
 		mmio_setbits_32(IMX_SIM1_BASE + DGO_CTRL1, BIT(0));
 		while (!(mmio_read_32(IMX_SIM1_BASE + DGO_CTRL1) & BIT(1)))
 			;

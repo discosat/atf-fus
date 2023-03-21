@@ -1,5 +1,5 @@
 #
-# Copyright 2018-2021 NXP
+# Copyright 2018-2022 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -37,7 +37,7 @@ SUPPORTED_BOOT_MODE	:=	nor	\
 				qspi
 
 # Adding platform board build info
-include plat/nxp/common/plat_common_def.mk
+include plat/nxp/common/plat_make_helper/plat_common_def.mk
 
 # Adding SoC build info
 include plat/nxp/soc-ls1043a/soc.mk

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -36,9 +36,6 @@ uint32_t *get_sfp_srk_hash(void)
 			(void *) (g_nxp_sfp_addr + SFP_FUSE_REGS_OFFSET);
 	int i = 0;
 
-	//if (srk_hash[i] != 0x0)
-	//	return srk_hash;
-
 	/* Add comparison of hash with SFP hash here */
 	for (i = 0; i < SRK_HASH_SIZE/sizeof(uint32_t); i++)
 		srk_hash[i] =
@@ -65,7 +62,7 @@ void set_sfp_wr_disable(void)
 int sfp_program_fuses(void)
 {
 	uint32_t ingr;
-	uint32_t sfp_cmd_status = 0;
+	uint32_t sfp_cmd_status = 0U;
 	int ret = 0;
 
 	/* Program SFP fuses from mirror registers */
@@ -81,15 +78,16 @@ int sfp_program_fuses(void)
 	sfp_cmd_status = sfp_read32(g_nxp_sfp_addr + SFP_INGR_OFFSET)
 			 & SFP_INGR_ERROR_MASK;
 
-	if (sfp_cmd_status != 0)
+	if (sfp_cmd_status != 0U) {
 		return ERROR_PROGFB_CMD;
+	}
 
 	return ret;
 }
 
 uint32_t sfp_read_oem_uid(uint8_t oem_uid)
 {
-	uint32_t val = 0;
+	uint32_t val = 0U;
 	struct sfp_ccsr_regs_t *sfp_ccsr_regs = (void *)(g_nxp_sfp_addr
 							+ SFP_FUSE_REGS_OFFSET);
 
@@ -110,18 +108,20 @@ uint32_t sfp_read_oem_uid(uint8_t oem_uid)
  */
 uint32_t sfp_write_oem_uid(uint8_t oem_uid, uint32_t sfp_val)
 {
-	uint32_t val = 0;
+	uint32_t val = 0U;
 	struct sfp_ccsr_regs_t *sfp_ccsr_regs = (void *)(g_nxp_sfp_addr
 							+ SFP_FUSE_REGS_OFFSET);
 
 	val = sfp_read_oem_uid(oem_uid);
 
-	if (val == ERROR_OEMUID_WRITE)
+	if (val == ERROR_OEMUID_WRITE) {
 		return ERROR_OEMUID_WRITE;
+	}
 
 	/* Counter already set. No need to do anything */
-	if (val & sfp_val)
-		return 0;
+	if ((val & sfp_val) != 0U) {
+		return 0U;
+	}
 
 	val |= sfp_val;
 
@@ -129,7 +129,7 @@ uint32_t sfp_write_oem_uid(uint8_t oem_uid, uint32_t sfp_val)
 
 	sfp_write32(&sfp_ccsr_regs->oem_uid[oem_uid], val);
 
-	return 1;
+	return 1U;
 }
 
 int sfp_check_its(void)
@@ -137,10 +137,11 @@ int sfp_check_its(void)
 	struct sfp_ccsr_regs_t *sfp_ccsr_regs = (void *)(g_nxp_sfp_addr
 							+ SFP_FUSE_REGS_OFFSET);
 
-	if (sfp_read32(&sfp_ccsr_regs->ospr) & OSPR_ITS_MASK)
+	if ((sfp_read32(&sfp_ccsr_regs->ospr) & OSPR_ITS_MASK) != 0) {
 		return 1;
-	else
+	} else {
 		return 0;
+	}
 }
 
 int sfp_check_oem_wp(void)
@@ -148,10 +149,11 @@ int sfp_check_oem_wp(void)
 	struct sfp_ccsr_regs_t *sfp_ccsr_regs = (void *)(g_nxp_sfp_addr
 							+ SFP_FUSE_REGS_OFFSET);
 
-	if (sfp_read32(&sfp_ccsr_regs->ospr) & OSPR_WP_MASK)
+	if ((sfp_read32(&sfp_ccsr_regs->ospr) & OSPR_WP_MASK) != 0) {
 		return 1;
-	else
+	} else {
 		return 0;
+	}
 }
 
 /* This function returns ospr's key_revoc values.*/

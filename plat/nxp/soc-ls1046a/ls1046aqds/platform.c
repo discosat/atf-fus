@@ -1,8 +1,7 @@
 /*
- * Copyright 2020 NXP
+ * Copyright 2020-2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
- *
  */
 
 #include <plat_common.h>
@@ -27,4 +26,3 @@ bool board_disable_povdd(void)
 	return false;
 #endif
 }
-

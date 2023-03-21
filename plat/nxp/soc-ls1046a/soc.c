@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 NXP
+ * Copyright 2018-2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -7,58 +7,48 @@
 #include <assert.h>
 
 #include <arch.h>
-#include <bl31/interrupt_mgmt.h>
 #include <caam.h>
 #include <cassert.h>
 #include <cci.h>
 #include <common/debug.h>
-#include <csu.h>
 #include <dcfg.h>
-#include <errata.h>
 #ifdef I2C_INIT
 #include <i2c.h>
 #endif
 #include <lib/mmio.h>
 #include <lib/xlat_tables/xlat_tables_v2.h>
 #include <ls_interconnect.h>
-#include <ls_interrupt_mgmt.h>
 #ifdef POLICY_FUSE_PROVISION
 #include <nxp_gpio.h>
 #endif
-#if TRUSTED_BOARD_BOOT
 #include <nxp_smmu.h>
-#endif
 #include <nxp_timer.h>
 #include <plat_console.h>
 #include <plat_gic.h>
-#ifdef NXP_NV_SW_MAINT_LAST_EXEC_DATA
-#include <plat_nv_storage.h>
-#endif
 #include <plat_tzc400.h>
 #include <scfg.h>
 #if defined(NXP_SFP_ENABLED)
 #include <sfp.h>
 #endif
+
+#include <errata.h>
+#include <ns_access.h>
 #ifdef CONFIG_OCRAM_ECC_EN
 #include <ocram.h>
 #endif
-
-#include "ns_access.h"
-#include "plat_common.h"
-#include "platform_def.h"
-#include "soc.h"
+#include <plat_common.h>
+#include <platform_def.h>
+#include <soc.h>
 
 static dcfg_init_info_t dcfg_init_data = {
-			.g_nxp_dcfg_addr = NXP_DCFG_ADDR,
-			.nxp_sysclk_freq = NXP_SYSCLK_FREQ,
-			.nxp_ddrclk_freq = NXP_DDRCLK_FREQ,
-			.nxp_plat_clk_divider = NXP_PLATFORM_CLK_DIVIDER,
-		};
+	.g_nxp_dcfg_addr = NXP_DCFG_ADDR,
+	.nxp_sysclk_freq = NXP_SYSCLK_FREQ,
+	.nxp_ddrclk_freq = NXP_DDRCLK_FREQ,
+	.nxp_plat_clk_divider = NXP_PLATFORM_CLK_DIVIDER,
+};
 
-
-/* Function to return the SoC SYS CLK
- */
-unsigned int get_sys_clk(void)
+/* Function to return the SoC SYS CLK  */
+static unsigned int get_sys_clk(void)
 {
 	return NXP_SYSCLK_FREQ;
 }
@@ -75,22 +65,14 @@ unsigned int get_sys_clk(void)
 unsigned int plat_get_syscnt_freq2(void)
 {
 	unsigned int counter_base_frequency;
-	/*
-	 * Below register specifies the base frequency of the system counter.
-	 * As per NXP Board Manuals:
-	 * The system counter always works with SYS_REF_CLK/4 frequency clock.
-	 *
-	 * Not reading the frequency from Frequency modes table.
-	 *
-	 * Note: The value for ls1046ardb board at this offset is not RW and
-	 *       have the fixed value of 100000400 Hz.
-	 */
-	counter_base_frequency = get_sys_clk()/4;
+
+	counter_base_frequency = get_sys_clk() / 4;
 
 	return counter_base_frequency;
 }
 
 #ifdef IMAGE_BL2
+/* Functions for BL2 */
 
 static struct soc_type soc_list[] =  {
 	SOC_ENTRY(LS1046A, LS1046A, 1, 4),
@@ -121,9 +103,8 @@ static void set_base_freq_CNTFID0(void)
 	 * Below register specifies the base frequency of the system counter.
 	 * As per NXP Board Manuals:
 	 * The system counter always works with SYS_REF_CLK/4 frequency clock.
-	 *
 	 */
-	unsigned int counter_base_frequency = get_sys_clk()/4;
+	unsigned int counter_base_frequency = get_sys_clk() / 4;
 
 	/* Setting the frequency in the Frequency modes table.
 	 *
@@ -144,10 +125,10 @@ void soc_preload_setup(void)
 
 }
 
-/*******************************************************************************
+/*
  * This function implements soc specific erratas
  * This is called before DDR is initialized or MMU is enabled
- ******************************************************************************/
+ */
 void soc_early_init(void)
 {
 	uint8_t num_clusters, cores_per_cluster;
@@ -185,29 +166,37 @@ void soc_early_init(void)
 	get_cluster_info(soc_list, ARRAY_SIZE(soc_list), &num_clusters, &cores_per_cluster);
 	plat_ls_interconnect_enter_coherency(num_clusters);
 
+    /*
+     * Unlock write access for SMMU SMMU_CBn_ACTLR in all Non-secure contexts.
+     */
+    smmu_cache_unlock(NXP_SMMU_ADDR);
+    INFO("SMMU Cache Unlocking is Configured.\n");
 
 #if TRUSTED_BOARD_BOOT
 	uint32_t mode;
 
 	sfp_init(NXP_SFP_ADDR);
-	/* For secure boot disable SMMU.
+	/*
+	 * For secure boot disable SMMU.
 	 * Later when platform security policy comes in picture,
 	 * this might get modified based on the policy
 	 */
-	if (check_boot_mode_secure(&mode) == true)
+	if (check_boot_mode_secure(&mode) == true) {
 		bypass_smmu(NXP_SMMU_ADDR);
+	}
 
-	/* For Mbedtls currently crypto is not supported via CAAM
+	/*
+	 * For Mbedtls currently crypto is not supported via CAAM
 	 * enable it when that support is there. In tbbr.mk
 	 * the CAAM_INTEG is set as 0.
 	 */
-
 #ifndef MBEDTLS_X509
 	/* Initialize the crypto accelerator if enabled */
-	if (is_sec_enabled() == false)
+	if (is_sec_enabled() == false) {
 		INFO("SEC is disabled.\n");
-	else
+	} else {
 		sec_init(NXP_CAAM_ADDR);
+	}
 #endif
 #elif defined(POLICY_FUSE_PROVISION)
 	gpio_init(&gpio_init_data);
@@ -217,9 +206,7 @@ void soc_early_init(void)
 
 	soc_errata();
 
-	/*
-	 * Initialize system level generic timer for Layerscape Socs.
-	 */
+	/* Initialize system level generic timer for Layerscape Socs. */
 	delay_timer_init(NXP_TIMER_ADDR);
 
 #ifdef DDR_INIT
@@ -235,9 +222,7 @@ void soc_bl2_prepare_exit(void)
 #endif
 }
 
-/*****************************************************************************
- * This function returns the boot device based on RCW_SRC
- ****************************************************************************/
+/* This function returns the boot device based on RCW_SRC */
 enum boot_device get_boot_dev(void)
 {
 	enum boot_device src = BOOT_DEVICE_NONE;
@@ -282,13 +267,14 @@ enum boot_device get_boot_dev(void)
 	return src;
 }
 
+/* This function sets up access permissions on memory regions */
 void soc_mem_access(void)
 {
 	dram_regions_info_t *info_dram_regions = get_dram_regions_info();
 	struct tzc400_reg tzc400_reg_list[MAX_NUM_TZC_REGION];
-	int dram_idx, index = 0;
+	unsigned int dram_idx, index = 0U;
 
-	for (dram_idx = 0; dram_idx < info_dram_regions->num_dram_regions;
+	for (dram_idx = 0U; dram_idx < info_dram_regions->num_dram_regions;
 			dram_idx++) {
 		if (info_dram_regions->region[dram_idx].size == 0) {
 			ERROR("DDR init failure, or");
@@ -306,19 +292,17 @@ void soc_mem_access(void)
 	mem_access_setup(NXP_TZC_ADDR, index, tzc400_reg_list);
 }
 
-#else
+#else /* IMAGE_BL2 */
+/* Functions for BL31 */
+
 const unsigned char _power_domain_tree_desc[] = {1, 1, 4};
 
 CASSERT(NUMBER_OF_CLUSTERS && NUMBER_OF_CLUSTERS <= 256,
 		assert_invalid_ls1046_cluster_count);
 
-/*
- * This function returns the SoC topology
- */
-
+/* This function returns the SoC topology */
 const unsigned char *plat_get_power_domain_tree_desc(void)
 {
-
 	return _power_domain_tree_desc;
 }
 
@@ -334,9 +318,7 @@ unsigned int plat_ls_get_cluster_core_count(u_register_t mpidr)
 void soc_early_platform_setup2(void)
 {
 	dcfg_init(&dcfg_init_data);
-	/*
-	 * Initialize system level generic timer for Socs
-	 */
+	/* Initialize system level generic timer for SoCs */
 	delay_timer_init(NXP_TIMER_ADDR);
 
 #if LOG_LEVEL > 0
@@ -348,9 +330,9 @@ void soc_early_platform_setup2(void)
 
 void soc_platform_setup(void)
 {
-	/* Initialize the GIC driver, cpu and distributor interfaces */
 	static uint32_t target_mask_array[PLATFORM_CORE_COUNT];
-	/* On a GICv2 system, the Group 1 secure interrupts are treated
+	/*
+	 * On a GICv2 system, the Group 1 secure interrupts are treated
 	 * as Group 0 interrupts.
 	 */
 	static interrupt_prop_t ls_interrupt_props[] = {
@@ -360,26 +342,23 @@ void soc_platform_setup(void)
 
 	plat_ls_gic_driver_init(
 #if (TEST_BL31)
-		/* Defect in simulator - GIC base addresses (4Kb aligned)
-		 */
-				NXP_GICD_4K_ADDR,
-				NXP_GICC_4K_ADDR,
+	/* Defect in simulator - GIC base addresses (4Kb aligned) */
+			NXP_GICD_4K_ADDR,
+			NXP_GICC_4K_ADDR,
 #else
-				NXP_GICD_64K_ADDR,
-				NXP_GICC_64K_ADDR,
+			NXP_GICD_64K_ADDR,
+			NXP_GICC_64K_ADDR,
 #endif
-				PLATFORM_CORE_COUNT,
-				ls_interrupt_props,
-				ARRAY_SIZE(ls_interrupt_props),
-				target_mask_array);
+			PLATFORM_CORE_COUNT,
+			ls_interrupt_props,
+			ARRAY_SIZE(ls_interrupt_props),
+			target_mask_array);
 
 	plat_ls_gic_init();
 	enable_init_timer();
 }
 
-/*******************************************************************************
- * This function initializes the soc from the BL31 module
- ******************************************************************************/
+/* This function initializes the soc from the BL31 module */
 void soc_init(void)
 {
 	 /* low-level init of the soc */
@@ -405,14 +384,24 @@ void soc_init(void)
 	enable_layerscape_ns_access(ns_dev, ARRAY_SIZE(ns_dev), NXP_CSU_ADDR);
 
 	/* Initialize the crypto accelerator if enabled */
-	if (is_sec_enabled() == false)
+	if (is_sec_enabled() == false) {
 		INFO("SEC is disabled.\n");
-	else
+	} else {
 		sec_init(NXP_CAAM_ADDR);
+	}
 }
 
 void soc_runtime_setup(void)
 {
 
 }
-#endif
+
+#endif /* IMAGE_BL2 */
+
+/*
+ * This function sets up DTB address to be passed to next boot stage
+ */
+void plat_set_dt_address(entry_point_info_t *image_info)
+{
+	image_info->args.arg3 = BL32_FDT_OVERLAY_ADDR;
+}

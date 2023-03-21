@@ -7,46 +7,38 @@
 #include <assert.h>
 
 #include <arch.h>
-#include <bl31/interrupt_mgmt.h>
 #include <caam.h>
 #include <cassert.h>
 #include <cci.h>
 #include <common/debug.h>
-#include <csu.h>
 #include <dcfg.h>
-#include <errata.h>
 #ifdef I2C_INIT
 #include <i2c.h>
 #endif
 #include <lib/mmio.h>
 #include <lib/xlat_tables/xlat_tables_v2.h>
 #include <ls_interconnect.h>
-#include <ls_interrupt_mgmt.h>
 #ifdef POLICY_FUSE_PROVISION
 #include <nxp_gpio.h>
 #endif
-#if TRUSTED_BOARD_BOOT
 #include <nxp_smmu.h>
-#endif
 #include <nxp_timer.h>
 #include <plat_console.h>
 #include <plat_gic.h>
-#ifdef NXP_NV_SW_MAINT_LAST_EXEC_DATA
-#include <plat_nv_storage.h>
-#endif
+#include <plat_tzc380.h>
 #include <scfg.h>
 #if defined(NXP_SFP_ENABLED)
 #include <sfp.h>
 #endif
+
+#include <errata.h>
+#include <ns_access.h>
 #ifdef CONFIG_OCRAM_ECC_EN
 #include <ocram.h>
 #endif
-
-#include "ns_access.h"
-#include "plat_common.h"
-#include "platform_def.h"
-#include "soc.h"
-#include "tzc380_def_regions.h"
+#include <plat_common.h>
+#include <platform_def.h>
+#include <soc.h>
 
 static dcfg_init_info_t dcfg_init_data = {
 			.g_nxp_dcfg_addr = NXP_DCFG_ADDR,
@@ -180,6 +172,12 @@ void soc_early_init(void)
 	get_cluster_info(soc_list, ARRAY_SIZE(soc_list), &num_clusters, &cores_per_cluster);
 	plat_ls_interconnect_enter_coherency(num_clusters);
 
+    /*
+     * Unlock write access for SMMU SMMU_CBn_ACTLR in all Non-secure contexts.
+     */
+    smmu_cache_unlock(NXP_SMMU_ADDR);
+    INFO("SMMU Cache Unlocking is Configured.\n");
+
 #if TRUSTED_BOARD_BOOT
 	uint32_t mode;
 
@@ -189,8 +187,9 @@ void soc_early_init(void)
 	 * Later when platform security policy comes in picture,
 	 * this might get modified based on the policy
 	 */
-	if (check_boot_mode_secure(&mode) == true)
+	if (check_boot_mode_secure(&mode) == true) {
 		bypass_smmu(NXP_SMMU_ADDR);
+	}
 
 	/*
 	 * For Mbedtls currently crypto is not supported via CAAM
@@ -200,10 +199,11 @@ void soc_early_init(void)
 
 #ifndef MBEDTLS_X509
 	/* Initialize the crypto accelerator if enabled */
-	if (is_sec_enabled() == false)
+	if (is_sec_enabled() == false) {
 		INFO("SEC is disabled.\n");
-	else
+	} else {
 		sec_init(NXP_CAAM_ADDR);
+	}
 #endif
 #elif defined(POLICY_FUSE_PROVISION)
 	gpio_init(&gpio_init_data);
@@ -281,60 +281,26 @@ enum boot_device get_boot_dev(void)
 /* This function sets up access permissions on memory regions */
 void soc_mem_access(void)
 {
-	/* Secure Regions on DRAM1 only.*/
-	int i = 0;
+	struct tzc380_reg tzc380_reg_list[MAX_NUM_TZC_REGION];
+	int dram_idx, index = 0U;
+	dram_regions_info_t *info_dram_regions = get_dram_regions_info();
 
-	/* index 0 is reserved for TZC Region-0 */
-	int index = 1;
+	for (dram_idx = 0U; dram_idx < info_dram_regions->num_dram_regions;
+	     dram_idx++) {
+		if (info_dram_regions->region[dram_idx].size == 0) {
+			ERROR("DDR init failure, or");
+			ERROR("DRAM regions not populated correctly.\n");
+			break;
+		}
 
-	dram_regions_info_t *dram_regions_info = get_dram_regions_info();
-
-	if ((NXP_SP_SHRD_DRAM_SIZE + NXP_SECURE_DRAM_SIZE) !=
-		TZC380_REGION_GAURD_SIZE) {
-		NOTICE("Error: TZC380 config is in-correct for the board.\n");
-		assert(0);
+		index = populate_tzc380_reg_list(tzc380_reg_list,
+				dram_idx, index,
+				info_dram_regions->region[dram_idx].addr,
+				info_dram_regions->region[dram_idx].size,
+				NXP_SECURE_DRAM_SIZE, NXP_SP_SHRD_DRAM_SIZE);
 	}
 
-	if (dram_regions_info->region[0].size == 0) {
-		ERROR("DDR init failure, or");
-		ERROR("DRAM regions not populated correctly.\n");
-		assert(0);
-	}
-
-	/* Update default TZC region setting by using actual DRAM information */
-	if (dram_regions_info->region[i].size != 0) {
-
-		/*
-		 * Region 1: Secure Region on DRAM 1 for  2MB out of  2MB,
-		 * excluding 0 sub-region(=256KB).
-		 */
-		tzc380_default_reg_list[index].addr =
-					dram_regions_info->region[i].addr
-					+ dram_regions_info->region[i].size;
-		index++;
-
-		/*
-		 * Region 2: Secure Region on DRAM 1 for 54MB out of 64MB,
-		 * excluding 1 sub-rgion(=8MB) of 8MB.
-		 */
-		tzc380_default_reg_list[index].addr =
-					dram_regions_info->region[i].addr
-					+ dram_regions_info->region[i].size
-					+ NXP_SP_SHRD_DRAM_SIZE;
-		index++;
-
-		/*
-		 * Region 3: Secure Region on DRAM 1 for  6MB out of  8MB,
-		 * excluding 2 sub-rgion(=1MB) of 2MB.
-		 */
-		tzc380_default_reg_list[index].addr =
-					dram_regions_info->region[i].addr
-					+ dram_regions_info->region[i].size
-					+ NXP_SECURE_DRAM_SIZE;
-		index++;
-	}
-
-	mem_access_setup(NXP_TZC_ADDR, index, tzc380_default_reg_list);
+	mem_access_setup(NXP_TZC_ADDR, index, tzc380_reg_list);
 
 	/* Configure CSU secure access register to disable TZASC bypass mux */
 	mmio_write_32((uintptr_t)(NXP_CSU_ADDR +
@@ -459,10 +425,11 @@ void soc_init(void)
 	enable_layerscape_ns_access(ns_dev, ARRAY_SIZE(ns_dev), NXP_CSU_ADDR);
 
 	/* Initialize the crypto accelerator if enabled */
-	if (is_sec_enabled() == false)
+	if (is_sec_enabled() == false) {
 		INFO("SEC is disabled.\n");
-	else
+	} else {
 		sec_init(NXP_CAAM_ADDR);
+	}
 }
 
 void soc_runtime_setup(void)
@@ -470,3 +437,11 @@ void soc_runtime_setup(void)
 
 }
 #endif
+
+/*
+ * This function sets up DTB address to be passed to next boot stage
+ */
+void plat_set_dt_address(entry_point_info_t *image_info)
+{
+	image_info->args.arg3 = BL32_FDT_OVERLAY_ADDR;
+}

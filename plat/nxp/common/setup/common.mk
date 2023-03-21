@@ -1,5 +1,5 @@
 #
-# Copyright 2018-2020 NXP
+# Copyright 2018-2021 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -46,6 +46,7 @@ endif
 ###############################################################################
 
 PLAT_TOOL_PATH		:=	tools/nxp
+CREATE_PBL_TOOL_PATH	:=	${PLAT_TOOL_PATH}/create_pbl
 PLAT_SETUP_PATH		:=	${PLAT_PATH}/common/setup
 
 PLAT_INCLUDES		+=	-I${PLAT_SETUP_PATH}/include			\
@@ -65,7 +66,6 @@ PLAT_BL_COMMON_SOURCES	+= 	${CPU_LIBS} \
 				plat/nxp/common/setup/ls_common.c
 
 ifneq (${ENABLE_STACK_PROTECTOR},0)
-$(info ENABLE_STACK_PROTECTOR is enabled.)
 PLAT_BL_COMMON_SOURCES	+=	${PLAT_SETUP_PATH}/ls_stack_protector.c
 endif
 
@@ -102,4 +102,4 @@ else
 $(eval $(call add_define,LOAD_IMAGE_V2))
 endif
 
-include $(PLAT_TOOL_PATH)/create_pbl.mk
+include $(CREATE_PBL_TOOL_PATH)/create_pbl.mk

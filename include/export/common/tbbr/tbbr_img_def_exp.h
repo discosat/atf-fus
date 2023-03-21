@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2019-2021, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -91,33 +91,20 @@
 /* FW_CONFIG */
 #define FW_CONFIG_ID			U(31)
 
-/* DDR FIP IMAGE ID */
-#define DDR_FIP_IMAGE_ID		U(32)
+/*
+ * Primary FWU metadata image ID
+ */
+#define FWU_METADATA_IMAGE_ID		U(32)
 
-#define DDR_IMEM_UDIMM_1D_IMAGE_ID	U(33)
-#define DDR_IMEM_UDIMM_2D_IMAGE_ID	U(34)
+/*
+ * Backup FWU metadata image ID
+ */
+#define BKUP_FWU_METADATA_IMAGE_ID	U(33)
 
-#define DDR_DMEM_UDIMM_1D_IMAGE_ID	U(35)
-#define DDR_DMEM_UDIMM_2D_IMAGE_ID	U(36)
-
-#define DDR_IMEM_RDIMM_1D_IMAGE_ID	U(37)
-#define DDR_IMEM_RDIMM_2D_IMAGE_ID	U(38)
-
-#define DDR_DMEM_RDIMM_1D_IMAGE_ID	U(39)
-#define DDR_DMEM_RDIMM_2D_IMAGE_ID	U(40)
-
-#define DDR_FW_KEY_CERT_ID		U(41)
-#define DDR_UDIMM_FW_CONTENT_CERT_ID	U(42)
-#define DDR_RDIMM_FW_CONTENT_CERT_ID	U(43)
-
-/* FUSE FIP IMAGE ID */
-#define FUSE_FIP_IMAGE_ID		U(44)
-
-#define FUSE_PROV_IMAGE_ID		U(45)
-
-#define FUSE_UP_IMAGE_ID		U(46)
+/* Realm Monitor Manager (RMM) */
+#define RMM_IMAGE_ID			U(34)
 
 /* Max Images */
-#define MAX_IMAGE_IDS			U(47)
+#define MAX_IMAGE_IDS			U(35)
 
 #endif /* ARM_TRUSTED_FIRMWARE_EXPORT_COMMON_TBBR_TBBR_IMG_DEF_EXP_H */

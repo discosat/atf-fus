@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 NXP
+ * Copyright 2018-2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -113,7 +113,8 @@ static void mmap_add_ddr_regions_statically(void)
 #if defined(PLAT_XLAT_TABLES_DYNAMIC)
 void mmap_add_ddr_region_dynamically(void)
 {
-	int i = 0;
+	int ret, i = 0;
+
 	dram_regions_info_t *info_dram_regions = get_dram_regions_info();
 	/* MMU map for Non-Secure DRAM Regions */
 	VERBOSE("DRAM Region %d: %p - %p\n", i,
@@ -121,10 +122,14 @@ void mmap_add_ddr_region_dynamically(void)
 			(void *) (info_dram_regions->region[i].addr
 				+ info_dram_regions->region[i].size
 				- 1));
-	mmap_add_dynamic_region(info_dram_regions->region[i].addr,
+	ret = mmap_add_dynamic_region(info_dram_regions->region[i].addr,
 			info_dram_regions->region[i].addr,
 			info_dram_regions->region[i].size,
 			MT_MEMORY | MT_RW | MT_NS);
+	if (ret != 0) {
+		ERROR("Failed to add dynamic memory region\n");
+		panic();
+	}
 
 	/* MMU map for Secure DDR Region on DRAM-0 */
 	if (info_dram_regions->region[i].size >
@@ -137,27 +142,36 @@ void mmap_add_ddr_region_dynamically(void)
 				+ NXP_SECURE_DRAM_SIZE
 				+ NXP_SP_SHRD_DRAM_SIZE
 				- 1));
-		mmap_add_dynamic_region((info_dram_regions->region[i].addr
+		ret = mmap_add_dynamic_region((info_dram_regions->region[i].addr
 				+ info_dram_regions->region[i].size),
 				(info_dram_regions->region[i].addr
 				+ info_dram_regions->region[i].size),
 				(NXP_SECURE_DRAM_SIZE + NXP_SP_SHRD_DRAM_SIZE),
 				MT_MEMORY | MT_RW | MT_SECURE);
+		if (ret != 0) {
+			ERROR("Failed to add dynamic memory region\n");
+			panic();
+		}
 	}
 
 #ifdef IMAGE_BL31
 	for (i = 1; i < info_dram_regions->num_dram_regions; i++) {
-		if (info_dram_regions->region[i].size == 0)
+		if (info_dram_regions->region[i].size == 0) {
 			break;
+		}
 		VERBOSE("DRAM Region %d: %p - %p\n", i,
 			(void *) info_dram_regions->region[i].addr,
 			(void *) (info_dram_regions->region[i].addr
 				+ info_dram_regions->region[i].size
 				- 1));
-		mmap_add_dynamic_region(info_dram_regions->region[i].addr,
+		ret = mmap_add_dynamic_region(info_dram_regions->region[i].addr,
 				info_dram_regions->region[i].addr,
 				info_dram_regions->region[i].size,
 				MT_MEMORY | MT_RW | MT_NS);
+		if (ret != 0) {
+			ERROR("Failed to add dynamic memory region\n");
+			panic();
+		}
 	}
 #endif
 }
@@ -238,35 +252,25 @@ const mmap_region_t *plat_ls_get_mmap(void)
 	return plat_ls_mmap;
 }
 
-static uint8_t saved_num_clusters;
-static uint8_t saved_cores_per_cluster;
-
-/* This function get the number of clusters and cores count per cluster in the SoC */
-void get_cluster_info(struct soc_type *soc_list, uint8_t ps_count,
+/*
+ * This function get the number of clusters and cores count per cluster
+ * in the SoC.
+ */
+void get_cluster_info(const struct soc_type *soc_list, uint8_t ps_count,
 		uint8_t *num_clusters, uint8_t *cores_per_cluster)
 {
+	const soc_info_t *soc_info = get_soc_info();
+	*num_clusters = NUMBER_OF_CLUSTERS;
+	*cores_per_cluster = CORES_PER_CLUSTER;
 	unsigned int i;
 
-	if (saved_num_clusters && saved_cores_per_cluster) {
-		goto exit;
-	}
-
-	const soc_info_t *soc_info = get_soc_info();
-
-	saved_num_clusters = NUMBER_OF_CLUSTERS;
-	saved_cores_per_cluster = CORES_PER_CLUSTER;
-
-	for (i = 0; i < ps_count; i++) {
+	for (i = 0U; i < ps_count; i++) {
 		if (soc_list[i].version == soc_info->svr_reg.bf_ver.version) {
-			saved_num_clusters = soc_list[i].num_clusters;
-			saved_cores_per_cluster = soc_list[i].cores_per_cluster;
+			*num_clusters = soc_list[i].num_clusters;
+			*cores_per_cluster = soc_list[i].cores_per_cluster;
 			break;
 		}
 	}
-
-exit:
-	*num_clusters = saved_num_clusters;
-	*cores_per_cluster = saved_cores_per_cluster;
 
 	VERBOSE("NUM of cluster = 0x%x, Cores per cluster = 0x%x\n",
 			*num_clusters, *cores_per_cluster);

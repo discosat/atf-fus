@@ -1,15 +1,15 @@
 /*
- * Copyright 2018, 2021 NXP
+ * Copyright 2018-2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include <asm_macros.S>
-#include <bl31_data.h>
-#include <cortex_a53.h>
-#include <platform_def.h>
-#include <plat_psci.h>
 #include <scfg.h>
+
+#include <bl31_data.h>
+#include <plat_psci.h>
+#include <platform_def.h>
 
 .global soc_init_lowlevel
 .global soc_init_percpu
@@ -154,27 +154,6 @@
  * uses x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11
  */
 func soc_init_lowlevel
-	/*
-	 * called from C, so save the non-volatile regs
-	 * save these as pairs of registers to maintain the
-	 * required 16-byte alignment on the stack
-	 */
-	stp	x4, x5, [sp, #-16]!
-	stp	x6, x7, [sp, #-16]!
-	stp	x8, x9, [sp, #-16]!
-	stp	x10, x11, [sp, #-16]!
-	stp	x12, x13, [sp, #-16]!
-	stp	x18, x30, [sp, #-16]!
-
-	/* ToDO add init code here */
-
-	/* restore the aarch32/64 non-volatile registers */
-	ldp	x18, x30, [sp], #16
-	ldp	x12, x13, [sp], #16
-	ldp	x10, x11, [sp], #16
-	ldp	x8, x9, [sp], #16
-	ldp	x6, x7, [sp], #16
-	ldp	x4, x5, [sp], #16
 	ret
 endfunc soc_init_lowlevel
 

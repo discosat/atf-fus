@@ -1,5 +1,5 @@
 #
-# Copyright 2020 NXP
+# Copyright 2021 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -23,10 +23,9 @@ RDIMM_DEPS = ${DDR_IMEM_RDIMM_1D}.sb ${DDR_IMEM_RDIMM_2D}.sb ${DDR_DMEM_RDIMM_1D
 DDR_FIP_DEPS += ${UDIMM_DEPS}
 DDR_FIP_DEPS += ${RDIMM_DEPS}
 
-# Max Size of CSF header. image will be appended at this offset of header
-#CSF_HDR_SZ	?= 0x3000
-
-# Path to CST directory is required to generate the CSF header
+# Max Size of CSF header (CSF_HDR_SZ = 0x3000).
+# Image will be appended at this offset of the header.
+# Path to CST directory is required to generate the CSF header,
 # and prepend it to image before fip image gets generated
 ifeq (${CST_DIR},)
   $(error Error: CST_DIR not set)
@@ -42,4 +41,3 @@ endif
 					--app $< ${DDR_INPUT_FILE}
 
 endif
-

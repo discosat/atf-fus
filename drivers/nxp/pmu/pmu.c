@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -15,7 +15,7 @@
 void enable_timer_base_to_cluster(uintptr_t nxp_pmu_addr)
 {
 	uint32_t *cltbenr = NULL;
-	uint32_t cltbenr_val = 0;
+	uint32_t cltbenr_val = 0U;
 
 	cltbenr = (uint32_t *)(nxp_pmu_addr
 				+ CLUST_TIMER_BASE_ENBL_OFFSET);

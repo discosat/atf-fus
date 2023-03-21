@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <common/debug.h>
 #include <drivers/delay_timer.h>

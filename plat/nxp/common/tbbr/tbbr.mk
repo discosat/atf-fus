@@ -1,5 +1,5 @@
 #
-# Copyright 2020 NXP
+# Copyright 2020-2022 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -84,6 +84,9 @@ else
     KEY_SIZE		:= 2048
 
     $(eval $(call add_define,MBEDTLS_X509))
+    ifeq (${PLAT_DDR_PHY},PHY_GEN2)
+        $(eval $(call add_define,PLAT_DEF_OID))
+    endif
     include drivers/auth/mbedtls/mbedtls_x509.mk
 
 

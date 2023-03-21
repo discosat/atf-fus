@@ -1,5 +1,5 @@
 #
-# Copyright 2020 NXP
+# Copyright 2021 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -9,28 +9,23 @@ ifeq (${SFP_ADDED},)
 SFP_ADDED		:= 1
 $(eval $(call add_define, NXP_SFP_ENABLED))
 
-SFP_DRIVERS_PATH	:=  ${PLAT_DRIVERS_PATH}/sfp
+PLAT_INCLUDES		+= -I$(PLAT_DRIVERS_INCLUDE_PATH)/sfp
 
-PLAT_INCLUDES		+= -I$(SFP_DRIVERS_PATH)
-
-SFP_SOURCES		+= $(SFP_DRIVERS_PATH)/sfp.c
+SFP_SOURCES		+= $(PLAT_DRIVERS_PATH)/sfp/sfp.c
 
 ifeq (${FUSE_PROG}, 1)
-SFP_BL2_SOURCES		+= $(SFP_DRIVERS_PATH)/fuse_prov.c
+SFP_BL2_SOURCES		+= $(PLAT_DRIVERS_PATH)/sfp/fuse_prov.c
 endif
 
 ifeq (${BL_COMM_SFP_NEEDED},yes)
-$(info SFP in common code)
 BL_COMMON_SOURCES	+= ${SFP_SOURCES}
 BL2_SOURCES		+= ${SFP_BL2_SOURCES}
 else
 ifeq (${BL2_SFP_NEEDED},yes)
-$(info SFP in BL2 code)
 BL2_SOURCES		+= ${SFP_SOURCES}\
 			   ${SFP_BL2_SOURCES}
 endif
 ifeq (${BL31_SFP_NEEDED},yes)
-$(info SFP in BL31 code)
 BL31_SOURCES		+= ${SFP_SOURCES}
 endif
 endif

@@ -1,21 +1,22 @@
 /*
- * Copyright 2018-2021 NXP
+ * Copyright 2018-2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
-#include <common/debug.h>
-#include <utils.h>
 
+#include <common/debug.h>
 #include <ddr.h>
+#include <lib/utils.h>
+
 #include <platform_def.h>
 
 static const struct rc_timing rce[] = {
-	{1600, 8, 8},
+	{U(1600), U(8), U(8)},
 	{}
 };
 
 static const struct board_timing ram[] = {
-	{0x04, rce, 0x00020200, 0x00000004},
+	{U(0x04), rce, U(0x00020200), U(0x00000004)},
 };
 
 int ddr_board_options(struct ddr_info *priv)
@@ -24,8 +25,9 @@ int ddr_board_options(struct ddr_info *priv)
 	struct memctl_opt *popts = &priv->opt;
 
 	ret = cal_board_params(priv, ram, ARRAY_SIZE(ram));
-	if (ret)
+	if (ret != 0) {
 		return ret;
+	}
 
 	popts->cpo_sample = 0x46;
 	popts->data_bus_used = DDR_DBUS_32;
@@ -60,8 +62,9 @@ long long init_ddr(void)
 
 	dram_size = dram_init(&info);
 
-	if (dram_size < 0)
+	if (dram_size < 0) {
 		ERROR("DDR init failed.\n");
+	}
 
 	return dram_size;
 }

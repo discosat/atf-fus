@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -25,7 +25,7 @@ uintptr_t get_caam_addr(void)
 {
 	if (g_nxp_caam_addr == 0) {
 		ERROR("Sec Init is not done.\n");
-		return -1;
+		panic();
 	}
 	return g_nxp_caam_addr;
 }
@@ -72,12 +72,15 @@ static inline void start_jr(int num)
 	uint32_t scfgr = sec_in32((g_nxp_caam_addr + SEC_REG_SCFGR_OFFSET));
 	bool start = false;
 
-	if (ctpr & CTPR_VIRT_EN_INC) {
-		if ((ctpr & CTPR_VIRT_EN_POR) || (scfgr & SCFGR_VIRT_EN))
+	if ((ctpr & CTPR_VIRT_EN_INC) != 0U) {
+		if (((ctpr & CTPR_VIRT_EN_POR) != 0U) ||
+		    ((scfgr & SCFGR_VIRT_EN) != 0U)) {
 			start = true;
+		}
 	} else {
-		if (ctpr & CTPR_VIRT_EN_POR)
+		if ((ctpr & CTPR_VIRT_EN_POR) != 0U) {
 			start = true;
+		}
 	}
 
 	if (start == true) {
@@ -123,8 +126,7 @@ static int configure_jr(int num)
 		reg_base_addr = (void *)(g_nxp_caam_addr + CAAM_JR3_OFFSET);
 		break;
 	default:
-		ERROR("Wrong Job Ring number in configure_jr()");
-		return -1;
+		break;
 	}
 
 	/* Initialize the JR library */
@@ -140,7 +142,7 @@ static int configure_jr(int num)
 	job_ring = init_job_ring(SEC_NOTIFICATION_TYPE_POLL, 0, 0,
 				 reg_base_addr, 0);
 
-	if (!job_ring) {
+	if (job_ring == NULL) {
 		ERROR("Error in init_job_ring");
 		return -1;
 	}
@@ -290,27 +292,28 @@ unsigned long long get_random(int rngWidth)
 	int ret = 0;
 
 #ifdef CAAM_TEST
-	rand_byte[0] = 0x12;
-	rand_byte[1] = 0x34;
-	rand_byte[2] = 0x56;
-	rand_byte[3] = 0x78;
-	rand_byte[4] = 0x9a;
-	rand_byte[5] = 0xbc;
-	rand_byte[6] = 0xde;
-	rand_byte[7] = 0xf1;
+	rand_byte[0] = U(0x12);
+	rand_byte[1] = U(0x34);
+	rand_byte[2] = U(0x56);
+	rand_byte[3] = U(0x78);
+	rand_byte[4] = U(0x9a);
+	rand_byte[5] = U(0xbc);
+	rand_byte[6] = U(0xde);
+	rand_byte[7] = U(0xf1);
 #endif
 
-	if (rngWidth == 0)
+	if (rngWidth == 0U) {
 		bytes = 4;
-	else
+	} else {
 		bytes = 8;
+	}
 
 	memset(rand_byte, 0, 64);
 
 	ret = get_rand_bytes_hw(rand_byte, bytes);
 
 	for (i = 0; i < bytes; i++) {
-		if (ret) {
+		if (ret != 0) {
 			/* Return 0 in case of failure */
 			rand_byte_swp[i] = 0;
 		} else {

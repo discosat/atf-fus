@@ -1,11 +1,10 @@
 #
-# Copyright 2018-2020 NXP
+# Copyright 2018-2022 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
 
 # board-specific build parameters
-
 BOOT_MODE	?=	qspi
 BOARD		:=	ls1046aqds
 POVDD_ENABLE	:=	no
@@ -34,7 +33,7 @@ SUPPORTED_BOOT_MODE	:=	qspi	\
 				nand
 
 # Adding platform board build info
-include plat/nxp/common/plat_common_def.mk
+include plat/nxp/common/plat_make_helper/plat_common_def.mk
 
 # Adding SoC build info
 include plat/nxp/soc-ls1046a/soc.mk

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -19,12 +19,12 @@ static inline unsigned int cal_cwl(const unsigned long clk)
 {
 	const unsigned int mclk_ps = get_memory_clk_ps(clk);
 
-	return mclk_ps >= 1250 ? 9 :
-		(mclk_ps >= 1070 ? 10 :
-		 (mclk_ps >= 935 ? 11 :
-		  (mclk_ps >= 833 ? 12 :
-		   (mclk_ps >= 750 ? 14 :
-		    (mclk_ps >= 625 ? 16 : 18)))));
+	return mclk_ps >= 1250U ? 9U :
+		(mclk_ps >= 1070U ? 10U :
+		 (mclk_ps >= 935U ? 11U :
+		  (mclk_ps >= 833U ? 12U :
+		   (mclk_ps >= 750U ? 14U :
+		    (mclk_ps >= 625U ? 16U : 18U)))));
 }
 
 static void cal_csn_config(int i,
@@ -32,20 +32,20 @@ static void cal_csn_config(int i,
 			   const struct memctl_opt *popts,
 			   const struct dimm_params *pdimm)
 {
-	unsigned int intlv_en = 0;
-	unsigned int intlv_ctl = 0;
-	const unsigned int cs_n_en = 1;
+	unsigned int intlv_en = 0U;
+	unsigned int intlv_ctl = 0U;
+	const unsigned int cs_n_en = 1U;
 	const unsigned int ap_n_en = popts->cs_odt[i].auto_precharge;
 	const unsigned int odt_rd_cfg = popts->cs_odt[i].odt_rd_cfg;
 	const unsigned int odt_wr_cfg = popts->cs_odt[i].odt_wr_cfg;
 	const unsigned int ba_bits_cs_n = pdimm->bank_addr_bits;
-	const unsigned int row_bits_cs_n = pdimm->n_row_addr - 12;
-	const unsigned int col_bits_cs_n = pdimm->n_col_addr - 8;
+	const unsigned int row_bits_cs_n = pdimm->n_row_addr - 12U;
+	const unsigned int col_bits_cs_n = pdimm->n_col_addr - 8U;
 	const unsigned int bg_bits_cs_n = pdimm->bank_group_bits;
 
-	if (!i) {
+	if (i == 0) {
 		/* These fields only available in CS0_CONFIG */
-		if (popts->ctlr_intlv) {
+		if (popts->ctlr_intlv != 0) {
 			switch (popts->ctlr_intlv_mode) {
 			case DDR_256B_INTLV:
 				intlv_en = popts->ctlr_intlv;
@@ -64,7 +64,7 @@ static void cal_csn_config(int i,
 			    ((odt_wr_cfg & 0x7) << 16)		|
 			    ((ba_bits_cs_n & 0x3) << 14)	|
 			    ((row_bits_cs_n & 0x7) << 8)	|
-			    ((bg_bits_cs_n & 0x3) << 4)	|
+			    ((bg_bits_cs_n & 0x3) << 4)		|
 			    ((col_bits_cs_n & 0x7) << 0);
 	debug("cs%d\n", i);
 	debug("   _config = 0x%x\n", regs->cs[i].config);
@@ -73,12 +73,14 @@ static void cal_csn_config(int i,
 static inline int avoid_odt_overlap(const struct ddr_conf *conf,
 				    const struct dimm_params *pdimm)
 {
-	if (conf->cs_in_use == 0xf)
+	if ((conf->cs_in_use == 0xf) != 0) {
 		return 2;
+	}
 
 #if DDRC_NUM_DIMM >= 2
-	if (conf->dimm_in_use[0] && conf->dimm_in_use[1])
+	if (conf->dimm_in_use[0] != 0 && conf->dimm_in_use[1] != 0) {
 		return 1;
+	}
 #endif
 	return 0;
 }
@@ -130,59 +132,60 @@ static void cal_timing_cfg(const unsigned long clk,
 							      pdimm->trrds_ps),
 						4U);
 	int wrtord_mclk = max(2U, picos_to_mclk(clk, 2500));
-	const unsigned int cpo = 0;
+	const unsigned int cpo = 0U;
 	const int wr_lat = cal_cwl(clk);
 	int rd_to_pre = picos_to_mclk(clk, 7500);
 	const int wr_data_delay = popts->wr_data_delay;
 	const int cke_pls = max(3U, picos_to_mclk(clk, 5000));
 #ifdef ERRATA_DDR_A050450
-       const unsigned short four_act = (!popts->twot_en && !popts->threet_en
-		       && (popts->tfaw_ps % 2 == 0)) ?
-	       (picos_to_mclk(clk, popts->tfaw_ps) + 1) :
-	       picos_to_mclk(clk, popts->tfaw_ps);
+	const unsigned short four_act = ((popts->twot_en == 0) &&
+					 (popts->threet_en == 0) &&
+					 (popts->tfaw_ps % 2 == 0)) ?
+						(picos_to_mclk(clk, popts->tfaw_ps) + 1) :
+						picos_to_mclk(clk, popts->tfaw_ps);
 #else
 	const unsigned short four_act = picos_to_mclk(clk,
 					 popts->tfaw_ps);
 #endif
-	const unsigned int cntl_adj = 0;
+	const unsigned int cntl_adj = 0U;
 	const unsigned int ext_pretoact = picos_to_mclk(clk,
-							pdimm->trp_ps) >> 4;
+							pdimm->trp_ps) >> 4U;
 	const unsigned int ext_acttopre = picos_to_mclk(clk,
-							pdimm->tras_ps) >> 4;
+							pdimm->tras_ps) >> 4U;
 	const unsigned int ext_acttorw = picos_to_mclk(clk,
-						       pdimm->trcd_ps) >> 4;
-	const unsigned int ext_caslat = (2 * cas_latency - 1) >> 4;
-	const unsigned int ext_add_lat = additive_latency >> 4;
+						       pdimm->trcd_ps) >> 4U;
+	const unsigned int ext_caslat = (2U * cas_latency - 1U) >> 4U;
+	const unsigned int ext_add_lat = additive_latency >> 4U;
 	const unsigned int ext_refrec = (picos_to_mclk(clk,
-					       pdimm->trfc1_ps) - 8) >> 4;
+					       pdimm->trfc1_ps) - 8U) >> 4U;
 	const unsigned int ext_wrrec = (picos_to_mclk(clk, pdimm->twr_ps) +
-				  (popts->otf_burst_chop_en ? 2 : 0)) >> 4;
-	const unsigned int rwt_same_cs = 0;
-	const unsigned int wrt_same_cs = 0;
-	const unsigned int rrt_same_cs = popts->burst_length == DDR_BL8 ? 0 : 2;
-	const unsigned int wwt_same_cs = popts->burst_length == DDR_BL8 ? 0 : 2;
-	const unsigned int dll_lock = 2;
-	unsigned int rodt_on = 0;
-	const unsigned int rodt_off = 4;
-	const unsigned int wodt_on = 1;
-	const unsigned int wodt_off = 4;
-	const unsigned int hs_caslat = 0;
-	const unsigned int hs_wrlat = 0;
-	const unsigned int hs_wrrec = 0;
-	const unsigned int hs_clkadj = 0;
-	const unsigned int hs_wrlvl_start = 0;
+				  (popts->otf_burst_chop_en ? 2U : 0U)) >> 4U;
+	const unsigned int rwt_same_cs = 0U;
+	const unsigned int wrt_same_cs = 0U;
+	const unsigned int rrt_same_cs = popts->burst_length == DDR_BL8 ? 0U : 2U;
+	const unsigned int wwt_same_cs = popts->burst_length == DDR_BL8 ? 0U : 2U;
+	const unsigned int dll_lock = 2U;
+	unsigned int rodt_on = 0U;
+	const unsigned int rodt_off = 4U;
+	const unsigned int wodt_on = 1U;
+	const unsigned int wodt_off = 4U;
+	const unsigned int hs_caslat = 0U;
+	const unsigned int hs_wrlat = 0U;
+	const unsigned int hs_wrrec = 0U;
+	const unsigned int hs_clkadj = 0U;
+	const unsigned int hs_wrlvl_start = 0U;
 	const unsigned int txpr = max(5U,
 				      picos_to_mclk(clk,
-						    pdimm->trfc1_ps + 10000));
-	const unsigned int tcksre = max(5U, picos_to_mclk(clk, 10000));
-	const unsigned int tcksrx = max(5U, picos_to_mclk(clk, 10000));
-	const unsigned int cs_to_cmd = 0;
-	const unsigned int cke_rst = txpr <= 200 ? 0 :
-				     (txpr <= 256 ? 1 :
-				      (txpr <= 512 ? 2 : 3));
-	const unsigned int cksre = tcksre <= 19 ? tcksre - 5 : 15;
-	const unsigned int cksrx = tcksrx <= 19 ? tcksrx - 5 : 15;
-	unsigned int par_lat = 0;
+						    pdimm->trfc1_ps + 10000U));
+	const unsigned int tcksre = max(5U, picos_to_mclk(clk, 10000U));
+	const unsigned int tcksrx = max(5U, picos_to_mclk(clk, 10000U));
+	const unsigned int cs_to_cmd = 0U;
+	const unsigned int cke_rst = txpr <= 200U ? 0U :
+				     (txpr <= 256U ? 1U :
+				      (txpr <= 512U ? 2U : 3U));
+	const unsigned int cksre = tcksre <= 19U ? tcksre - 5U : 15U;
+	const unsigned int cksrx = tcksrx <= 19U ? tcksrx - 5U : 15U;
+	unsigned int par_lat = 0U;
 	const int tccdl = max(5U, picos_to_mclk(clk, pdimm->tccdl_ps));
 	int rwt_bg = cas_latency + 2 + 4 - wr_lat;
 	int wrt_bg = wr_lat + 4 + 1 - cas_latency;
@@ -210,14 +213,17 @@ static void cal_timing_cfg(const unsigned long clk,
 		trrt_mclk = 0;
 	}
 
-	if (popts->trwt_override) {
+	if (popts->trwt_override != 0) {
 		trwt_mclk = popts->trwt;
-		if (popts->twrt)
+		if (popts->twrt != 0) {
 			twrt_mclk = popts->twrt;
-		if (popts->trrt)
+		}
+		if (popts->trrt != 0) {
 			trrt_mclk = popts->trrt;
-		if (popts->twwt)
+		}
+		if (popts->twwt != 0) {
 			twwt_mclk = popts->twwt;
+		}
 	}
 	regs->timing_cfg[0] = (((trwt_mclk & 0x3) << 30)		|
 			     ((twrt_mclk & 0x3) << 28)			|
@@ -229,18 +235,20 @@ static void cal_timing_cfg(const unsigned long clk,
 			     ((tmrd_mclk & 0x1f) << 0));
 	debug("timing_cfg[0] = 0x%x\n", regs->timing_cfg[0]);
 
-	if ((wrrec_mclk < 1) || (wrrec_mclk > 24))
+	if ((wrrec_mclk < 1) || (wrrec_mclk > 24)) {
 		ERROR("WRREC doesn't support clock %d\n", wrrec_mclk);
-	else
+	} else {
 		wrrec_mclk = wrrec_table[wrrec_mclk - 1];
+	}
 
-	if (popts->otf_burst_chop_en) {
+	if (popts->otf_burst_chop_en != 0) {
 		wrrec_mclk += 2;
 		wrtord_mclk += 2;
 	}
 
-	if (pdimm->trfc1_ps < trfc1_min)
+	if (pdimm->trfc1_ps < trfc1_min) {
 		ERROR("trfc1_ps (%d) < %d\n", pdimm->trfc1_ps, trfc1_min);
+	}
 
 	regs->timing_cfg[1] = (((pretoact_mclk & 0x0F) << 28)		|
 			     ((acttopre_mclk & 0x0F) << 24)		|
@@ -252,10 +260,12 @@ static void cal_timing_cfg(const unsigned long clk,
 			     ((wrtord_mclk & 0x0F) << 0));
 	debug("timing_cfg[1] = 0x%x\n", regs->timing_cfg[1]);
 
-	if (rd_to_pre < 4)
+	if (rd_to_pre < 4) {
 		rd_to_pre = 4;
-	if (popts->otf_burst_chop_en)
+	}
+	if (popts->otf_burst_chop_en) {
 		rd_to_pre += 2;
+	}
 
 	regs->timing_cfg[2] = (((additive_latency & 0xf) << 28)		|
 			     ((cpo & 0x1f) << 23)			|
@@ -289,8 +299,9 @@ static void cal_timing_cfg(const unsigned long clk,
 	debug("timing_cfg[4] = 0x%x\n", regs->timing_cfg[4]);
 
 	/* rodt_on = timing_cfg_1[caslat] - timing_cfg_2[wrlat] + 1 */
-	if (cas_latency >= wr_lat)
+	if (cas_latency >= wr_lat) {
 		rodt_on = cas_latency - wr_lat + 1;
+	}
 
 	regs->timing_cfg[5] = (((rodt_on & 0x1f) << 24)			|
 			     ((rodt_off & 0x7) << 20)			|
@@ -305,7 +316,7 @@ static void cal_timing_cfg(const unsigned long clk,
 			     ((hs_wrlvl_start & 0x1f) << 0));
 	debug("timing_cfg[6] = 0x%x\n", regs->timing_cfg[6]);
 
-	if (popts->ap_en) {
+	if (popts->ap_en != 0) {
 		par_lat = (regs->sdram_rcw[1] & 0xf) + 1;
 		debug("PAR_LAT = 0x%x\n", par_lat);
 	}
@@ -317,16 +328,16 @@ static void cal_timing_cfg(const unsigned long clk,
 			     ((cs_to_cmd & 0xf) << 4));
 	debug("timing_cfg[7] = 0x%x\n", regs->timing_cfg[7]);
 
-	if (rwt_bg < tccdl)
+	if (rwt_bg < tccdl) {
 		rwt_bg = tccdl - rwt_bg;
-	else
+	} else {
 		rwt_bg = 0;
-
-	if (wrt_bg < tccdl)
+	}
+	if (wrt_bg < tccdl) {
 		wrt_bg = tccdl - wrt_bg;
-	else
+	} else {
 		wrt_bg = 0;
-
+	}
 	regs->timing_cfg[8] = (((rwt_bg & 0xf) << 28)			|
 			     ((wrt_bg & 0xf) << 24)			|
 			     ((rrt_bg & 0xf) << 20)			|
@@ -346,22 +357,23 @@ static void cal_ddr_sdram_rcw(const unsigned long clk,
 			      const struct memctl_opt *popts,
 			      const struct dimm_params *pdimm)
 {
-	const unsigned int freq = clk / 1000000;
+	const unsigned int freq = clk / 1000000U;
 	unsigned int rc0a, rc0f;
 
-	if (!pdimm->rdimm)
+	if (pdimm->rdimm == 0) {
 		return;
+	}
 
-	rc0a = freq > 3200 ? 7 :
-	       (freq > 2933 ? 6 :
-		(freq > 2666 ? 5 :
-		 (freq > 2400 ? 4 :
-		  (freq > 2133 ? 3 :
-		   (freq > 1866 ? 2 :
-		    (freq > 1600 ? 1 : 0))))));
-	rc0f = freq > 3200 ? 3 :
-		(freq > 2400 ? 2 :
-		 (freq > 2133 ? 1 : 0));
+	rc0a = freq > 3200U ? 7U :
+	       (freq > 2933U ? 6U :
+		(freq > 2666U ? 5U :
+		 (freq > 2400U ? 4U :
+		  (freq > 2133U ? 3U :
+		   (freq > 1866U ? 2U :
+		    (freq > 1600U ? 1U : 0U))))));
+	rc0f = freq > 3200U ? 3U :
+		(freq > 2400U ? 2U :
+		 (freq > 2133U ? 1U : 0U));
 	rc0f = (regs->sdram_cfg[1] & SDRAM_CFG2_AP_EN) ? rc0f : 4;
 	regs->sdram_rcw[0] =
 		pdimm->rcw[0] << 28	|
@@ -395,43 +407,43 @@ static void cal_ddr_sdram_cfg(const unsigned long clk,
 			      const struct dimm_params *pdimm,
 			      const unsigned int ip_rev)
 {
-	const unsigned int mem_en = 1;
+	const unsigned int mem_en = 1U;
 	const unsigned int sren = popts->self_refresh_in_sleep;
 	const unsigned int ecc_en = popts->ecc_mode;
-	const unsigned int rd_en = pdimm->rdimm ? 1 : 0;
+	const unsigned int rd_en = (pdimm->rdimm != 0U) ? 1U : 0U;
 	const unsigned int dyn_pwr = popts->dynamic_power;
 	const unsigned int dbw = popts->data_bus_used;
-	const unsigned int eight_be = (dbw == 1 ||
-				       popts->burst_length == DDR_BL8) ? 1 : 0;
-	const unsigned int ncap = 0;
+	const unsigned int eight_be = (dbw == 1U ||
+				       popts->burst_length == DDR_BL8) ? 1U : 0U;
+	const unsigned int ncap = 0U;
 	const unsigned int threet_en = popts->threet_en;
 	const unsigned int twot_en = pdimm->rdimm ?
-					0 : popts->twot_en;
+					0U : popts->twot_en;
 	const unsigned int ba_intlv = popts->ba_intlv;
-	const unsigned int x32_en = 0;
-	const unsigned int pchb8 = 0;
+	const unsigned int x32_en = 0U;
+	const unsigned int pchb8 = 0U;
 	const unsigned int hse = popts->half_strength_drive_en;
-	const unsigned int acc_ecc_en = (dbw != 0 && ecc_en == 1) ? 1 : 0;
-	const unsigned int mem_halt = 0;
+	const unsigned int acc_ecc_en = (dbw != 0U && ecc_en == 1U) ? 1U : 0U;
+	const unsigned int mem_halt = 0U;
 #ifdef PHY_GEN2
-	const unsigned int bi = 1;
+	const unsigned int bi = 1U;
 #else
-	const unsigned int bi = 0;
+	const unsigned int bi = 0U;
 #endif
 	const unsigned int sdram_type = SDRAM_TYPE_DDR4;
-	unsigned int odt_cfg = 0;
-	const unsigned int frc_sr = 0;
+	unsigned int odt_cfg = 0U;
+	const unsigned int frc_sr = 0U;
 	const unsigned int sr_ie = popts->self_refresh_irq_en;
-	const unsigned int num_pr = pdimm->package_3ds + 1;
-	const unsigned int slow = (clk < 1249000000);
+	const unsigned int num_pr = pdimm->package_3ds + 1U;
+	const unsigned int slow = (clk < 1249000000U) ? 1U : 0U;
 	const unsigned int x4_en = popts->x4_en;
 	const unsigned int obc_cfg = popts->otf_burst_chop_en;
-	const unsigned int ap_en = ip_rev == 0x50500 ? 0 : popts->ap_en;
+	const unsigned int ap_en = ip_rev == 0x50500U ? 0U : popts->ap_en;
 	const unsigned int d_init = popts->ctlr_init_ecc;
 	const unsigned int rcw_en = popts->rdimm;
 	const unsigned int md_en = popts->mirrored_dimm;
 	const unsigned int qd_en = popts->quad_rank_present;
-	const unsigned int unq_mrs_en = ip_rev < 0x50500 ? 1 : 0;
+	const unsigned int unq_mrs_en = ip_rev < 0x50500U ? 1U : 0U;
 	const unsigned int rd_pre = popts->quad_rank_present;
 	int i;
 
@@ -456,8 +468,8 @@ static void cal_ddr_sdram_cfg(const unsigned long clk,
 	debug("sdram_cfg[0] = 0x%x\n", regs->sdram_cfg[0]);
 
 	for (i = 0; i < DDRC_NUM_CS; i++) {
-		if (popts->cs_odt[i].odt_rd_cfg ||
-		    popts->cs_odt[i].odt_wr_cfg) {
+		if (popts->cs_odt[i].odt_rd_cfg != 0 ||
+		    popts->cs_odt[i].odt_wr_cfg != 0) {
 			odt_cfg = SDRAM_CFG2_ODT_ONLY_READ;
 			break;
 		}
@@ -482,8 +494,8 @@ static void cal_ddr_sdram_cfg(const unsigned long clk,
 
 	regs->sdram_cfg[2] = (rd_pre & 0x1) << 16	|
 				 (popts->rdimm ? 1 : 0);
-	if (pdimm->package_3ds) {
-		if ((pdimm->package_3ds + 1) & 0x1) {
+	if (pdimm->package_3ds != 0) {
+		if (((pdimm->package_3ds + 1) & 0x1) != 0) {
 			WARN("Unsupported 3DS DIMM\n");
 		} else {
 			regs->sdram_cfg[2] |= ((pdimm->package_3ds + 1) >> 1)
@@ -551,38 +563,42 @@ static void cal_ddr_sdram_mode(const unsigned long clk,
 		14, 9, 15, 10, 12, 11, 16, 17,
 		18, 19, 20, 21, 22, 23
 	};
-	const unsigned int unq_mrs_en = ip_rev < 0x50500 ? 1 : 0;
-	unsigned short esdmode2 = 0;
-	unsigned short esdmode3 = 0;
-	const unsigned int wr_crc = 0;
-	unsigned int rtt_wr = 0;
-	const unsigned int srt = 0;
+	const unsigned int unq_mrs_en = ip_rev < U(0x50500) ? 1U : 0U;
+	unsigned short esdmode2 = 0U;
+	unsigned short esdmode3 = 0U;
+	const unsigned int wr_crc = 0U;
+	unsigned int rtt_wr = 0U;
+	const unsigned int srt = 0U;
 	unsigned int cwl = cal_cwl(clk);
-	const unsigned int mpr = 0;
+	const unsigned int mpr = 0U;
 	const unsigned int mclk_ps = get_memory_clk_ps(clk);
-	const unsigned int wc_lat = 0;
-	unsigned short esdmode4 = 0;
+	const unsigned int wc_lat = 0U;
+	unsigned short esdmode4 = 0U;
 	unsigned short esdmode5;
 	int rtt_park_all = 0;
 	unsigned int rtt_park;
 	const bool four_cs = conf->cs_in_use == 0xf ? true : false;
-	unsigned short esdmode6 = 0;	/* Extended SDRAM mode 6 */
-	unsigned short esdmode7 = 0;	/* Extended SDRAM mode 7 */
+	unsigned short esdmode6 = 0U;	/* Extended SDRAM mode 6 */
+	unsigned short esdmode7 = 0U;	/* Extended SDRAM mode 7 */
 	const unsigned int tccdl_min = max(5U,
 					   picos_to_mclk(clk, pdimm->tccdl_ps));
 
-	if (popts->rtt_override)
+	if (popts->rtt_override != 0U) {
 		rtt = popts->rtt_override_value;
-	else
+	} else {
 		rtt = popts->cs_odt[0].odt_rtt_norm;
+	}
 
-	if (additive_latency == (cas_latency - 1))
+	if (additive_latency == (cas_latency - 1)) {
 		al = 1;
-	if (additive_latency == (cas_latency - 2))
+	}
+	if (additive_latency == (cas_latency - 2)) {
 		al = 2;
+	}
 
-	if (popts->quad_rank_present || popts->output_driver_impedance)
+	if (popts->quad_rank_present != 0 || popts->output_driver_impedance != 0) {
 		dic = 1;	/* output driver impedance 240/7 ohm */
+	}
 
 	esdmode = (((qoff & 0x1) << 12)				|
 		   ((tdqs_en & 0x1) << 11)			|
@@ -592,16 +608,18 @@ static void cal_ddr_sdram_mode(const unsigned long clk,
 		   ((dic & 0x3) << 1)				|
 		   ((dll_en & 0x1) << 0));
 
-	if (wr_mclk >= 10 && wr_mclk <= 24)
+	if (wr_mclk >= 10 && wr_mclk <= 24) {
 		wr = wr_table[wr_mclk - 10];
-	else
+	} else {
 		ERROR("unsupported wc_mclk = %d for mode register\n", wr_mclk);
+	}
 
 	/* look up table to get the cas latency bits */
-	if (cas_latency >= 9 && cas_latency <= 32)
+	if (cas_latency >= 9 && cas_latency <= 32) {
 		caslat = cas_latency_table[cas_latency - 9];
-	else
+	} else {
 		WARN("Error: unsupported cas latency for mode register\n");
+	}
 
 	sdmode = (((caslat & 0x10) << 8)			|
 		  ((wr & 0x7) << 9)				|
@@ -640,10 +658,11 @@ static void cal_ddr_sdram_mode(const unsigned long clk,
 		break;
 	}
 
-	if (popts->rtt_override)
+	if (popts->rtt_override != 0) {
 		rtt_wr = popts->rtt_wr_override_value;
-	else
+	} else {
 		rtt_wr = popts->cs_odt[0].odt_rtt_wr;
+	}
 
 	esdmode2 = ((wr_crc & 0x1) << 12)			|
 		   ((rtt_wr & 0x7) << 9)			|
@@ -656,16 +675,17 @@ static void cal_ddr_sdram_mode(const unsigned long clk,
 	debug("sdram_mode[1] = 0x%x\n", regs->sdram_mode[1]);
 
 	esdmode6 = ((tccdl_min - 4) & 0x7) << 10;
-	if (popts->vref_dimm)
+	if (popts->vref_dimm != 0) {
 		esdmode6 |= popts->vref_dimm & 0x7f;
-	else if (popts->ddr_cdr2 & DDR_CDR2_VREF_RANGE_2)
+	} else if ((popts->ddr_cdr2 & DDR_CDR2_VREF_RANGE_2) != 0) {
 		esdmode6 |= 1 << 6;	/* Range 2 */
+	}
 
 	regs->sdram_mode[9] = ((esdmode6 & 0xffff) << 16)	|
 				 ((esdmode7 & 0xffff) << 0);
 	debug("sdram_mode[9] = 0x%x\n", regs->sdram_mode[9]);
 
-	rtt_park = popts->rtt_park ? popts->rtt_park : 240;
+	rtt_park = (popts->rtt_park != 0) ? popts->rtt_park : 240;
 	switch (rtt_park) {
 	case 240:
 		rtt_park = 0x4;
@@ -694,10 +714,11 @@ static void cal_ddr_sdram_mode(const unsigned long clk,
 	}
 
 	for (i = 0; i < DDRC_NUM_CS; i++) {
-		if (i && !unq_mrs_en)
+		if (i != 0 && unq_mrs_en == 0) {
 			break;
+		}
 
-		if (popts->rtt_override) {
+		if (popts->rtt_override != 0) {
 			rtt = popts->rtt_override_value;
 			rtt_wr = popts->rtt_wr_override_value;
 		} else {
@@ -711,14 +732,14 @@ static void cal_ddr_sdram_mode(const unsigned long clk,
 		esdmode2 |= (rtt_wr & 0x3) << 9;
 		esdmode5 = (popts->x4_en) ? 0 : 0x400; /* data mask */
 
-		if (!rtt_park_all &&
-		    (regs->cs[i].config & SDRAM_CS_CONFIG_EN)) {
+		if (rtt_park_all == 0 &&
+		    ((regs->cs[i].config & SDRAM_CS_CONFIG_EN) != 0)) {
 			esdmode5 |= rtt_park << 6;
 			rtt_park_all = four_cs ? 0 : 1;
 		}
 
-		if ((regs->sdram_cfg[1] & SDRAM_CFG2_AP_EN) &&
-		    (!popts->rdimm)) {
+		if (((regs->sdram_cfg[1] & SDRAM_CFG2_AP_EN) != 0) &&
+		    (popts->rdimm == 0)) {
 			if (mclk_ps >= 935) {
 				esdmode5 |= DDR_MR5_CA_PARITY_LAT_4_CLK;
 			} else if (mclk_ps >= 833) {
@@ -810,16 +831,16 @@ static void cal_ddr_dq_mapping(struct ddr_cfg_regs *regs,
 			 ((pdimm->dq_mapping[11] & 0x3F) << 2);
 
 	regs->dq_map[2] = ((pdimm->dq_mapping[12] & 0x3F) << 26)	|
-			 ((pdimm->dq_mapping[13] & 0x3F) << 20)	|
-			 ((pdimm->dq_mapping[14] & 0x3F) << 14)	|
-			 ((pdimm->dq_mapping[15] & 0x3F) << 8)	|
+			 ((pdimm->dq_mapping[13] & 0x3F) << 20)		|
+			 ((pdimm->dq_mapping[14] & 0x3F) << 14)		|
+			 ((pdimm->dq_mapping[15] & 0x3F) << 8)		|
 			 ((pdimm->dq_mapping[16] & 0x3F) << 2);
 
 	/* dq_map for ECC[4:7] is set to 0 if accumulated ECC is enabled */
 	regs->dq_map[3] = ((pdimm->dq_mapping[17] & 0x3F) << 26)	|
-			 ((pdimm->dq_mapping[8] & 0x3F) << 20)	|
-			 (acc_ecc_en ? 0 :
-			  (pdimm->dq_mapping[9] & 0x3F) << 14)	|
+			 ((pdimm->dq_mapping[8] & 0x3F) << 20)		|
+			 ((acc_ecc_en != 0) ? 0 :
+			  (pdimm->dq_mapping[9] & 0x3F) << 14)		|
 			 pdimm->dq_mapping_ors;
 	debug("dq_map[0] = 0x%x\n", regs->dq_map[0]);
 	debug("dq_map[1] = 0x%x\n", regs->dq_map[1]);
@@ -828,13 +849,13 @@ static void cal_ddr_dq_mapping(struct ddr_cfg_regs *regs,
 }
 static void cal_ddr_zq_cntl(struct ddr_cfg_regs *regs)
 {
-	const unsigned int zqinit = 10;	/* 1024 clocks */
-	const unsigned int zqoper = 9;	/* 512 clocks */
-	const unsigned int zqcs = 7;	/* 128 clocks */
-	const unsigned int zqcs_init = 5;	/* 1024 refresh seqences */
-	const unsigned int zq_en = 1;	/* enabled */
+	const unsigned int zqinit = 10U;	/* 1024 clocks */
+	const unsigned int zqoper = 9U;		/* 512 clocks */
+	const unsigned int zqcs = 7U;		/* 128 clocks */
+	const unsigned int zqcs_init = 5U;	/* 1024 refresh seqences */
+	const unsigned int zq_en = 1U;		/* enabled */
 
-	regs->zq_cntl = ((zq_en & 0x1) << 31)		|
+	regs->zq_cntl = ((zq_en & 0x1) << 31)			|
 			   ((zqinit & 0xF) << 24)		|
 			   ((zqoper & 0xF) << 16)		|
 			   ((zqcs & 0xF) << 8)			|
@@ -855,7 +876,7 @@ static void cal_ddr_sr_cntr(struct ddr_cfg_regs *regs,
 static void cal_ddr_eor(struct ddr_cfg_regs *regs,
 			const struct memctl_opt *popts)
 {
-	if (popts->addr_hash) {
+	if (popts->addr_hash != 0) {
 		regs->eor = 0x40000000;	/* address hash enable */
 		debug("eor = 0x%x\n", regs->eor);
 	}
@@ -874,7 +895,7 @@ static void cal_ddr_csn_bnds(struct ddr_cfg_regs *regs,
 		i < DDRC_NUM_CS && conf->cs_size[i];
 		i++) {
 		debug("cs_in_use = 0x%x\n", conf->cs_in_use);
-		if (conf->cs_in_use) {
+		if (conf->cs_in_use != 0) {
 			sa = conf->cs_base_addr[i];
 			ea = sa + conf->cs_size[i] - 1;
 			sa >>= 24;
@@ -917,10 +938,11 @@ static void cal_ddr_addr_dec(struct ddr_cfg_regs *regs)
 	int j;
 
 	col_bits = (cs0_config >> 0) & 0x7;
-	if (col_bits < 4)
+	if (col_bits < 4) {
 		col_bits += 8;
-	else if (col_bits < 7 || col_bits > 10)
+	} else if (col_bits < 7 || col_bits > 10) {
 		ERROR("Error %s col_bits = %d\n", __func__, col_bits);
+	}
 	row_bits = ((cs0_config >> 8) & 0x7) + 12;
 	ba_bits = ((cs0_config >> 14) & 0x3) + 2;
 	bg_bits = ((cs0_config >> 4) & 0x3) + 0;
@@ -959,34 +981,41 @@ static void cal_ddr_addr_dec(struct ddr_cfg_regs *regs)
 		return;
 	}
 	debug("cacheline size %d\n", cacheline);
-	for (i = 0; placement < cacheline; i++)
+	for (i = 0; placement < cacheline; i++) {
 		map_col[i] = placement++;
+	}
 	map_bg[0] = placement++;
 	for ( ; i < col_bits; i++) {
 		map_col[i] = placement++;
-		if (placement == intlv)
+		if (placement == intlv) {
 			placement++;
+		}
 	}
-	for ( ; i < 11; i++)
+	for ( ; i < 11; i++) {
 		map_col[i] = 0x3F;	/* unused col bits */
+	}
 
-	if (bg_bits >= 2)
+	if (bg_bits >= 2) {
 		map_bg[1] = placement++;
+	}
 	map_ba[0] = placement++;
 	map_ba[1] = placement++;
-	if (cs) {
+	if (cs != 0U) {
 		map_cs[0] = placement++;
-		if (cs == 2)
+		if (cs == 2U) {
 			map_cs[1] = placement++;
+		}
 	} else {
-		map_cs[0] = 0x3F;
+		map_cs[0] = U(0x3F);
 	}
 
-	for (i = 0; i < row_bits; i++)
+	for (i = 0; i < row_bits; i++) {
 		map_row[i] = placement++;
+	}
 
-	for ( ; i < 18; i++)
+	for ( ; i < 18; i++) {
 		map_row[i] = 0x3F;	/* unused row bits */
+	}
 
 	for (i = 39; i >= 0 ; i--) {
 		if (i == intlv) {
@@ -1000,9 +1029,10 @@ static void cal_ddr_addr_dec(struct ddr_cfg_regs *regs)
 			p = '-';
 		}
 		for (j = 0; j < 18; j++) {
-			if (map_row[j] != i)
+			if (map_row[j] != i) {
 				continue;
-			if (placement) {
+			}
+			if (placement != 0) {
 				abort = 1;
 				ERROR("%s wrong address bit %d\n", __func__, i);
 			}
@@ -1010,9 +1040,10 @@ static void cal_ddr_addr_dec(struct ddr_cfg_regs *regs)
 			p = 'r';
 		}
 		for (j = 0; j < 11; j++) {
-			if (map_col[j] != i)
+			if (map_col[j] != i) {
 				continue;
-			if (placement) {
+			}
+			if (placement != 0) {
 				abort = 1;
 				ERROR("%s wrong address bit %d\n", __func__, i);
 			}
@@ -1020,9 +1051,10 @@ static void cal_ddr_addr_dec(struct ddr_cfg_regs *regs)
 			p = 'c';
 		}
 		for (j = 0; j < 2; j++) {
-			if (map_ba[j] != i)
+			if (map_ba[j] != i) {
 				continue;
-			if (placement) {
+			}
+			if (placement != 0) {
 				abort = 1;
 				ERROR("%s wrong address bit %d\n", __func__, i);
 			}
@@ -1030,9 +1062,10 @@ static void cal_ddr_addr_dec(struct ddr_cfg_regs *regs)
 			p = 'B';
 		}
 		for (j = 0; j < 2; j++) {
-			if (map_bg[j] != i)
+			if (map_bg[j] != i) {
 				continue;
-			if (placement) {
+			}
+			if (placement != 0) {
 				abort = 1;
 				ERROR("%s wrong address bit %d\n", __func__, i);
 			}
@@ -1040,9 +1073,10 @@ static void cal_ddr_addr_dec(struct ddr_cfg_regs *regs)
 			p = 'G';
 		}
 		for (j = 0; j < 2; j++) {
-			if (map_cs[j] != i)
+			if (map_cs[j] != i) {
 				continue;
-			if (placement) {
+			}
+			if (placement != 0) {
 				abort = 1;
 				ERROR("%s wrong address bit %d\n", __func__, i);
 			}
@@ -1051,16 +1085,18 @@ static void cal_ddr_addr_dec(struct ddr_cfg_regs *regs)
 		}
 #ifdef DDR_DEBUG
 		printf("%c", p);
-		if (!(i % 4))
+		if ((i % 4) == 0) {
 			printf(" ");
+		}
 #endif
 	}
 #ifdef DDR_DEBUG
 	puts("\n");
 #endif
 
-	if (abort)
+	if (abort != 0) {
 		return;
+	}
 
 	regs->dec[0] = map_row[17] << 26		|
 		      map_row[16] << 18			|
@@ -1100,8 +1136,9 @@ static void cal_ddr_addr_dec(struct ddr_cfg_regs *regs)
 		      map_bg[1] << 2;
 	regs->dec[9] = map_bg[0] << 26			|
 		      1;
-	for (i = 0; i < 10; i++)
+	for (i = 0; i < 10; i++) {
 		debug("dec[%d] = 0x%x\n", i, regs->dec[i]);
+	}
 #endif
 }
 static unsigned int skip_caslat(unsigned int tckmin_ps,
@@ -1220,11 +1257,11 @@ static unsigned int skip_caslat(unsigned int tckmin_ps,
 	int size;
 	unsigned int taamin_max, tck_max;
 
-	if (taamin_ps > (package_3ds ? 21500 : 18000)) {
+	if (taamin_ps > ((package_3ds != 0) ? 21500 : 18000)) {
 		ERROR("taamin_ps %u invalid\n", taamin_ps);
 		return 0;
 	}
-	if (package_3ds) {
+	if (package_3ds != 0) {
 		bin = bin_3ds;
 		size = ARRAY_SIZE(bin_3ds);
 		taamin_max = 1250;
@@ -1241,20 +1278,23 @@ static unsigned int skip_caslat(unsigned int tckmin_ps,
 	}
 
 	for (i = 0; i < size; i++) {
-		if (bin[i].cl[0].tckmin_ps >= tckmin_ps)
+		if (bin[i].cl[0].tckmin_ps >= tckmin_ps) {
 			break;
+		}
 	}
 	if (i >= size) {
 		ERROR("speed bin not found\n");
 		return 0;
 	}
-	if (bin[i].cl[0].tckmin_ps > tckmin_ps && i > 0)
+	if (bin[i].cl[0].tckmin_ps > tckmin_ps && i > 0) {
 		i--;
+	}
 
 	for (j = 0; j < 4; j++) {
-		if (!bin[i].taamin_ps[j] ||
-		    bin[i].taamin_ps[j] >= taamin_ps)
+		if ((bin[i].taamin_ps[j] == 0) ||
+		    bin[i].taamin_ps[j] >= taamin_ps) {
 			break;
+		}
 	}
 
 	if (j >= 4) {
@@ -1262,15 +1302,17 @@ static unsigned int skip_caslat(unsigned int tckmin_ps,
 		return 0;
 	}
 
-	if ((bin[i].taamin_ps[j] == 0) ||
-	    (bin[i].taamin_ps[j] > taamin_ps && j > 0))
+	if (((bin[i].taamin_ps[j] == 0) && j > 0) ||
+	    (bin[i].taamin_ps[j] > taamin_ps && j > 0)) {
 		j--;
+	}
 
 	for (k = 0; bin[i].cl[k].tckmin_ps < mclk_ps &&
 		    bin[i].cl[k].tckmin_ps < taamin_max; k++)
 		;
-	if (bin[i].cl[k].tckmin_ps > mclk_ps && k > 0)
+	if (bin[i].cl[k].tckmin_ps > mclk_ps && k > 0) {
 		k--;
+	}
 
 	debug("Skip CL mask for this speed 0x%x\n", bin[i].cl[k].caslat[j]);
 
@@ -1298,7 +1340,7 @@ int compute_ddrc(const unsigned long clk,
 	}
 
 	/* calculate cas latency, override first */
-	cas_latency = (popts->caslat_override) ?
+	cas_latency = (popts->caslat_override != 0) ?
 			popts->caslat_override_value :
 			(pdimm->taa_ps + mclk_ps - 1) / mclk_ps;
 
@@ -1311,9 +1353,10 @@ int compute_ddrc(const unsigned long clk,
 
 	/* Check if DIMM supports the cas latency */
 	i = 24;
-	while (!(pdimm->caslat_x & ~caslat_skip & (1 << cas_latency)) &&
-	      (i-- > 0))
+	while (((pdimm->caslat_x & ~caslat_skip & (1 << cas_latency)) == 0) &&
+	       (i-- > 0)) {
 		cas_latency++;
+	}
 
 	if (i <= 0) {
 		ERROR("Failed to find a proper cas latency\n");
@@ -1325,7 +1368,7 @@ int compute_ddrc(const unsigned long clk,
 		return -EINVAL;
 	}
 
-	additive_latency = (popts->addt_lat_override) ?
+	additive_latency = (popts->addt_lat_override != 0) ?
 				popts->addt_lat_override_value : 0;
 
 	cal_ddr_csn_bnds(regs, popts, conf, pdimm);
@@ -1335,8 +1378,9 @@ int compute_ddrc(const unsigned long clk,
 		       additive_latency);
 	cal_ddr_dq_mapping(regs, pdimm);
 
-	if (ip_rev >= 0x50500)
+	if (ip_rev >= 0x50500) {
 		cal_ddr_addr_dec(regs);
+	}
 
 	cal_ddr_sdram_mode(clk, regs, popts, conf, pdimm, cas_latency,
 			   additive_latency, ip_rev);

@@ -1,5 +1,5 @@
 #
-# Copyright 2018-2021 NXP
+# Copyright 2022 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -13,12 +13,14 @@ PLAT_SOC_PATH	:=	${PLAT_PATH}/soc-${SOC}
 BOARD_PATH	:=	${PLAT_SOC_PATH}/${BOARD}
 $(info board path = ${BOARD_PATH})
 
-# Use Personal linker file bl2_el3_ls2088.ld.S
-SEPARATE_RW_AND_NOLOAD	:=	1
+# Separate BL2 NOLOAD region (.bss, stack, page tables). need to
+# define BL2_NOLOAD_START and BL2_NOLOAD_LIMIT
+SEPARATE_BL2_NOLOAD_REGION	:= 1
 
 # get SoC-specific defnitions
 include ${PLAT_SOC_PATH}/soc.def
-include ${PLAT_COMMON_PATH}/soc_common_def.mk
+include ${PLAT_COMMON_PATH}/plat_make_helper/soc_common_def.mk
+include ${PLAT_COMMON_PATH}/plat_make_helper/plat_build_macros.mk
 
 # SoC-specific
 NXP_WDOG_RESTART	:=	no
@@ -36,32 +38,32 @@ endif
 
 # For Security Features
 DISABLE_FUSE_WRITE	:=	1
+$(eval $(call SET_NXP_MAKE_FLAG,SMMU_NEEDED,BL2))
 ifeq (${TRUSTED_BOARD_BOOT}, 1)
-$(eval $(call SET_FLAG,SMMU_NEEDED,BL2))
-$(eval $(call SET_FLAG,SFP_NEEDED,BL2))
-$(eval $(call SET_FLAG,SNVS_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,SFP_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,SNVS_NEEDED,BL2))
 # Used by create_pbl tool to
 # create bl2_<boot_mode>_sec.pbl image
 SECURE_BOOT		:=	yes
 endif
-$(eval $(call SET_FLAG,CRYPTO_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,CRYPTO_NEEDED,BL_COMM))
 
 # Selecting Drivers for SoC
-$(eval $(call SET_FLAG,DCFG_NEEDED,BL_COMM))
-$(eval $(call SET_FLAG,TIMER_NEEDED,BL_COMM))
-$(eval $(call SET_FLAG,INTERCONNECT_NEEDED,BL_COMM))
-$(eval $(call SET_FLAG,GIC_NEEDED,BL31))
-$(eval $(call SET_FLAG,CONSOLE_NEEDED,BL_COMM))
-$(eval $(call SET_FLAG,PMU_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,DCFG_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,TIMER_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,INTERCONNECT_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,GIC_NEEDED,BL31))
+$(eval $(call SET_NXP_MAKE_FLAG,CONSOLE_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,PMU_NEEDED,BL_COMM))
 
-$(eval $(call SET_FLAG,DDR_DRIVER_NEEDED,BL2))
-$(eval $(call SET_FLAG,TZASC_NEEDED,BL2))
-$(eval $(call SET_FLAG,I2C_NEEDED,BL2))
-$(eval $(call SET_FLAG,IMG_LOADR_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,DDR_DRIVER_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,TZASC_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,I2C_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,IMG_LOADR_NEEDED,BL2))
 
 # Selecting PSCI & SIP_SVC support
-$(eval $(call SET_FLAG,PSCI_NEEDED,BL31))
-$(eval $(call SET_FLAG,SIPSVC_NEEDED,BL31))
+$(eval $(call SET_NXP_MAKE_FLAG,PSCI_NEEDED,BL31))
+$(eval $(call SET_NXP_MAKE_FLAG,SIPSVC_NEEDED,BL31))
 
 # Source File Addition
 # #####################

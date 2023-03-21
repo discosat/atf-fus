@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 NXP
+ * Copyright 2018-2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -8,14 +8,15 @@
 #define PLAT_DEF_H
 
 #include <arch.h>
-#include <policy.h>
 /*
  * Required without TBBR.
  * To include the defines for DDR PHY Images.
  */
 #include <tbbr_img_def.h>
 
-#include "soc.h"
+#include <cortex_a72.h>
+#include <policy.h>
+#include <soc.h>
 
 #define NXP_SPD_EEPROM0		0x51
 

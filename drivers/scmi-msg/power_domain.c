@@ -89,7 +89,7 @@ static void report_attributes(struct scmi_msg *msg)
 
 	return_values.attributes = plat_scmi_pd_count(msg->agent_id);
 	len = plat_scmi_pd_statistics(msg->agent_id, &addr);
-	if (len) {
+	if (len != 0U) {
 		return_values.statistics_addr_low = (unsigned int)addr;
 		return_values.statistics_addr_high = (uint32_t)(addr >> 32);
 		return_values.statistics_len = len;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -18,13 +18,13 @@
 #include <io_memmap.h>
 #include <io_storage.h>
 #include <lib/utils.h>
-#include <load_img.h>
 #include <nxp_gpio.h>
 #include <sfp.h>
 #include <sfp_error_codes.h>
 #include <tools_share/firmware_image_package.h>
 
 #include "fuse_io.h"
+#include <load_img.h>
 #include <plat/common/platform.h>
 #include "plat_common.h"
 #include "platform_def.h"
@@ -109,10 +109,11 @@ int plat_get_fuse_image_source(unsigned int image_id,
 
 	policy = &fuse_policies[image_id - FUSE_FIP_IMAGE_ID];
 
-	if (image_id == FUSE_FIP_IMAGE_ID)
+	if (image_id == FUSE_FIP_IMAGE_ID) {
 		result = check(policy->image_spec);
-	else
+	} else {
 		result = policy->check(policy->image_spec);
+	}
 
 	if (result == 0) {
 		*image_spec = policy->image_spec;
@@ -162,26 +163,26 @@ int fip_fuse_provisioning(uintptr_t image_buf, uint32_t size)
 	uint32_t bit_num;
 	uint32_t *gpio_base_addr = NULL;
 	struct fuse_hdr_t *fuse_hdr = NULL;
-	uint8_t barker[] = {0x68, 0x39, 0x27, 0x81};
+	uint8_t barker[] = {0x68U, 0x39U, 0x27U, 0x81U};
 	int ret = -1;
 
-	if (!sfp_check_oem_wp()) {
+	if (sfp_check_oem_wp() == 0) {
 		ret = load_img(FUSE_PROV_IMAGE_ID, &image_buf, &size);
-		if (ret) {
+		if (ret != 0) {
 			ERROR("Failed to load FUSE PRIV image\n");
 			assert(ret == 0);
 		}
 		fuse_hdr = (struct fuse_hdr_t *)image_buf;
 
 		/* Check barker code */
-		if (memcmp(fuse_hdr->barker, barker, sizeof(barker))) {
+		if (memcmp(fuse_hdr->barker, barker, sizeof(barker)) != 0) {
 			ERROR("FUSE Barker code mismatch.\n");
 			error_handler(ERROR_FUSE_BARKER);
 			return 1;
 		}
 
 		/* Check if GPIO pin to be set for POVDD */
-		if ((fuse_hdr->flags >> FLAG_POVDD_SHIFT) & 0x1) {
+		if (((fuse_hdr->flags >> FLAG_POVDD_SHIFT) & 0x1) != 0) {
 			gpio_base_addr =
 				select_gpio_n_bitnum(fuse_hdr->povdd_gpio,
 						     &bit_num);
@@ -191,24 +192,32 @@ int fip_fuse_provisioning(uintptr_t image_buf, uint32_t size)
 			 */
 			ret = set_gpio_bit(gpio_base_addr, bit_num);
 			mdelay(EFUSE_POWERUP_DELAY_mSec);
-		} else
-			ret = board_enable_povdd() ? 0 : ERROR_GPIO_SET_FAIL;
+		} else {
+			ret = (board_enable_povdd() == true) ? 0 : PLAT_ERROR_ENABLE_POVDD;
+		}
+		if (ret != 0) {
+			ERROR("Error enabling board POVDD: %d\n", ret);
+			ERROR("Only SFP mirror register will be set.\n");
+		}
 
 		provision_fuses(image_buf, ret == 0);
 
 		 /* Check if GPIO pin to be reset for POVDD */
-		if ((fuse_hdr->flags >> FLAG_POVDD_SHIFT) & 0x1) {
-			if (gpio_base_addr == NULL)
+		if (((fuse_hdr->flags >> FLAG_POVDD_SHIFT) & 0x1) != 0) {
+			if (gpio_base_addr == NULL) {
 				gpio_base_addr =
 					select_gpio_n_bitnum(
 							fuse_hdr->povdd_gpio,
 							&bit_num);
+			}
 			ret = clr_gpio_bit(gpio_base_addr, bit_num);
-		} else
-			ret = board_disable_povdd() ? 0 : ERROR_GPIO_RESET_FAIL;
+		} else {
+			ret = board_disable_povdd() ? 0 : PLAT_ERROR_DISABLE_POVDD;
+		}
 
-		if (ret != 0)
-			ERROR("Error configuring board POVDD: %d\n", ret);
+		if (ret != 0) {
+			ERROR("Error disabling board POVDD: %d\n", ret);
+		}
 	}
 	return 0;
 }

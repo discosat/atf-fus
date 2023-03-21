@@ -1,5 +1,5 @@
 #
-# Copyright 2018-2020 NXP
+# Copyright 2021 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -14,7 +14,7 @@ ifeq (${ADD_CONSOLE},)
 
 ADD_CONSOLE		:= 1
 
-PLAT_INCLUDES		+=	-I$(PLAT_DRIVERS_PATH)/console
+PLAT_INCLUDES		+=	-I$(PLAT_DRIVERS_INCLUDE_PATH)/console
 
 ifeq ($(CONSOLE), NS16550)
 NXP_CONSOLE		:=	NS16550
@@ -43,6 +43,4 @@ BL31_SOURCES		+= ${CONSOLE_SOURCES}
 endif
 endif
 endif
-
 # -----------------------------------------------------------------------------
-

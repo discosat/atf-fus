@@ -46,6 +46,7 @@ static unsigned char soc_fw_config_hash_buf[HASH_DER_LEN];
 static unsigned char tos_fw_config_hash_buf[HASH_DER_LEN];
 static unsigned char nt_fw_config_hash_buf[HASH_DER_LEN];
 
+#ifdef CONFIG_DDR_FIP_IMAGE
 static unsigned char ddr_fw_content_pk_buf[PK_DER_LEN];
 static unsigned char ddr_imem_udimm_1d_hash_buf[HASH_DER_LEN];
 static unsigned char ddr_imem_udimm_2d_hash_buf[HASH_DER_LEN];
@@ -56,6 +57,7 @@ static unsigned char ddr_imem_rdimm_1d_hash_buf[HASH_DER_LEN];
 static unsigned char ddr_imem_rdimm_2d_hash_buf[HASH_DER_LEN];
 static unsigned char ddr_dmem_rdimm_1d_hash_buf[HASH_DER_LEN];
 static unsigned char ddr_dmem_rdimm_2d_hash_buf[HASH_DER_LEN];
+#endif
 
 /*
  * Parameter type descriptors
@@ -102,6 +104,7 @@ static auth_param_type_desc_t nt_world_bl_hash = AUTH_PARAM_TYPE_DESC(
 static auth_param_type_desc_t nt_fw_config_hash = AUTH_PARAM_TYPE_DESC(
 		AUTH_PARAM_HASH, NON_TRUSTED_FW_CONFIG_HASH_OID);
 
+#ifdef CONFIG_DDR_FIP_IMAGE
 static auth_param_type_desc_t ddr_fw_content_pk = AUTH_PARAM_TYPE_DESC(
 		AUTH_PARAM_PUB_KEY, DDR_FW_CONTENT_CERT_PK_OID);
 
@@ -122,6 +125,7 @@ static auth_param_type_desc_t ddr_dmem_rdimm_1d_fw_hash = AUTH_PARAM_TYPE_DESC(
 		AUTH_PARAM_HASH, DDR_DMEM_RDIMM_1D_HASH_OID);
 static auth_param_type_desc_t ddr_dmem_rdimm_2d_fw_hash = AUTH_PARAM_TYPE_DESC(
 		AUTH_PARAM_HASH, DDR_DMEM_RDIMM_2D_HASH_OID);
+#endif
 
 
 /*
@@ -518,6 +522,7 @@ static const auth_img_desc_t nt_fw_config = {
 		}
 	}
 };
+#ifdef CONFIG_DDR_FIP_IMAGE
 /*
  * DDR Firmware
  */
@@ -774,6 +779,7 @@ static const auth_img_desc_t ddr_dmem_rdimm_2d_img = {
 		}
 	}
 };
+#endif
 
 /*
  * TBBR Chain of trust definition
@@ -795,6 +801,7 @@ static const auth_img_desc_t * const cot_desc[] = {
 	[NON_TRUSTED_FW_CONTENT_CERT_ID]	=	&non_trusted_fw_content_cert,
 	[BL33_IMAGE_ID]				=	&bl33_image,
 	[NT_FW_CONFIG_ID]			=	&nt_fw_config,
+#ifdef CONFIG_DDR_FIP_IMAGE
 	[DDR_FW_KEY_CERT_ID]			=	&ddr_fw_key_cert,
 	[DDR_UDIMM_FW_CONTENT_CERT_ID]		=	&ddr_udimm_fw_content_cert,
 	[DDR_RDIMM_FW_CONTENT_CERT_ID]		=	&ddr_rdimm_fw_content_cert,
@@ -806,6 +813,7 @@ static const auth_img_desc_t * const cot_desc[] = {
 	[DDR_IMEM_RDIMM_2D_IMAGE_ID]		=	&ddr_imem_rdimm_2d_img,
 	[DDR_DMEM_RDIMM_1D_IMAGE_ID]		=	&ddr_dmem_rdimm_1d_img,
 	[DDR_DMEM_RDIMM_2D_IMAGE_ID]		=	&ddr_dmem_rdimm_2d_img,
+#endif
 };
 
 /* Register the CoT in the authentication module */

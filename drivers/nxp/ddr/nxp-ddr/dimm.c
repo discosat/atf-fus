@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2020 NXP
+ * Copyright 2021-2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 
@@ -20,7 +21,7 @@
 
 int read_spd(unsigned char chip, void *buf, int len)
 {
-	unsigned char dummy = 0;
+	unsigned char dummy = 0U;
 	int ret;
 
 	if (len < 256) {
@@ -30,12 +31,13 @@ int read_spd(unsigned char chip, void *buf, int len)
 
 	i2c_write(SPD_SPA0_ADDRESS, 0, 1, &dummy, 1);
 	ret = i2c_read(chip, 0, 1, buf, 256);
-	if (!ret) {
+	if (ret == 0) {
 		i2c_write(SPD_SPA1_ADDRESS, 0, 1, &dummy, 1);
 		ret = i2c_read(chip, 0, 1, buf + 256, min(256, len - 256));
 	}
-	if (ret)
+	if (ret != 0) {
 		zeromem(buf, len);
+	}
 
 	return ret;
 }
@@ -47,11 +49,13 @@ int crc16(unsigned char *ptr, int count)
 
 	while (--count >= 0) {
 		crc = crc ^ (int)*ptr++ << 8;
-		for (i = 0; i < 8; ++i)
-			if (crc & 0x8000)
+		for (i = 0; i < 8; ++i) {
+			if ((crc & 0x8000) != 0) {
 				crc = crc << 1 ^ 0x1021;
-			else
+			} else {
 				crc = crc << 1;
+			}
+		}
 	}
 	return crc & 0xffff;
 }
@@ -105,15 +109,19 @@ compute_ranksize(const struct ddr4_spd *spd)
 	int die_count = 0;
 	bool package_3ds;
 
-	if ((spd->density_banks & 0xf) <= 7)
+	if ((spd->density_banks & 0xf) <= 7) {
 		nbit_sdram_cap_bsize = (spd->density_banks & 0xf) + 28;
-	if ((spd->bus_width & 0x7) < 4)
+	}
+	if ((spd->bus_width & 0x7) < 4) {
 		nbit_primary_bus_width = (spd->bus_width & 0x7) + 3;
-	if ((spd->organization & 0x7) < 4)
+	}
+	if ((spd->organization & 0x7) < 4) {
 		nbit_sdram_width = (spd->organization & 0x7) + 2;
+	}
 	package_3ds = (spd->package_type & 0x3) == 0x2;
-	if (package_3ds)
+	if (package_3ds) {
 		die_count = (spd->package_type >> 4) & 0x7;
+	}
 
 	bsize = 1ULL << (nbit_sdram_cap_bsize - 3 +
 			 nbit_primary_bus_width - nbit_sdram_width +
@@ -140,7 +148,7 @@ int cal_dimm_params(const struct ddr4_spd *spd, struct dimm_params *pdimm)
 	}
 
 	ret = ddr4_spd_check(spd);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("DIMM SPD checksum mismatch\n");
 		return -EINVAL;
 	}
@@ -150,15 +158,17 @@ int cal_dimm_params(const struct ddr4_spd *spd, struct dimm_params *pdimm)
 	 * Guarantee null termination here by presetting all bytes to 0
 	 * and copying the part name in ASCII from the SPD onto it
 	 */
-	if ((spd->info_size_crc & 0xF) > 2)
+	if ((spd->info_size_crc & 0xF) > 2) {
 		memcpy(pdimm->mpart, spd->mpart, sizeof(pdimm->mpart) - 1);
+	}
 
 	/* DIMM organization parameters */
 	pdimm->n_ranks = ((spd->organization >> 3) & 0x7) + 1;
 	debug("n_ranks %d\n", pdimm->n_ranks);
 	pdimm->rank_density = compute_ranksize(spd);
-	if (!pdimm->rank_density)
+	if (pdimm->rank_density == 0) {
 		return -EINVAL;
+	}
 
 	debug("rank_density 0x%llx\n", pdimm->rank_density);
 	pdimm->capacity = pdimm->n_ranks * pdimm->rank_density;
@@ -167,10 +177,11 @@ int cal_dimm_params(const struct ddr4_spd *spd, struct dimm_params *pdimm)
 	debug("die density 0x%x\n", pdimm->die_density);
 	pdimm->primary_sdram_width = 1 << (3 + (spd->bus_width & 0x7));
 	debug("primary_sdram_width %d\n", pdimm->primary_sdram_width);
-	if ((spd->bus_width >> 3) & 0x3)
+	if (((spd->bus_width >> 3) & 0x3) != 0) {
 		pdimm->ec_sdram_width = 8;
-	else
+	} else {
 		pdimm->ec_sdram_width = 0;
+	}
 	debug("ec_sdram_width %d\n", pdimm->ec_sdram_width);
 	pdimm->device_width = 1 << ((spd->organization & 0x7) + 2);
 	debug("device_width %d\n", pdimm->device_width);
@@ -184,8 +195,9 @@ int cal_dimm_params(const struct ddr4_spd *spd, struct dimm_params *pdimm)
 	case DDR4_SPD_72B_SO_RDIMM:
 		pdimm->rdimm = 1;
 		pdimm->rc = spd->mod_section.registered.ref_raw_card & 0x9f;
-		if (spd->mod_section.registered.reg_map & 0x1)
+		if ((spd->mod_section.registered.reg_map & 0x1) != 0) {
 			pdimm->mirrored_dimm = 1;
+		}
 		val = spd->mod_section.registered.ca_stren;
 		pdimm->rcw[3] = val >> 4;
 		pdimm->rcw[4] = ((val & 0x3) << 2) | ((val & 0xc) >> 2);
@@ -197,10 +209,11 @@ int cal_dimm_params(const struct ddr4_spd *spd, struct dimm_params *pdimm)
 				(pdimm->package_3ds > 0x3 ? 0x0 :
 				 (pdimm->package_3ds > 0x1 ? 0x1 :
 				  (pdimm->package_3ds > 0 ? 0x2 : 0x3)));
-		if (pdimm->package_3ds || pdimm->n_ranks != 4)
+		if (pdimm->package_3ds != 0 || pdimm->n_ranks != 4) {
 			pdimm->rcw[13] = 0x4;
-		else
+		} else {
 			pdimm->rcw[13] = 0x5;
+		}
 		pdimm->rcw[13] |= pdimm->mirrored_dimm ? 0x8 : 0;
 		break;
 
@@ -211,20 +224,23 @@ int cal_dimm_params(const struct ddr4_spd *spd, struct dimm_params *pdimm)
 	case DDR4_SPD_16B_SO_DIMM:
 	case DDR4_SPD_32B_SO_DIMM:
 		pdimm->rc = spd->mod_section.unbuffered.ref_raw_card & 0x9f;
-		if (spd->mod_section.unbuffered.addr_mapping & 0x1)
+		if ((spd->mod_section.unbuffered.addr_mapping & 0x1) != 0) {
 			pdimm->mirrored_dimm = 1;
+		}
 		if ((spd->mod_section.unbuffered.mod_height & 0xe0) == 0 &&
 		    (spd->mod_section.unbuffered.ref_raw_card == 0x04)) {
 			/* Fix SPD error found on DIMMs with raw card E0 */
 			for (i = 0; i < 18; i++) {
-				if (spd->mapping[i] == udimm_rc_e_dq[i])
+				if (spd->mapping[i] == udimm_rc_e_dq[i]) {
 					continue;
+				}
 				spd_error = 1;
 				ptr = (unsigned char *)&spd->mapping[i];
 				*ptr = udimm_rc_e_dq[i];
 			}
-			if (spd_error)
+			if (spd_error != 0) {
 				INFO("SPD DQ mapping error fixed\n");
+			}
 		}
 		break;
 
@@ -246,10 +262,11 @@ int cal_dimm_params(const struct ddr4_spd *spd, struct dimm_params *pdimm)
 	pdimm->bank_group_bits = (spd->density_banks >> 6) & 0x3;
 	debug("bank_group_bits %d\n", pdimm->bank_group_bits);
 
-	if (pdimm->ec_sdram_width)
+	if (pdimm->ec_sdram_width != 0) {
 		pdimm->edc_config = 0x02;
-	else
+	} else {
 		pdimm->edc_config = 0x00;
+	}
 	debug("edc_config %d\n", pdimm->edc_config);
 
 	/* DDR4 spec has BL8 -bit3, BC4 -bit2 */
@@ -293,8 +310,9 @@ int cal_dimm_params(const struct ddr4_spd *spd, struct dimm_params *pdimm)
 			   (spd->caslat_b3 << 23);
 	debug("caslat_x 0x%x\n", pdimm->caslat_x);
 
-	if (spd->caslat_b4 != 0)
+	if (spd->caslat_b4 != 0) {
 		WARN("Unhandled caslat_b4 value\n");
+	}
 
 	/*
 	 * min CAS latency time
@@ -347,7 +365,7 @@ int cal_dimm_params(const struct ddr4_spd *spd, struct dimm_params *pdimm)
 	/* min CAS to CAS Delay Time (tCCD_Lmin), same bank group */
 	pdimm->tccdl_ps = spd_to_ps(spd->tccdl_min, spd->fine_tccdl_min);
 	debug("tccdl_ps %d\n", pdimm->tccdl_ps);
-	if (pdimm->package_3ds) {
+	if (pdimm->package_3ds != 0) {
 		if (pdimm->die_density > 5) {
 			debug("Unsupported logical rank density 0x%x\n",
 				  pdimm->die_density);

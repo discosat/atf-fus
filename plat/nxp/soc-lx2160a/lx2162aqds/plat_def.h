@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -10,14 +10,14 @@
 
 #include <arch.h>
 #include <cortex_a72.h>
-#include <policy.h>
-#include <soc.h>
 /* Required without TBBR.
  * To include the defines for DDR PHY
  * Images.
  */
 #include <tbbr_img_def.h>
 
+#include <policy.h>
+#include <soc.h>
 
 #if defined(IMAGE_BL31)
 #define LS_SYS_TIMCTL_BASE		0x2890000
@@ -93,11 +93,13 @@
 			GIC_INTR_CFG_EDGE)
 
 /* SGI 15 and Secure watchdog interrupts assigned to Group 0 */
+#define NXP_IRQ_SEC_SGI_7		15
+
 #define PLAT_LS_G0_IRQ_PROPS(grp)	\
 	INTR_PROP_DESC(BL31_WDOG_SEC, GIC_HIGHEST_SEC_PRIORITY, grp, \
 			GIC_INTR_CFG_EDGE), \
 	INTR_PROP_DESC(BL31_NS_WDOG_WS1, GIC_HIGHEST_SEC_PRIORITY, grp, \
 			GIC_INTR_CFG_EDGE), \
-	INTR_PROP_DESC(15, GIC_HIGHEST_SEC_PRIORITY, grp, \
+	INTR_PROP_DESC(NXP_IRQ_SEC_SGI_7, GIC_HIGHEST_SEC_PRIORITY, grp, \
 			GIC_INTR_CFG_LEVEL)
 #endif

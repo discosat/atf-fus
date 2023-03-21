@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2016 Freescale Semiconductor, Inc.
- * Copyright 2016-2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -13,6 +12,7 @@
 #include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <common/debug.h>
@@ -27,7 +27,7 @@ static void set_wait_for_bits_clear(void *ptr, unsigned int value,
 
 	ddr_out32(ptr, value);
 
-	while (ddr_in32(ptr) & bits) {
+	while ((ddr_in32(ptr) & bits) != 0) {
 		udelay(100);
 		timeout--;
 	}
@@ -53,7 +53,7 @@ void mmdc_init(const struct fsl_mmdc_info *priv, uintptr_t nxp_ddr_addr)
 
 	/* 3. configure DDR type and other miscellaneous parameters */
 	ddr_out32(&mmdc->mdmisc, priv->mdmisc);
-	ddr_out32(&mmdc->mpmur0,	MMDC_MPMUR0_FRC_MSR);
+	ddr_out32(&mmdc->mpmur0, MMDC_MPMUR0_FRC_MSR);
 	ddr_out32(&mmdc->mdrwd, priv->mdrwd);
 	ddr_out32(&mmdc->mpodtctrl, priv->mpodtctrl);
 
@@ -135,10 +135,11 @@ void mmdc_init(const struct fsl_mmdc_info *priv, uintptr_t nxp_ddr_addr)
 	ddr_out32(&mmdc->mppdcmpr2, MPPDCMPR2_MPR_COMPARE_EN);
 
 	/* set absolute read delay offset */
-	if (priv->mprddlctl)
+	if (priv->mprddlctl != 0) {
 		ddr_out32(&mmdc->mprddlctl, priv->mprddlctl);
-	else
+	} else {
 		ddr_out32(&mmdc->mprddlctl, MMDC_MPRDDLCTL_DEFAULT_DELAY);
+	}
 
 	set_wait_for_bits_clear(&mmdc->mpdgctrl0,
 				AUTO_RD_DQS_GATING_CALIBRATION_EN,

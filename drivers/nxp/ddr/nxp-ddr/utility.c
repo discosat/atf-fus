@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 NXP
+ * Copyright 2021-2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <common/debug.h>
 #include <ddr.h>
@@ -32,16 +33,17 @@
 #define CCN_HN_F_SAM_NODEID_DDR0	0x4
 #define CCN_HN_F_SAM_NODEID_DDR1	0xe
 #elif defined(NXP_HAS_CCN508)
-#define CCN_HN_F_SAM_NODEID_DDR0_0  0x3
-#define CCN_HN_F_SAM_NODEID_DDR0_1  0x8
-#define CCN_HN_F_SAM_NODEID_DDR1_0  0x13
-#define CCN_HN_F_SAM_NODEID_DDR1_1  0x18
+#define CCN_HN_F_SAM_NODEID_DDR0_0	0x3
+#define CCN_HN_F_SAM_NODEID_DDR0_1	0x8
+#define CCN_HN_F_SAM_NODEID_DDR1_0	0x13
+#define CCN_HN_F_SAM_NODEID_DDR1_1	0x18
 #endif
 
 unsigned long get_ddr_freq(struct sysinfo *sys, int ctrl_num)
 {
-	if (sys->freq_ddr_pll0 == 0)
+	if (sys->freq_ddr_pll0 == 0) {
 		get_clocks(sys);
+	}
 
 	switch (ctrl_num) {
 	case 0:
@@ -73,8 +75,9 @@ unsigned int picos_to_mclk(unsigned long data_rate, unsigned int picos)
 	unsigned long long clks, clks_rem;
 
 	/* Short circuit for zero picos */
-	if (!picos || !data_rate)
-		return 0;
+	if ((picos == 0U) || (data_rate == 0UL)) {
+		return 0U;
+	}
 
 	/* First multiply the time by the data rate (32x32 => 64) */
 	clks = picos * (unsigned long long)data_rate;
@@ -84,15 +87,17 @@ unsigned int picos_to_mclk(unsigned long data_rate, unsigned int picos)
 	 */
 	clks_rem = do_div(clks, UL_5POW12);
 	clks_rem += (clks & (UL_2POW13-1)) * UL_5POW12;
-	clks >>= 13;
+	clks >>= 13U;
 
 	/* If we had a remainder greater than the 1ps error, then round up */
-	if (clks_rem > data_rate)
+	if (clks_rem > data_rate) {
 		clks++;
+	}
 
 	/* Clamp to the maximum representable value */
-	if (clks > ULL_8FS)
+	if (clks > ULL_8FS) {
 		clks = ULL_8FS;
+	}
 	return (unsigned int) clks;
 }
 
@@ -104,32 +109,34 @@ int disable_unused_ddrc(struct ddr_info *priv,
 	void *hnf_sam_ctrl = (void *)(nxp_ccn_hn_f0_addr + CCN_HN_F_SAM_CTL);
 	uint32_t val, nodeid;
 #ifdef NXP_HAS_CCN504
-	uint32_t num_hnf_nodes = 4;
+	uint32_t num_hnf_nodes = 4U;
 #else
-	uint32_t num_hnf_nodes = 8;
+	uint32_t num_hnf_nodes = 8U;
 #endif
 	int disable_ddrc = 0;
 	int i;
 
-	if (priv->num_ctlrs < 2)
+	if (priv->num_ctlrs < 2) {
 		debug("%s: nothing to do.\n", __func__);
+	}
 
 	switch (priv->dimm_on_ctlr) {
 	case 1:
-		disable_ddrc = !(valid_spd_mask & 0x1) ? 1 :
-				!(valid_spd_mask & 0x2) ? 2 : 0;
+		disable_ddrc = ((valid_spd_mask &0x2) == 0) ? 2 : 0;
+		disable_ddrc = ((valid_spd_mask &0x1) == 0) ? 1 : disable_ddrc;
 		break;
 	case 2:
-		disable_ddrc = !(valid_spd_mask & 0x1) ? 1 :
-				!(valid_spd_mask & 0x4) ? 2 : 0;
+		disable_ddrc = ((valid_spd_mask &0x4) == 0) ? 2 : 0;
+		disable_ddrc = ((valid_spd_mask &0x1) == 0) ? 1 : disable_ddrc;
 		break;
 	default:
 		ERROR("Invalid number of DIMMs %d\n", priv->dimm_on_ctlr);
 		return -EINVAL;
 	}
 
-	if (disable_ddrc)
+	if (disable_ddrc != 0) {
 		debug("valid_spd_mask = 0x%x\n", valid_spd_mask);
+	}
 
 	switch (disable_ddrc) {
 	case 1:
@@ -137,7 +144,7 @@ int disable_unused_ddrc(struct ddr_info *priv,
 		priv->spd_addr = &priv->spd_addr[priv->dimm_on_ctlr];
 		priv->ddr[0] = priv->ddr[1];
 		priv->ddr[1] = NULL;
-		priv->phy[0] = priv->phy[1];
+		priv->phy[0] = priv->phy[0];
 		priv->phy[1] = NULL;
 		debug("Disable first DDR controller\n");
 		break;
@@ -146,7 +153,7 @@ int disable_unused_ddrc(struct ddr_info *priv,
 		priv->ddr[1] = NULL;
 		priv->phy[1] = NULL;
 		debug("Disable second DDR controller\n");
-		/* fall through */
+		/* fallthrough */
 	case 0:
 		break;
 	default:
@@ -154,7 +161,7 @@ int disable_unused_ddrc(struct ddr_info *priv,
 		return -EINVAL;
 	}
 
-	if (!disable_ddrc) {
+	if (disable_ddrc == 0) {
 		debug("Both controllers in use.\n");
 		return 0;
 	}
@@ -162,21 +169,21 @@ int disable_unused_ddrc(struct ddr_info *priv,
 	for (i = 0; i < num_hnf_nodes; i++) {
 		val = mmio_read_64((uintptr_t)hnf_sam_ctrl);
 #ifdef NXP_HAS_CCN504
-	    nodeid = disable_ddrc == 1 ? CCN_HN_F_SAM_NODEID_DDR1 :
-		    (disable_ddrc == 2 ? CCN_HN_F_SAM_NODEID_DDR0 :
-		    0x0);   /*Failure condition. never hit */
-#elif NXP_HAS_CCN508
-	    if (disable_ddrc == 1) {
-            nodeid = (i < 2 || i >= 6) ? CCN_HN_F_SAM_NODEID_DDR1_1 :
-		    CCN_HN_F_SAM_NODEID_DDR1_0;
-	    } else if (disable_ddrc == 2) {
-            nodeid = (i < 2 || i >= 6) ? CCN_HN_F_SAM_NODEID_DDR0_0 :
-		    CCN_HN_F_SAM_NODEID_DDR0_1;
-	    } else {
-            nodeid = 0; /* Failure condition. never hit */
-	    }
+		nodeid = disable_ddrc == 1 ? CCN_HN_F_SAM_NODEID_DDR1 :
+			(disable_ddrc == 2 ? CCN_HN_F_SAM_NODEID_DDR0 :
+			 0x0);   /*Failure condition. never hit */
+#elif defined(NXP_HAS_CCN508)
+		if (disable_ddrc == 1) {
+			nodeid = (i < 2 || i >= 6) ? CCN_HN_F_SAM_NODEID_DDR1_1 :
+				CCN_HN_F_SAM_NODEID_DDR1_0;
+		} else if (disable_ddrc == 2) {
+			nodeid = (i < 2 || i >= 6) ? CCN_HN_F_SAM_NODEID_DDR0_0 :
+				CCN_HN_F_SAM_NODEID_DDR0_1;
+		} else {
+			nodeid = 0; /* Failure condition. never hit */
+		}
 #endif
-	    if (nodeid != (val & CCN_HN_F_SAM_NODEID_MASK)) {
+		if (nodeid != (val & CCN_HN_F_SAM_NODEID_MASK)) {
 			debug("Setting HN-F node %d\n", i);
 			debug("nodeid = 0x%x\n", nodeid);
 			val &= ~CCN_HN_F_SAM_NODEID_MASK;
@@ -193,8 +200,8 @@ unsigned int get_ddrc_version(const struct ccsr_ddr *ddr)
 {
 	unsigned int ver;
 
-	ver = (ddr_in32(&ddr->ip_rev1) & 0xFFFF) << 8;
-	ver |= (ddr_in32(&ddr->ip_rev2) & 0xFF00) >> 8;
+	ver = (ddr_in32(&ddr->ip_rev1) & 0xFFFF) << 8U;
+	ver |= (ddr_in32(&ddr->ip_rev2) & 0xFF00) >> 8U;
 
 	return ver;
 }
@@ -205,7 +212,7 @@ void print_ddr_info(struct ccsr_ddr *ddr)
 	unsigned int sdram_cfg = ddr_in32(&ddr->sdram_cfg);
 	int cas_lat;
 
-	if (!(sdram_cfg & SDRAM_CFG_MEM_EN)) {
+	if ((sdram_cfg & SDRAM_CFG_MEM_EN) == 0U) {
 		printf(" (DDR not enabled)\n");
 		return;
 	}
@@ -241,15 +248,17 @@ void print_ddr_info(struct ccsr_ddr *ddr)
 	cas_lat += 2;	/* for DDRC newer than 4.4 */
 	cas_lat += ((ddr_in32(&ddr->timing_cfg_3) >> 12) & 3) << 4;
 	printf(", CL=%d", cas_lat >> 1);
-	if (cas_lat & 0x1)
+	if ((cas_lat & 0x1) != 0) {
 		printf(".5");
+	}
 
-	if (sdram_cfg & SDRAM_CFG_ECC_EN)
+	if ((sdram_cfg & SDRAM_CFG_ECC_EN) != 0) {
 		printf(", ECC on");
-	else
+	} else {
 		printf(", ECC off");
+	}
 
-	if (cs0_config & 0x20000000) {
+	if ((cs0_config & 0x20000000) != 0) {
 		printf(", ");
 		switch ((cs0_config >> 24) & 0xf) {
 		case DDR_256B_INTLV:
@@ -261,7 +270,7 @@ void print_ddr_info(struct ccsr_ddr *ddr)
 		}
 	}
 
-	if ((sdram_cfg >> 8) & 0x7f) {
+	if (((sdram_cfg >> 8) & 0x7f) != 0) {
 		printf(", ");
 		switch (sdram_cfg >> 8 & 0x7f) {
 		case DDR_BA_INTLV_CS0123:

@@ -1,7 +1,8 @@
 /*
- * Copyright 2018-2021 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
+ *
  */
 
 #ifndef SOC_DEFAULT_HELPER_MACROS_H
@@ -76,7 +77,7 @@
 #define ENABLE_ERR_SIGNAL_TO_MN		0x4
 #define ENABLE_RESERVE_BIT53		0x400
 #define ENABLE_WUO			0x10
-#endif
+#endif /* NXP_CCN_ADDR */
 
 #define DCFG_SBEESR2_ADDR		0x00100534
 #define DCFG_MBEESR2_ADDR		0x00100544

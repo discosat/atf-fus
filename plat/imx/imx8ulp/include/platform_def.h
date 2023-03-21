@@ -43,8 +43,13 @@
 #define PLAT_VIRT_ADDR_SPACE_SIZE	(1ull << 32)
 #define PLAT_PHY_ADDR_SPACE_SIZE	(1ull << 32)
 
+#ifdef SPD_trusty
+#define MAX_XLAT_TABLES			10
+#define MAX_MMAP_REGIONS		11
+#else
 #define MAX_XLAT_TABLES			8
 #define MAX_MMAP_REGIONS		9
+#endif
 
 #define PLAT_GICD_BASE			U(0x2d400000)
 #define PLAT_GICR_BASE			U(0x2d440000)
@@ -64,6 +69,7 @@
 #define IMX_PCC4_BASE			U(0x29800000)
 #define IMX_CGC2_BASE			U(0x2da60000)
 #define IMX_PCC5_BASE			U(0x2da70000)
+#define IMX_MU0B_BASE			U(0x29220000)
 #define IMX_CMC1_BASE			U(0x29240000)
 #define IMX_WUU1_BASE			U(0x29260000)
 #define IMX_SIM1_BASE			U(0x29290000)
@@ -87,8 +93,13 @@
 
 #define BL32_FDT_OVERLAY_ADDR		0x9d000000
 
-#ifdef SPD_trusty
 #define IMX_TRUSTY_STACK_SIZE 0x100
-#endif
+#define TRUSTY_SHARED_MEMORY_OBJ_SIZE (12 * 1024)
+
+#define BL31_NOBITS_BASE    0x20058000
+#define BL31_NOBITS_LIMIT   0x2006d000
+
+#define BL31_RWDATA_BASE    0x2006d000
+#define BL31_RWDATA_LIMIT   0x20070000
 
 #endif /* PLATFORM_DEF_H */

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 NXP
+ * Copyright 2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -8,14 +8,15 @@
 #define PLAT_DEF_H
 
 #include <arch.h>
-#include <policy.h>
-#include <soc.h>
 /*
  * Required without TBBR.
  * To include the defines for DDR PHY
  * Images.
  */
 #include <tbbr_img_def.h>
+
+#include <policy.h>
+#include <soc.h>
 
 /* DDR Related definition */
 #define PLAT_DEF_DRAM0_SIZE	0x20000000	/*  512 MB */

@@ -57,5 +57,9 @@ BL32_SIZE		?=	0x2000000
 $(eval $(call add_define,BL32_SIZE))
 
 ifeq (${SPD},trusty)
-	BL31_CFLAGS    +=      -DPLAT_XLAT_TABLES_DYNAMIC=1
+IMX_SEPARATE_XLAT_TABLE :=	1
+
+$(eval $(call add_define,IMX_SEPARATE_XLAT_TABLE))
+
+BL31_SOURCES += plat/imx/common/ffa_shared_mem.c
 endif

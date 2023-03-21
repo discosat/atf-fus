@@ -1,30 +1,27 @@
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
- *
  */
 
 #include <assert.h>
 #include <errno.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
 
 #include <common/debug.h>
 #include <ddr.h>
-#include <errata.h>
 #include <lib/utils.h>
 
+#include <errata.h>
+
 static const struct rc_timing rce[] = {
-	{1600, 8, 7},
-	{1867, 8, 7},
-	{2134, 8, 9},
+	{U(1600), U(8), U(7)},
+	{U(1867), U(8), U(7)},
+	{U(2134), U(8), U(9)},
 	{}
 };
 
 static const struct board_timing udimm[] = {
-	{0x04, rce, 0x01020304, 0x06070805},
+	{U(0x04), rce, U(0x01020304), U(0x06070805)},
 };
 
 int ddr_board_options(struct ddr_info *priv)
@@ -38,11 +35,12 @@ int ddr_board_options(struct ddr_info *priv)
 	}
 
 	ret = cal_board_params(priv, udimm, ARRAY_SIZE(udimm));
-	if (ret)
+	if (ret != 0) {
 		return ret;
+	}
 
-	popts->wrlvl_override = 1;
-	popts->wrlvl_sample = 0x0;	/* 32 clocks */
+	popts->wrlvl_override = U(1);
+	popts->wrlvl_sample = U(0x0);	/* 32 clocks */
 	popts->ddr_cdr1 = DDR_CDR1_DHC_EN	|
 			  DDR_CDR1_ODT(DDR_CDR_ODT_80ohm);
 	popts->ddr_cdr2 = DDR_CDR2_ODT(DDR_CDR_ODT_80ohm)	|
@@ -50,7 +48,7 @@ int ddr_board_options(struct ddr_info *priv)
 			  DDR_CDR2_VREF_RANGE_2;
 
 	/* optimize cpo for erratum A-009942 */
-	popts->cpo_sample = 0x70;
+	popts->cpo_sample = U(0x70);
 
 	return 0;
 }
@@ -80,10 +78,13 @@ long long init_ddr(void)
 
 	dram_size = dram_init(&info);
 
-	if (dram_size < 0)
+	if (dram_size < 0) {
 		ERROR("DDR init failed.\n");
+	}
 
+#ifdef ERRATA_SOC_A008850
 	erratum_a008850_post();
+#endif
 
 	return dram_size;
 }

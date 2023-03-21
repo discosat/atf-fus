@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -29,9 +29,9 @@ enum app_data_offset {
 	APP_DATA_MAX_OFFSET,
 };
 
-uint8_t read_nv_app_data(void);
+int read_nv_app_data(void);
 
-uint8_t wr_nv_app_data(int data_offset,
+int wr_nv_app_data(int data_offset,
 			uint8_t *data,
 			int data_size);
 

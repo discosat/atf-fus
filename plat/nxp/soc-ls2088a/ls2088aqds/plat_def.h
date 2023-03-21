@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 NXP
+ * Copyright 2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -8,14 +8,14 @@
 #define PLAT_DEF_H
 
 #include <arch.h>
-#include <cortex_a72.h>
-#include <policy.h>
-#include <soc.h>
 /*
  * Required without TBBR. To include the defines for DDR PHY
  * Images.
  */
 #include <tbbr_img_def.h>
+
+#include <policy.h>
+#include <soc.h>
 
 #define NXP_SYSCLK_FREQ		100000000
 #define NXP_DDRCLK_FREQ		133333333
@@ -35,11 +35,10 @@
 #define PLATFORM_STACK_SIZE	0x2000
 #endif
 
-#define BL2_LIMIT		(NXP_OCRAM_ADDR + NXP_OCRAM_SIZE)
-
 #define BL2_START		NXP_OCRAM_ADDR
-
-#define BL2_TEXT_LIMIT          (NXP_OCRAM_ADDR + NXP_OCRAM_SIZE - CSF_HDR_SZ)
+#define BL2_LIMIT		(NXP_OCRAM_ADDR + NXP_OCRAM_SIZE)
+#define BL2_NOLOAD_START	NXP_OCRAM_ADDR
+#define BL2_NOLOAD_LIMIT	BL2_BASE
 
 /* IO defines as needed by IO driver framework */
 #define MAX_IO_DEVICES		4

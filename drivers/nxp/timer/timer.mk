@@ -1,5 +1,5 @@
 #
-# Copyright 2020 NXP
+# Copyright 2021 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -8,10 +8,8 @@ ifeq (${ADD_TIMER},)
 
 ADD_TIMER		:= 1
 
-TIMER_DRIVERS_PATH	:=  ${PLAT_DRIVERS_PATH}/timer
-
-PLAT_INCLUDES		+= -I$(TIMER_DRIVERS_PATH)
-TIMER_SOURCES	+= drivers/delay_timer/delay_timer.c	\
+PLAT_INCLUDES		+= -I$(PLAT_DRIVERS_INCLUDE_PATH)/timer
+TIMER_SOURCES		+= drivers/delay_timer/delay_timer.c	\
 			   $(PLAT_DRIVERS_PATH)/timer/nxp_timer.c
 
 ifeq (${BL_COMM_TIMER_NEEDED},yes)

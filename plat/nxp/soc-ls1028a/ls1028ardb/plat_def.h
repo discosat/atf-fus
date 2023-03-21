@@ -8,15 +8,17 @@
 #define PLAT_DEF_H
 
 #include <arch.h>
-#include <policy.h>
-#include <soc.h>
-
+#include <cortex_a72.h>
 /*
  * Required without TBBR.
  * To include the defines for DDR PHY
  * Images.
  */
 #include <tbbr_img_def.h>
+
+#include <policy.h>
+#include <soc.h>
+
 
 #define NXP_SYSCLK_FREQ		100000000
 #define NXP_DDRCLK_FREQ		100000000
@@ -42,7 +44,8 @@
 #define NXP_SD_BLOCK_BUF_SIZE	(0xC000)
 
 #ifdef SD_BOOT
-#define BL2_LIMIT		(NXP_OCRAM_ADDR + NXP_OCRAM_SIZE - NXP_SD_BLOCK_BUF_SIZE)
+#define BL2_LIMIT		(NXP_OCRAM_ADDR + NXP_OCRAM_SIZE \
+				- NXP_SD_BLOCK_BUF_SIZE)
 #else
 #define BL2_LIMIT		(NXP_OCRAM_ADDR + NXP_OCRAM_SIZE)
 #endif
@@ -70,4 +73,4 @@
 			GIC_INTR_CFG_EDGE), \
 	INTR_PROP_DESC(15, GIC_HIGHEST_SEC_PRIORITY, grp, \
 			GIC_INTR_CFG_LEVEL)
-#endif
+#endif /* PLAT_DEF_H */

@@ -8,16 +8,17 @@
 .section .text, "ax"
 
 #include <asm_macros.S>
+
 #ifndef NXP_COINED_BB
 #include <flash_info.h>
 #include <fspi.h>
 #endif
-#include <plat_warm_rst.h>
 #include <regs.h>
 #ifdef NXP_COINED_BB
 #include <snvs.h>
 #endif
 
+#include <plat_warm_rst.h>
 #include <platform_def.h>
 
 #define SDRAM_CFG	0x110

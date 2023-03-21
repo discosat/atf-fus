@@ -1,18 +1,18 @@
 /*
- * Copyright 2018 - 2021 NXP
+ * Copyright 2018-2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include <asm_macros.S>
 #include <cortex_a53.h>
+#include <dcfg_lsch2.h>
 #include <plat_gic.h>
-#include <platform_def.h>
-#include <bl31_data.h>
+#include <scfg.h>
 
-#include "dcfg_lsch2.h"
-#include "plat_psci.h"
-#include "scfg.h"
+#include <bl31_data.h>
+#include <plat_psci.h>
+#include <platform_def.h>
 
 /* the BASE address for these offsets is AUX_01_DATA in the */
 /* bootcore's psci data region */
@@ -77,32 +77,10 @@
 
 /*
  * This function initialize the soc.
- * in:
- * out:
- * uses x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11
+ * in: void
+ * out: void
  */
 func soc_init_lowlevel
-	/*
-	 * called from C, so save the non-volatile regs
-	 * save these as pairs of registers to maintain the
-	 * required 16-byte alignment on the stack
-	 */
-	stp	x4,  x5,  [sp, #-16]!
-	stp	x6,  x7,  [sp, #-16]!
-	stp	x8,  x9,  [sp, #-16]!
-	stp	x10, x11, [sp, #-16]!
-	stp	x12, x13, [sp, #-16]!
-	stp	x18, x30, [sp, #-16]!
-
-	/* Add SoC init code here */
-
-	/* restore the aarch32/64 non-volatile registers */
-	ldp	x18, x30, [sp], #16
-	ldp	x12, x13, [sp], #16
-	ldp	x10, x11, [sp], #16
-	ldp	x8,  x9,  [sp], #16
-	ldp	x6,  x7,  [sp], #16
-	ldp	x4,  x5,  [sp], #16
 	ret
 endfunc soc_init_lowlevel
 
@@ -119,8 +97,6 @@ func soc_init_percpu
 
 	bl	plat_my_core_mask
 	mov	x2, x0
-
-	/* x2 = core mask */
 
 	/* see if this core is marked for prefetch disable */
 	mov	x0, #PREFETCH_DIS_OFFSET
@@ -143,16 +119,10 @@ endfunc soc_init_percpu
 _soc_core_release:
 
 #if (TEST_BL31)
-	/* x0 = core mask lsb */
-
 	mov	w2, w0
 	CoreMaskMsb	w2, w3
-
-	/* x0 = core mask lsb */
 	/* x2 = core mask msb */
-
 #else
-	/* x0 = core mask lsb */
 	mov	x2, x0
 #endif
 	/* write COREBCR  */
@@ -160,8 +130,6 @@ _soc_core_release:
 	rev	w3, w2
 	str	w3, [x1, #SCFG_COREBCR_OFFSET]
 	isb
-
-	/* x0 = core mask lsb */
 
 	/* read-modify-write BRR */
 	mov	x1, #NXP_DCFG_ADDR
@@ -184,29 +152,23 @@ _soc_core_release:
  * in:  x0 = core mask lsb (of the target cpu)
  * out: x0 == 0, on success
  *      x0 != 0, on failure
- * uses x0, x1, x2, x3, x4, x5
+ * uses x0 ~ x5
  */
 _soc_core_restart:
 	mov	x5, x30
 	mov	x3, x0
 
 	/* x3 = core mask lsb */
-
 	bl	_getGICD_BaseAddr
 	mov	x4, x0
 
-	/* x3 = core mask lsb */
 	/* x4 = GICD_BASE_ADDR */
-
 	/* enable forwarding of group 0 interrupts by setting GICD_CTLR[0] = 1 */
 	ldr	w1, [x4, #GICD_CTLR_OFFSET]
 	orr	w1, w1, #GICD_CTLR_EN_GRP0
 	str	w1, [x4, #GICD_CTLR_OFFSET]
 	dsb	sy
 	isb
-
-	/* x3 = core mask lsb */
-	/* x4 = GICD_BASE_ADDR */
 
 	/*
 	 * fire SGI by writing to GICD_SGIR the following values:
@@ -292,7 +254,7 @@ _soc_sys_reset:
  *       recovery is POR
  * in:  none
  * out: none
- * uses x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, [x13, x14, x15]
+ * uses x0 ~ x8
  */
 _soc_sys_off:
 
@@ -607,7 +569,7 @@ _soc_sys_off:
  * the core
  * in:  x0 = core mask lsb
  * out: none
- * uses x0, x1, x2, x3, x4, x5, x6, x7
+ * uses x0 ~ x7
  */
 _soc_core_prep_off:
 	mov	x7, x30
@@ -678,13 +640,6 @@ _soc_core_prep_off:
 	orr	w2, w2, #GICD_ISENABLE0_SGI15
 	str	w2, [x0, #GICD_ISENABLER0_OFFSET]
 
-	/*
-	 * x0 = GICD_BASE_ADDR
-	 * x3 = GICC_CTRL
-	 * x4 = GICC_BASE_ADDR
-	 * x6 = core mask
-	 */
-
 	/* enable the cpu interface */
 	orr	w3, w3, #GICC_CTLR_EN_GRP0
 	str	w3, [x4, #GICC_CTLR_OFFSET]
@@ -707,7 +662,7 @@ _soc_core_prep_off:
  * this function performs the final steps to shutdown the core
  * in:  x0 = core mask lsb
  * out: none
- * uses x0, x1, x2, x3, x4, x5
+ * uses x0 ~ x5
  */
 _soc_core_entr_off:
 	mov	x5, x30
@@ -742,12 +697,10 @@ _soc_core_entr_off:
 	bl	_getCoreState
 
 	/* x0 = core state */
-
 	cmp	x0, #CORE_WAKEUP
 	b.ne	3b
 
 	/* if we get here, then we have exited the wfi */
-
 	dsb	sy
 	isb
 	mov	x30, x5
@@ -758,7 +711,7 @@ _soc_core_entr_off:
  * this function starts the process of starting a core back up
  * in:  x0 = core mask lsb
  * out: none
- * uses x0, x1, x2, x3, x4, x5
+ * uses x0 ~ x5
  */
 _soc_core_exit_off:
 	mov	x5, x30
@@ -819,8 +772,6 @@ _soc_set_start_addr:
  * uses x0
  */
 _soc_core_entr_stdby:
-
-	/* X0 = core mask lsb */
 	dsb	sy
 	isb
 	wfi
@@ -835,7 +786,6 @@ _soc_core_entr_stdby:
  * uses x0, x1
  */
 _soc_core_prep_stdby:
-
 	/* clear CORTEX_A53_ECTLR_EL1[2:0] */
 	mrs	x1, CORTEX_A53_ECTLR_EL1
 	bic	x1, x1, #CPUECTLR_TIMER_MASK
@@ -851,7 +801,6 @@ _soc_core_prep_stdby:
  * uses none
  */
 _soc_core_exit_stdby:
-
 	ret
 
 /*
@@ -862,7 +811,6 @@ _soc_core_exit_stdby:
  * uses x0, x1
  */
 _soc_core_prep_pwrdn:
-
 	/* make sure the smp bit is set */
 	mrs	x1, CORTEX_A53_ECTLR_EL1
 	orr	x1, x1, #CPUECTLR_SMPEN_MASK
@@ -879,8 +827,6 @@ _soc_core_prep_pwrdn:
  * uses x0
  */
 _soc_core_entr_pwrdn:
-
-	/* X0 = core mask lsb */
 	dsb	sy
 	isb
 	wfi
@@ -895,7 +841,6 @@ _soc_core_entr_pwrdn:
  * uses none
  */
 _soc_core_exit_pwrdn:
-
 	ret
 
 
@@ -907,7 +852,6 @@ _soc_core_exit_pwrdn:
  * uses x0, x1
  */
 _soc_clstr_prep_stdby:
-
 	/* clear CORTEX_A53_ECTLR_EL1[2:0] */
 	mrs  x1, CORTEX_A53_ECTLR_EL1
 	bic  x1, x1, #CPUECTLR_TIMER_MASK
@@ -923,7 +867,6 @@ _soc_clstr_prep_stdby:
  * uses none
  */
 _soc_clstr_exit_stdby:
-
 	ret
 
 /*
@@ -934,7 +877,6 @@ _soc_clstr_exit_stdby:
  * uses x0, x1
  */
 _soc_clstr_prep_pwrdn:
-
 	/* make sure the smp bit is set */
 	mrs	x1, CORTEX_A53_ECTLR_EL1
 	orr	x1, x1, #CPUECTLR_SMPEN_MASK
@@ -951,7 +893,6 @@ _soc_clstr_prep_pwrdn:
  * uses none
  */
 _soc_clstr_exit_pwrdn:
-
 	ret
 
 /*
@@ -962,7 +903,6 @@ _soc_clstr_exit_pwrdn:
  * uses x0, x1
  */
 _soc_sys_prep_stdby:
-
 	/* clear CORTEX_A53_ECTLR_EL1[2:0] */
 	mrs  x1, CORTEX_A53_ECTLR_EL1
 	bic  x1, x1, #CPUECTLR_TIMER_MASK
@@ -978,7 +918,6 @@ _soc_sys_prep_stdby:
  * uses none
  */
 _soc_sys_exit_stdby:
-
 	ret
 
 /*
@@ -991,7 +930,6 @@ _soc_sys_exit_stdby:
  */
 _soc_sys_prep_pwrdn:
 	mov	x4, x30
-
 	/* make sure the smp bit is set */
 	mrs	x1, CORTEX_A53_ECTLR_EL1
 	orr	x1, x1, #CPUECTLR_SMPEN_MASK
@@ -1017,8 +955,7 @@ _soc_sys_prep_pwrdn:
  * in:  x0 = core mask lsb
  * out: x0 = 0, success
  *      x0 < 0, failure
- * uses x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x13, x14, x15,
- *      x16, x17, x18
+ * uses x0 ~ x9
  */
 _soc_sys_pwrdn_wfi:
 	mov	x18, x30
@@ -1324,7 +1261,6 @@ _soc_sys_pwrdn_wfi:
  * uses x0, x1
  */
 _soc_sys_exit_pwrdn:
-
 	/* clear POWMGTDCR */
 	mov	x1, #DCSR_RCPM2_BASE
 	str	wzr, [x1, #RCPM2_POWMGTDCR_OFFSET]
@@ -1445,16 +1381,14 @@ read_reg_rcpm2:
  * uses x0, x1
  */
 _getGICD_BaseAddr:
-
 	/* read SVR and get the SoC version */
 	mov	x0, #NXP_DCFG_ADDR
 	ldr	w1, [x0, #DCFG_SVR_OFFSET]
 	rev	w0, w1
 
 	/* x0 =  svr */
-
-	and	w0, w0, #SVR_MIN_REV_MASK
-	cmp	w0, #SVR_MINOR_REV_0
+	and	w0, w0, #SVR_MIN_VER_MASK
+	cmp	w0, #SVR_MINOR_VER_0
 	b.ne	8f
 
 	/* load the gic base addresses for rev 1.0 parts */
@@ -1470,8 +1404,8 @@ _getGICD_BaseAddr:
 	rev	w0, w1
 
 	/* x0 = GIC400_ADDR_ALIGN value */
-	and	x0, x0, #GIC400_ADDR_ALIGN_4KMODE_MASK
-	mov	x1, #GIC400_ADDR_ALIGN_4KMODE_EN
+	and	x0, x0, #SCFG_GIC400_ADDR_ALIGN_4KMODE_MASK
+	mov	x1, #SCFG_GIC400_ADDR_ALIGN_4KMODE_EN
 	cmp	x0, x1
 	b.ne	9f
 
@@ -1491,16 +1425,14 @@ _getGICD_BaseAddr:
  * uses x0, x1
  */
 _getGICC_BaseAddr:
-
 	/* read SVR and get the SoC version */
 	mov	x0, #NXP_DCFG_ADDR
 	ldr	w1, [x0, #DCFG_SVR_OFFSET]
 	rev	w0, w1
 
 	/* x0 =  svr */
-
-	and	w0, w0, #SVR_MIN_REV_MASK
-	cmp	w0, #SVR_MINOR_REV_0
+	and	w0, w0, #SVR_MIN_VER_MASK
+	cmp	w0, #SVR_MINOR_VER_0
 	b.ne	8f
 
 	/* load the gic base addresses for rev 1.0 parts */
@@ -1516,8 +1448,8 @@ _getGICC_BaseAddr:
 	rev	w0, w1
 
 	/* x0 = GIC400_ADDR_ALIGN value */
-	and	x0, x0, #GIC400_ADDR_ALIGN_4KMODE_MASK
-	mov	x1, #GIC400_ADDR_ALIGN_4KMODE_EN
+	and	x0, x0, #SCFG_GIC400_ADDR_ALIGN_4KMODE_MASK
+	mov	x1, #SCFG_GIC400_ADDR_ALIGN_4KMODE_EN
 	cmp	x0, x1
 	b.ne	9f
 
@@ -1545,13 +1477,12 @@ _getGICC_BaseAddr:
  *      w16 = DEVDISR4 saved value
  *      w17 = DEVDISR5 saved value
  * out: none
- * uses x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x13, x14, x15, x16, x17
+ * uses x0 ~ x9
  */
 
 /* 4Kb aligned */
 .align 12
 final_pwrdown:
-
 	mov	x0, xzr
 	b	touch_line_0
 start_line_0:
@@ -1657,7 +1588,7 @@ continue_restart:
  *      x7  = DCSR_RCPM2_BASE
  *      x8  = NXP_DCFG_ADDR
  * out: none
- * uses x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x13, x14, x15, x16, x17
+ * uses x0 ~ x8
  */
 
 /* 4Kb aligned */
