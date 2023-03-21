@@ -38,6 +38,9 @@ static uintptr_t imx_sip_handler(unsigned int smc_fid,
 	case IMX_SIP_HIFI_XRDC:
 		SMC_RET1(handle, imx_hifi_xrdc(smc_fid));
 		break;
+	case IMX_SIP_DDR_DVFS:
+		return dram_dvfs_handler(smc_fid, handle, x1, x2, x3);
+		break;
 #endif
 #if defined(PLAT_imx8mq)
 	case IMX_SIP_GET_SOC_INFO:
@@ -87,6 +90,11 @@ static uintptr_t imx_sip_handler(unsigned int smc_fid,
 #endif
 	case  IMX_SIP_BUILDINFO:
 		SMC_RET1(handle, imx_buildinfo_handler(smc_fid, x1, x2, x3, x4));
+#if defined(PLAT_imx93)
+	case IMX_SIP_SRC:
+		SMC_RET1(handle, imx_src_handler(smc_fid, x1, x2, x3, handle));
+		break;
+#endif
 	default:
 		WARN("Unimplemented i.MX SiP Service Call: 0x%x\n", smc_fid);
 		SMC_RET1(handle, SMC_UNK);

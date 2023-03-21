@@ -1,10 +1,14 @@
-// SPDX-License-Identifier: BSD-3-Clause
 /*
+ * Copyright 2021 NXP
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * FlexSpi Registers & Bits definition.
- * Copyright 2019-2020 NXP
+ *
  */
-#ifndef _FSPI_H_
-#define _FSPI_H_
+
+#ifndef FSPI_H
+#define FSPI_H
 
 #ifndef __ASSEMBLER__
 #include <lib/mmio.h>
@@ -22,23 +26,22 @@
 #endif
 
 /* All LE so not swap needed */
-#define FSPI_IPDATA_SWAP		0
-#define FSPI_AHBDATA_SWAP		0
+#define FSPI_IPDATA_SWAP		0U
+#define FSPI_AHBDATA_SWAP		0U
 
-#define CONFIG_FSPI_FASTREAD		1
+#define CONFIG_FSPI_FASTREAD		1U
 
-#define FSPI_BYTES_PER_KBYTES		0x400
-#define FLASH_NUM			1
+#define FSPI_BYTES_PER_KBYTES		0x400U
+#define FLASH_NUM			1U
 
-#define fspiREAD_SEQ_ID			0
-#define fspiWREN_SEQ_ID			1
-#define fspiWRITE_SEQ_ID		2
-#define fspiSE_SEQ_ID			3
-#define fspiRDSR_SEQ_ID			4
-#define fspiBE_SEQ_ID			5
-#define fspiFASTREAD_SEQ_ID		6
-#define fspiSE_4K_SEQ_ID		7
-
+#define FSPI_READ_SEQ_ID		0U
+#define FSPI_WREN_SEQ_ID		1U
+#define FSPI_WRITE_SEQ_ID		2U
+#define FSPI_SE_SEQ_ID			3U
+#define FSPI_RDSR_SEQ_ID		4U
+#define FSPI_BE_SEQ_ID			5U
+#define FSPI_FASTREAD_SEQ_ID		6U
+#define FSPI_4K_SEQ_ID			7U
 
 /*
  * LUT register layout:
@@ -61,8 +64,6 @@
 #define FSPI_INSTR_PAD1(x)		((x) << FSPI_INSTR_PAD1_SHIFT)
 #define FSPI_INSTR_OPCODE1_SHIFT	26
 #define FSPI_INSTR_OPCODE1(x)		((x) << FSPI_INSTR_OPCODE1_SHIFT)
-
-
 
 /* Instruction set for the LUT register. */
 #define LUT_STOP			0x00
@@ -94,7 +95,6 @@
 #define LUT_DATSZ_DDR			0x2B
 #define LUT_DUMMY_DDR			0x2C
 #define LUT_DUMMY_RWDS_DDR		0x2D
-
 
 #define FSPI_NOR_CMD_READ		0x03
 #define FSPI_NOR_CMD_READ_4B		0x13
@@ -379,7 +379,6 @@
 #define FSPI_LUT_OFFSET			(SEQID_LUT * 4 * 4)
 #define FSPI_LUT_REG(idx) \
 	(FSPI_LUT_BASE + FSPI_LUT_OFFSET + (idx) * 4)
-
 
 /* register map end */
 

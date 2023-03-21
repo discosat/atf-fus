@@ -1,11 +1,11 @@
 /*
- * Copyright 2019-2020 NXP
+ * Copyright 2021 NXP
  * SPDX-License-Identifier: BSD-3-Clause
  *
  */
 
-#ifndef __DDR4FW__
-#define __DDR4FW__
+#ifndef DDR4FW
+#define DDR4FW
 
 #define PHY_GEN2_MAX_IMAGE_SIZE		32768
 #define PHY_GEN2_IMEM_ADDR		0x50000

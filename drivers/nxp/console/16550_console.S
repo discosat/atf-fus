@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2018, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2021, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -190,14 +190,14 @@ func nxp_console_16550_core_putc
 #endif /* ENABLE_ASSERTIONS */
 
 	/* Prepend '\r' to '\n' */
-	cmp	w0, #0xA //'\n'
+	cmp	w0, #'\n'
 	b.ne	2f
 	/* Check if the transmit FIFO is full */
 1:	ldrb	w2, [x1, #UARTLSR]
 	and	w2, w2, #UARTLSR_THRE        /* #(UARTLSR_TEMT | UARTLSR_THRE)*/
 	cmp	w2, #(UARTLSR_THRE)
 	b.ne	1b
-	mov	w2, #0xD		/* '\r' */
+	mov	w2, #'\r'
 	strb	w2, [x1, #UARTTX]
 	ldrb	w2, [x1, #UARTFCR]
 	orr	w2, w2, #UARTFCR_TXCLR

@@ -1,17 +1,16 @@
 /*
- * Copyright 2018-2021 NXP
+ * Copyright 2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include <string.h>
-#include <mmio.h>
+
 #include <common/debug.h>
 #include <drivers/io/io_block.h>
-#include <lib/xlat_tables/xlat_tables_v2.h>
-
-#include "nxp_timer.h"
 #include "ifc.h"
+#include <lib/xlat_tables/xlat_tables_v2.h>
+#include <nxp_timer.h>
 
 /* Private structure for NAND driver data */
 static struct nand_info nand_drv_data;
@@ -63,25 +62,25 @@ static int nand_wait(struct nand_info *nand)
 
 static uint32_t nand_get_port_size(struct nand_info *nand)
 {
-	uint32_t port_size = 0;
+	uint32_t port_size = U(0);
 	uint32_t cs_reg;
 	uint32_t cur_cs;
 
-	cur_cs = 0;
+	cur_cs = U(0);
 	cs_reg = CSPR(cur_cs);
 	port_size = (read_reg(nand, cs_reg) & CSPR_PS) >> CSPR_PS_SHIFT;
 	switch (port_size) {
 	case CSPR_PS_8:
-		port_size = 8;
+		port_size = U(8);
 		break;
 	case CSPR_PS_16:
-		port_size = 16;
+		port_size = U(16);
 		break;
 	case CSPR_PS_32:
-		port_size = 32;
+		port_size = U(32);
 		break;
 	default:
-		port_size = 8;
+		port_size = U(8);
 	}
 
 	return port_size;
@@ -98,19 +97,19 @@ static uint32_t nand_get_page_size(struct nand_info *nand)
 	pg_size = read_reg(nand, cs_reg) & CSOR_NAND_PGS;
 	switch (pg_size) {
 	case CSOR_NAND_PGS_2K:
-		pg_size = 2048;
+		pg_size = U(2048);
 		break;
 	case CSOR_NAND_PGS_4K:
-		pg_size = 4096;
+		pg_size = U(4096);
 		break;
 	case CSOR_NAND_PGS_8K:
-		pg_size = 8192;
+		pg_size = U(8192);
 		break;
 	case CSOR_NAND_PGS_16K:
-		pg_size = 16384;
+		pg_size = U(16384);
 		break;
 	default:
-		pg_size = 512;
+		pg_size = U(512);
 	}
 
 	return pg_size;
@@ -127,28 +126,28 @@ static uint32_t nand_get_pages_per_blk(struct nand_info *nand)
 	pages_per_blk = (read_reg(nand, cs_reg) & CSOR_NAND_PB);
 	switch (pages_per_blk) {
 	case CSOR_NAND_PB_32:
-		pages_per_blk = 32;
+		pages_per_blk = U(32);
 		break;
 	case CSOR_NAND_PB_64:
-		pages_per_blk = 64;
+		pages_per_blk = U(64);
 		break;
 	case CSOR_NAND_PB_128:
-		pages_per_blk = 128;
+		pages_per_blk = U(128);
 		break;
 	case CSOR_NAND_PB_256:
-		pages_per_blk = 256;
+		pages_per_blk = U(256);
 		break;
 	case CSOR_NAND_PB_512:
-		pages_per_blk = 512;
+		pages_per_blk = U(512);
 		break;
 	case CSOR_NAND_PB_1024:
-		pages_per_blk = 1024;
+		pages_per_blk = U(1024);
 		break;
 	case CSOR_NAND_PB_2048:
-		pages_per_blk = 2048;
+		pages_per_blk = U(2048);
 		break;
 	default:
-		pages_per_blk = 0;
+		pages_per_blk = U(0);
 	}
 
 	return pages_per_blk;
@@ -158,21 +157,21 @@ static uint32_t get_page_index_width(uint32_t ppb)
 {
 	switch (ppb) {
 	case CSOR_NAND_PPB_32:
-		return 5;
+		return U(5);
 	case CSOR_NAND_PPB_64:
-		return 6;
+		return U(6);
 	case CSOR_NAND_PPB_128:
-		return 7;
+		return U(7);
 	case CSOR_NAND_PPB_256:
-		return 8;
+		return U(8);
 	case CSOR_NAND_PPB_512:
-		return 9;
+		return U(9);
 	case CSOR_NAND_PPB_1024:
-		return 10;
+		return U(10);
 	case CSOR_NAND_PPB_2048:
-		return 11;
+		return U(11);
 	default:
-		return 5;
+		return U(5);
 	}
 }
 
@@ -191,9 +190,10 @@ static void nand_get_params(struct nand_info *nand)
 	nand->bad_marker_loc = (nand->page_size == 512) ?
 				((nand->port_size == 8) ? 0x5 : 0xa) : 0;
 
-	/* check for the device is ONFI complient or not */
+	/* check for the device is ONFI compliant or not */
 	nand->onfi_dev_flag =
-	   (read_reg(nand, NAND_EVTER_STAT) & NAND_EVTER_STAT_BBI_SRCH_SEL) ? 1 : 0;
+	   (read_reg(nand, NAND_EVTER_STAT) & NAND_EVTER_STAT_BBI_SRCH_SEL)
+	   ? 1 : 0;
 
 	/* NAND Blk serached count for incremental Bad block search cnt */
 	nand->bbs = 0;
@@ -222,7 +222,7 @@ static int nand_init(struct nand_info *nand)
 	nand_get_params(nand);
 
 	/* Clear all errors */
-	write_reg(nand, NAND_EVTER_STAT, 0xffffffff);
+	write_reg(nand, NAND_EVTER_STAT, U(0xffffffff));
 
 	/*
 	 * Disable autoboot in NCFGR. Mapping will change from
@@ -243,7 +243,7 @@ static int nand_read_data(
 		uint32_t main_spare,
 		struct nand_info *nand)
 {
-	uint32_t page_size_add_bits = 0;
+	uint32_t page_size_add_bits = U(0);
 	uint32_t page_add_in_actual, page_add;
 	uintptr_t sram_addr_calc;
 	int ret;
@@ -258,7 +258,7 @@ static int nand_read_data(
 	write_reg(nand, COL0, col_val);
 
 	/* Program FCR for small Page */
-	if (nand->page_size == 512) {
+	if (nand->page_size == U(512)) {
 		if (byte_cnt == 0 ||
 			(byte_cnt != 0  && main_spare == 0 && col_add <= 255)) {
 			write_reg(nand, NAND_FCR0,
@@ -276,13 +276,13 @@ static int nand_read_data(
 		write_reg(nand, NAND_FCR0, (NAND_CMD_READ0 << FCR_CMD0_SHIFT) |
 			  (NAND_CMD_READSTART << FCR_CMD1_SHIFT));
 	}
-	if (nand->page_size == 512) {
+	if (nand->page_size == U(512)) {
 		write_reg(nand, NAND_FIR0, ((FIR_OP_CW0 << FIR_OP0_SHIFT) |
 					  (FIR_OP_CA0 << FIR_OP1_SHIFT) |
 					  (FIR_OP_RA0 << FIR_OP2_SHIFT) |
 					  (FIR_OP_BTRD << FIR_OP3_SHIFT) |
 					  (FIR_OP_NOP << FIR_OP4_SHIFT)));
-		write_reg(nand, NAND_FIR1, 0x00000000);
+		write_reg(nand, NAND_FIR1, U(0x00000000));
 	} else {
 		write_reg(nand, NAND_FIR0, ((FIR_OP_CW0 << FIR_OP0_SHIFT) |
 					 (FIR_OP_CA0 << FIR_OP1_SHIFT) |
@@ -302,23 +302,23 @@ static int nand_read_data(
 	 * in sram address corresponding to area
 	 * within a page for sram
 	 */
-	if (nand->page_size == 512)
-		page_size_add_bits = 10;
-	else if (nand->page_size == 2048)
-		page_size_add_bits = 12;
-	else if (nand->page_size == 4096)
-		page_size_add_bits = 13;
-	else if (nand->page_size == 8192)
-		page_size_add_bits = 14;
-	else if (nand->page_size == 16384)
-		page_size_add_bits = 15;
+	if (nand->page_size == U(512))
+		page_size_add_bits = U(10);
+	else if (nand->page_size == U(2048))
+		page_size_add_bits = U(12);
+	else if (nand->page_size == U(4096))
+		page_size_add_bits = U(13);
+	else if (nand->page_size == U(8192))
+		page_size_add_bits = U(14);
+	else if (nand->page_size == U(16384))
+		page_size_add_bits = U(15);
 
 	page_add = row_add;
 
-	page_add_in_actual = (page_add << page_size_add_bits) & 0x0000FFFF;
+	page_add_in_actual = (page_add << page_size_add_bits) & U(0x0000FFFF);
 
 	if (byte_cnt == 0)
-		col_add = 0;
+		col_add = U(0);
 
 	/* Calculate SRAM address for main and spare area */
 	if (main_spare == 0)
@@ -337,16 +337,17 @@ static int nand_read_data(
 	return 0;
 }
 
-static int nand_read(struct nand_info *nand, int32_t src_addr, uintptr_t dst, uint32_t size)
+static int nand_read(struct nand_info *nand, int32_t src_addr,
+		uintptr_t dst, uint32_t size)
 {
-	uint32_t log_blk = 0;
-	uint32_t pg_no = 0;
-	uint32_t col_off = 0;
-	uint32_t row_off = 0;
-	uint32_t byte_cnt = 0;
-	uint32_t read_cnt = 0;
-	uint32_t i = 0;
-	uint32_t updated = 0;
+	uint32_t log_blk = U(0);
+	uint32_t pg_no = U(0);
+	uint32_t col_off = U(0);
+	uint32_t row_off = U(0);
+	uint32_t byte_cnt = U(0);
+	uint32_t read_cnt = U(0);
+	uint32_t i = U(0);
+	uint32_t updated = U(0);
 
 	int ret = 0;
 	uint8_t *out = (uint8_t *)dst;
@@ -614,7 +615,7 @@ static struct io_block_dev_spec ifc_nand_spec = {
 	 * Default block size assumed as 2K
 	 * Would be updated based on actual size
 	 */
-	.block_size = 2048,
+	.block_size = UL(2048),
 };
 
 int ifc_nand_init(uintptr_t *block_dev_spec,
@@ -633,7 +634,7 @@ int ifc_nand_init(uintptr_t *block_dev_spec,
 	nand->ifc_region_addr = ifc_region_addr;
 	nand->ifc_register_addr = ifc_register_addr;
 
-	INFO("nand_init\n");
+	VERBOSE("nand_init\n");
 	ret = nand_init(nand);
 	if (ret) {
 		ERROR("nand init failed\n");
@@ -645,7 +646,7 @@ int ifc_nand_init(uintptr_t *block_dev_spec,
 
 	ifc_nand_spec.block_size = nand_get_page_size(nand);
 
-	INFO("Page size is %ld\n", ifc_nand_spec.block_size);
+	VERBOSE("Page size is %ld\n", ifc_nand_spec.block_size);
 
 	*block_dev_spec = (uintptr_t)&ifc_nand_spec;
 

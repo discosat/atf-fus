@@ -47,12 +47,21 @@ BL31_SOURCES		+=	plat/imx/common/lpuart_console.S	\
 				${XLAT_TABLES_LIB_SRCS}			\
 				${IMX_GIC_SOURCES}
 
+ifeq (${SPD},trusty)
+	BL31_SOURCES += plat/imx/common/ffa_shared_mem.c
+endif
+
 ifeq ($(findstring clang,$(notdir $(CC))),)
     TF_CFLAGS_aarch64	+=	-fno-strict-aliasing
 endif
 
 USE_COHERENT_MEM	:=	1
 RESET_TO_BL31		:=	1
+SEPARATE_NOBITS_REGION	:=	1
+SEPARATE_RWDATA_REGION	:=	1
+PROGRAMMABLE_RESET_ADDRESS	:=	1
+COLD_BOOT_SINGLE_CPU := 1
+WARMBOOT_ENABLE_DCACHE_EARLY	:=	1
 BL32_BASE		?=	0xa6000000
 BL32_SIZE		?=	0x2000000
 $(eval $(call add_define,BL32_BASE))

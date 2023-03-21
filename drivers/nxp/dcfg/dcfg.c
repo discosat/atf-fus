@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2020-2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -21,8 +21,9 @@ uint32_t read_reg_porsr1(void)
 {
 	unsigned int *porsr1_addr = NULL;
 
-	if (dcfg_init_info->porsr1 != 0)
+	if (dcfg_init_info->porsr1 != 0U) {
 		return dcfg_init_info->porsr1;
+	}
 
 	porsr1_addr = (void *)
 			(dcfg_init_info->g_nxp_dcfg_addr + DCFG_PORSR1_OFFSET);
@@ -36,8 +37,9 @@ const soc_info_t *get_soc_info(void)
 {
 	uint32_t reg;
 
-	if (soc_info.is_populated == true)
+	if (soc_info.is_populated == true) {
 		return (const soc_info_t *) &soc_info;
+	}
 
 	reg = gur_in32(dcfg_init_info->g_nxp_dcfg_addr + DCFG_SVR_OFFSET);
 
@@ -48,7 +50,6 @@ const soc_info_t *get_soc_info(void)
 		(((reg & SVR_SEC_MASK) >> SVR_SEC_SHIFT) == 0) ? true : false;
 
 	soc_info.is_populated = true;
-
 	return (const soc_info_t *) &soc_info;
 }
 
@@ -106,10 +107,11 @@ int get_clocks(struct sysinfo *sys)
 	sys->freq_ddr_pll1 *= (gur_in32(rcwsr0) >>
 				RCWSR0_MEM2_PLL_RAT_SHIFT) &
 				RCWSR0_MEM2_PLL_RAT_MASK;
-	if (sys->freq_platform == 0)
+	if (sys->freq_platform == 0) {
 		return 1;
-	else
+	} else {
 		return 0;
+	}
 }
 
 #ifdef NXP_SFP_ENABLED
@@ -120,13 +122,13 @@ int get_clocks(struct sysinfo *sys)
  ******************************************************************************/
 bool check_boot_mode_secure(uint32_t *mode)
 {
-	uint32_t val = 0;
+	uint32_t val = 0U;
 	uint32_t *rcwsr = NULL;
-	*mode = 0;
+	*mode = 0U;
 
 	if (sfp_check_its() == 1) {
 		/* ITS =1 , Production mode */
-		*mode = 1;
+		*mode = 1U;
 		return true;
 	}
 
@@ -136,7 +138,7 @@ bool check_boot_mode_secure(uint32_t *mode)
 				RCWSR_SBEN_MASK;
 
 	if (val == RCWSR_SBEN_MASK) {
-		*mode = 0;
+		*mode = 0U;
 		return true;
 	}
 
@@ -144,13 +146,11 @@ bool check_boot_mode_secure(uint32_t *mode)
 }
 #endif
 
-int error_handler(int error_code)
+void error_handler(int error_code)
 {
 	 /* Dump error code in SCRATCH4 register */
 	INFO("Error in Fuse Provisioning: %x\n", error_code);
 	gur_out32((void *)
 		  (dcfg_init_info->g_nxp_dcfg_addr + DCFG_SCRATCH4_OFFSET),
 		  error_code);
-
-	return 0;
 }

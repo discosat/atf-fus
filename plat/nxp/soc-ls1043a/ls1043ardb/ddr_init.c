@@ -5,55 +5,56 @@
  */
 
 #include <string.h>
+
 #include <common/debug.h>
+#include <ddr.h>
 #include <lib/utils.h>
 
-#include "ddr.h"
-#include "errata.h"
-#include "platform_def.h"
+#include <errata.h>
+#include <platform_def.h>
 
 #ifdef CONFIG_STATIC_DDR
 const struct ddr_cfg_regs static_1600 = {
-	.cs[0].config = 0x80040322,
-	.cs[0].bnds = 0x7F,
-	.sdram_cfg[0] = 0xC50C0000,
-	.sdram_cfg[1] = 0x401100,
-	.timing_cfg[0] = 0x91550018,
-	.timing_cfg[1] = 0xBBB48C42,
-	.timing_cfg[2] = 0x48C111,
-	.timing_cfg[3] = 0x10C1000,
-	.timing_cfg[4] = 0x2,
-	.timing_cfg[5] = 0x3401400,
-	.timing_cfg[7] = 0x13300000,
-	.timing_cfg[8] = 0x2115600,
-	.sdram_mode[0] = 0x3010210,
-	.sdram_mode[9] = 0x4000000,
-	.sdram_mode[8] = 0x500,
-	.sdram_mode[2] = 0x10210,
-	.sdram_mode[10] = 0x400,
-	.sdram_mode[11] = 0x4000000,
-	.sdram_mode[4] = 0x10210,
-	.sdram_mode[12] = 0x400,
-	.sdram_mode[13] = 0x4000000,
-	.sdram_mode[6] = 0x10210,
-	.sdram_mode[14] = 0x400,
-	.sdram_mode[15] = 0x4000000,
-	.interval = 0x18600618,
-	.zq_cntl = 0x8A090705,
-	.clk_cntl = 0x3000000,
-	.cdr[0] = 0x80040000,
-	.cdr[1] = 0xA181,
-	.wrlvl_cntl[0] = 0x8675F607,
-	.wrlvl_cntl[1] = 0x7090807,
-	.wrlvl_cntl[2] = 0x7070707,
-	.debug[28] = 0x00700046,
+	.cs[0].config = U(0x80040322),
+	.cs[0].bnds = U(0x7F),
+	.sdram_cfg[0] = U(0xC50C0000),
+	.sdram_cfg[1] = U(0x401100),
+	.timing_cfg[0] = U(0x91550018),
+	.timing_cfg[1] = U(0xBBB48C42),
+	.timing_cfg[2] = U(0x48C111),
+	.timing_cfg[3] = U(0x10C1000),
+	.timing_cfg[4] = U(0x2),
+	.timing_cfg[5] = U(0x3401400),
+	.timing_cfg[7] = U(0x13300000),
+	.timing_cfg[8] = U(0x2115600),
+	.sdram_mode[0] = U(0x3010210),
+	.sdram_mode[9] = U(0x4000000),
+	.sdram_mode[8] = U(0x500),
+	.sdram_mode[2] = U(0x10210),
+	.sdram_mode[10] = U(0x400),
+	.sdram_mode[11] = U(0x4000000),
+	.sdram_mode[4] = U(0x10210),
+	.sdram_mode[12] = U(0x400),
+	.sdram_mode[13] = U(0x4000000),
+	.sdram_mode[6] = U(0x10210),
+	.sdram_mode[14] = U(0x400),
+	.sdram_mode[15] = U(0x4000000),
+	.interval = U(0x18600618),
+	.zq_cntl = U(0x8A090705),
+	.clk_cntl = U(0x3000000),
+	.cdr[0] = U(0x80040000),
+	.cdr[1] = U(0xA181),
+	.wrlvl_cntl[0] = U(0x8675F607),
+	.wrlvl_cntl[1] = U(0x7090807,
+	.wrlvl_cntl[2] = U(0x7070707),
+	.debug[28] = U(0x00700046),
 };
 
-long long board_static_ddr(struct ddr_info *priv)
+uint64_t board_static_ddr(struct ddr_info *priv)
 {
 	memcpy(&priv->ddr_reg, &static_1600, sizeof(static_1600));
 
-	return 0x80000000;
+	return ULL(0x80000000);
 }
 
 #else
@@ -75,7 +76,7 @@ int ddr_board_options(struct ddr_info *priv)
 	if (ret)
 		return ret;
 
-	popts->cpo_sample = 0x46;
+	popts->cpo_sample = U(0x46);
 	popts->ddr_cdr1 = DDR_CDR1_DHC_EN |
 			  DDR_CDR1_ODT(DDR_CDR_ODT_80ohm);
 	popts->ddr_cdr2 = DDR_CDR2_ODT(DDR_CDR_ODT_80ohm) |
@@ -84,34 +85,38 @@ int ddr_board_options(struct ddr_info *priv)
 	return 0;
 }
 
-/* DDR model number: MT40A512M8HX-093E */
+/* DDR model number: MT40A1G8SA-062E:R */
 struct dimm_params ddr_raw_timing = {
-	.n_ranks = 1,
-	.rank_density = 2147483648u,
-	.capacity = 2147483648u,
-	.primary_sdram_width = 32,
-	.n_row_addr = 15,
-	.n_col_addr = 10,
-	.bank_group_bits = 2,
-	.burst_lengths_bitmask = 0x0c,
-	.tckmin_x_ps = 938,
-	.tckmax_ps = 1500,
-	.caslat_x = 0x000DFA00,
+	.n_ranks = U(1),
+	.rank_density = ULL(2147483648),
+	.capacity = ULL(2147483648),
+	.primary_sdram_width = U(32),
+	.ec_sdram_width = U(4),
+	.rdimm = U(0),
+	.mirrored_dimm = U(0),
+	.n_row_addr = U(16),
+	.n_col_addr = U(10),
+	.bank_group_bits = U(2),
+	.edc_config = U(2),
+	.burst_lengths_bitmask = U(0x0c),
+	.tckmin_x_ps = 625,
+	.tckmax_ps = 2200,
+	.caslat_x = U(0x0001FFE00),
 	.taa_ps = 13500,
 	.trcd_ps = 13500,
 	.trp_ps = 13500,
-	.tras_ps = 33000,
-	.trc_ps = 46500,
+	.tras_ps = 32000,
+	.trc_ps = 45500,
 	.twr_ps = 15000,
-	.trfc1_ps = 260000,
-	.trfc2_ps = 160000,
-	.trfc4_ps = 110000,
+	.trfc1_ps = 350000,
+	.trfc2_ps = 260000,
+	.trfc4_ps = 160000,
 	.tfaw_ps = 21000,
-	.trrds_ps = 3700,
-	.trrdl_ps = 5300,
-	.tccdl_ps = 5355,
-	.refresh_rate_ps = 7800000,
-	.rc = 0x1f,
+	.trrds_ps = 3000,
+	.trrdl_ps = 4900,
+	.tccdl_ps = 5000,
+	.refresh_rate_ps = U(7800000),
+	.rc = U(0x1f),
 };
 
 int ddr_get_ddr_params(struct dimm_params *pdimm,
@@ -127,11 +132,11 @@ int ddr_get_ddr_params(struct dimm_params *pdimm,
 }
 #endif
 
-long long init_ddr(void)
+int64_t init_ddr(void)
 {
 	struct ddr_info info;
 	struct sysinfo sys;
-	long long dram_size;
+	int64_t dram_size;
 
 	zeromem(&sys, sizeof(sys));
 	get_clocks(&sys);
@@ -147,10 +152,12 @@ long long init_ddr(void)
 
 	dram_size = dram_init(&info);
 
-	if (dram_size < 0)
+	if (dram_size < 0) {
 		ERROR("DDR init failed\n");
+	}
 
+#ifdef ERRATA_SOC_A008850
 	erratum_a008850_post();
-
+#endif
 	return dram_size;
 }

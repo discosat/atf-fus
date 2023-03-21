@@ -8,10 +8,8 @@
 #ifndef ERRATA_H
 #define ERRATA_H
 
-void soc_errata(void);
+#include "errata_list.h"
 
-#ifdef ERRATA_SOC_A008850
-void erratum_a008850_post(void);
-#endif
+void soc_errata(void);
 
 #endif /* ERRATA_H */

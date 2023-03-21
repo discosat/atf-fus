@@ -10,6 +10,8 @@
 
 #include <io_block.h>
 #include <io_driver.h>
+#include <io_fip.h>
+#include <io_memmap.h>
 #include <io_storage.h>
 #include <lib/utils.h>
 #include <tools_share/firmware_image_package.h>
@@ -177,14 +179,16 @@ int plat_get_ddr_fip_image_source(unsigned int image_id, uintptr_t *dev_handle,
 	int result = -1;
 	const struct plat_io_policy *policy;
 
-	if (image_id >= (DDR_FIP_IMAGE_ID + ARRAY_SIZE(ddr_policies)))
+	if (image_id >= (DDR_FIP_IMAGE_ID + ARRAY_SIZE(ddr_policies))) {
 		return result;
+	}
 
 	policy = &ddr_policies[image_id - DDR_FIP_IMAGE_ID];
-	if (image_id == DDR_FIP_IMAGE_ID)
+	if (image_id == DDR_FIP_IMAGE_ID) {
 		result = check(policy->image_spec);
-	else
+	} else {
 		result = policy->check(policy->image_spec);
+	}
 	if (result == 0) {
 		*image_spec = policy->image_spec;
 		*dev_handle = *(policy->dev_handle);

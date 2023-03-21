@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2014-2016, Freescale Semiconductor, Inc.
- * Copyright 2017-2020 NXP
+ * Copyright 2017-2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -79,8 +79,16 @@ static void init(void)
  */
 static int check_integrity(void *img, unsigned int img_len)
 {
+	int ret;
 
-	int ret = 0;
+	/*
+	 * The image file has been successfully loaded till here.
+	 *
+	 * Flush the image to main memory so that it can be authenticated
+	 * by CAAM, a HW accelerator regardless of cache and MMU state.
+	 */
+	flush_dcache_range((uintptr_t) img, img_len);
+
 	/*
 	 * Image is appended at an offset of 16K (IMG_OFFSET) to the header.
 	 * So the size in header should be equal to img_len - IMG_OFFSET
@@ -88,7 +96,7 @@ static int check_integrity(void *img, unsigned int img_len)
 	VERBOSE("Barker code is %x\n", *(unsigned int *)img);
 	ret = validate_esbc_header(img, &img_key, &key_len, &img_sign,
 				   &sign_len, &alg);
-	if (ret  < 0) {
+	if (ret < 0) {
 		ERROR("Header authentication failed\n");
 		clear_temp_vars();
 		return IMG_PARSER_ERR;
@@ -96,7 +104,7 @@ static int check_integrity(void *img, unsigned int img_len)
 	/* Calculate the hash of various components from the image */
 	ret = calc_img_hash(img, (uint8_t *)img + CSF_HDR_SZ,
 			    img_len - CSF_HDR_SZ, img_hash, &hash_len);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Issue in hash calculation %d\n", ret);
 		clear_temp_vars();
 		return IMG_PARSER_ERR;
@@ -124,11 +132,13 @@ static int get_auth_param(const auth_param_type_desc_t *type_desc,
 	 */
 
 	switch (type_desc->type) {
+
 	/* Hash will be returned for comparison with signature */
 	case AUTH_PARAM_HASH:
 		*param = (void *)img_hash;
 		*param_len = (unsigned int)SHA256_BYTES;
 		break;
+
 	/* Return the public key used for signature extracted from the SRK table
 	 * after checks with key revocation
 	 */
@@ -140,26 +150,31 @@ static int get_auth_param(const auth_param_type_desc_t *type_desc,
 		*param = img_key;
 		*param_len = (unsigned int)key_len;
 		break;
+
 	/* Call a function to tell if signature is RSA or ECDSA. ECDSA to be
 	 * supported in later platforms like LX2 etc
 	 */
 	case AUTH_PARAM_SIG_ALG:
 		/* Algo will be signature - RSA or ECDSA  on hash */
 		*param = (void *)&alg;
-		*param_len = 4;
+		*param_len = 4U;
 		break;
+
 	/* Return the signature */
 	case AUTH_PARAM_SIG:
 		*param = img_sign;
 		*param_len = (unsigned int)sign_len;
 		break;
+
 	case AUTH_PARAM_NV_CTR:
+
 	default:
 		rc = IMG_PARSER_ERR_NOT_FOUND;
 		break;
 	}
+
 	return rc;
 }
 
 REGISTER_IMG_PARSER_LIB(IMG_PLAT, LIB_NAME, init,
-			 check_integrity, get_auth_param);
+			check_integrity, get_auth_param);

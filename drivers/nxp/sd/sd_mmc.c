@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Freescale Semiconductor, Inc.
- * Copyright 2017-2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -17,14 +16,22 @@
 #include <drivers/io/io_block.h>
 #include "nxp_timer.h"
 #include "sd_mmc.h"
+#include <utils.h>
 #include <utils_def.h>
 
 
 /* Private structure for MMC driver data */
 static struct mmc mmc_drv_data;
 
+#ifndef NXP_POLICY_OTA
+/*
+ * For NXP_POLICY_OTA, SD needs to do R/W on OCRAM. OCRAM is secure memory at
+ * default. SD can only do non-secure DMA. Configuring SD to work in PIO mode
+ * instead of DMA mode will make SD R/W on OCRAM available.
+ */
 /* To debug without dma comment this MACRO */
 #define NXP_SD_DMA_CAPABILITY
+#endif
 #define SD_TIMEOUT        1000 /* ms */
 #define SD_TIMEOUT_HIGH   20000 /* ms */
 #define SD_BLOCK_TIMEOUT  8 /* ms */
@@ -49,25 +56,27 @@ static void set_speed(struct mmc *mmc, uint32_t clock)
 {
 	/* sdhc_clk = (base clock) / [(SDCLKFS × 2) × (DVS +1)] */
 
-	uint32_t dvs = 1;
-	uint32_t sdclkfs = 2;
+	uint32_t dvs = 1U;
+	uint32_t sdclkfs = 2U;
 	/* TBD - Change this to actual platform clock by reading via RCW */
 	uint32_t base_clk = MAX_PLATFORM_CLOCK;
 
 	if (base_clk / 16 > clock) {
-		for (sdclkfs = 2; sdclkfs < 256; sdclkfs *= 2) {
-			if ((base_clk / sdclkfs) <= (clock * 16))
+		for (sdclkfs = 2U; sdclkfs < 256U; sdclkfs *= 2U) {
+			if ((base_clk / sdclkfs) <= (clock * 16)) {
 				break;
+			}
 		}
 	}
 
-	for (dvs = 1; dvs <= 16; dvs++) {
-		if ((base_clk / (dvs * sdclkfs)) <= clock)
+	for (dvs = 1U; dvs <= 16U; dvs++) {
+		if ((base_clk / (dvs * sdclkfs)) <= clock) {
 			break;
+		}
 	}
 
-	sdclkfs >>= 1;
-	dvs -= 1;
+	sdclkfs >>= 1U;
+	dvs -= 1U;
 
 	esdhc_out32(&mmc->esdhc_regs->sysctl,
 			(ESDHC_SYSCTL_DTOCV(TIMEOUT_COUNTER_SDCLK_2_27) |
@@ -101,13 +110,14 @@ static int esdhc_init(struct mmc *mmc, bool card_detect)
 	start_time = get_timer_val(0);
 	while (get_timer_val(start_time) < SD_TIMEOUT_HIGH) {
 		val = esdhc_in32(&mmc->esdhc_regs->sysctl) & ESDHC_SYSCTL_RSTA;
-		if (!val)
+		if (val == 0U) {
 			break;
+		}
 	}
 
 	val = esdhc_in32(&mmc->esdhc_regs->sysctl) &
 		(ESDHC_SYSCTL_RSTA);
-	if (val) {
+	if (val != 0U) {
 		ERROR("SD Reset failed\n");
 		return ERROR_ESDHC_BUSY;
 	}
@@ -119,7 +129,7 @@ static int esdhc_init(struct mmc *mmc, bool card_detect)
 		/* Check CINS in prsstat register */
 		val = esdhc_in32(&mmc->esdhc_regs->prsstat) &
 			ESDHC_PRSSTAT_CINS;
-		if (!val) {
+		if (val == 0) {
 			ERROR("CINS not set in prsstat\n");
 			return ERROR_ESDHC_CARD_DETECT_FAIL;
 		}
@@ -136,12 +146,13 @@ static int esdhc_init(struct mmc *mmc, bool card_detect)
 	start_time = get_timer_val(0);
 	while (get_timer_val(start_time) < SD_TIMEOUT) {
 		val = esdhc_in32(&mmc->esdhc_regs->sysctl) & ESDHC_SYSCTL_INITA;
-		if (val)
+		if (val != 0U) {
 			break;
+		}
 	}
 
 	val = esdhc_in32(&mmc->esdhc_regs->sysctl) & ESDHC_SYSCTL_INITA;
-	if (!val) {
+	if (val == 0U) {
 		ERROR("Failed to power up the card\n");
 		return ERROR_ESDHC_CARD_DETECT_FAIL;
 	}
@@ -183,56 +194,63 @@ static int esdhc_send_cmd(struct mmc *mmc, uint32_t cmd, uint32_t args)
 	while (get_timer_val(start_time) < SD_TIMEOUT_HIGH) {
 		val = esdhc_in32(&mmc->esdhc_regs->prsstat) &
 			(ESDHC_PRSSTAT_CIHB | ESDHC_PRSSTAT_CDIHB);
-		if (!val)
+		if (val == 0U) {
 			break;
+		}
 	}
 
 	val = esdhc_in32(&mmc->esdhc_regs->prsstat) &
 		(ESDHC_PRSSTAT_CIHB | ESDHC_PRSSTAT_CDIHB);
-	if (val) {
+	if (val != 0U) {
 		ERROR("SD send cmd: Command Line or Data Line Busy cmd = %x\n",
 				cmd);
 		return ERROR_ESDHC_BUSY;
 	}
 
-	if (cmd == CMD2 || cmd == CMD9)
+	if (cmd == CMD2 || cmd == CMD9) {
 		xfertyp |= ESDHC_XFERTYP_RSPTYP_136;
-	else  if (cmd == CMD7 || (cmd == CMD6 && mmc->card.type == MMC_CARD))
+	} else  if (cmd == CMD7 || (cmd == CMD6 && mmc->card.type == MMC_CARD)) {
 		xfertyp |= ESDHC_XFERTYP_RSPTYP_48_BUSY;
-	else if (cmd != CMD0)
+	} else if (cmd != CMD0) {
 		xfertyp |= ESDHC_XFERTYP_RSPTYP_48;
+	}
 
-	if (cmd == CMD2 || cmd == CMD9)
+	if (cmd == CMD2 || cmd == CMD9) {
 		xfertyp |= ESDHC_XFERTYP_CCCEN; /* Command index check enable */
-	else if ((cmd != CMD0) && (cmd != ACMD41) && (cmd != CMD1))
+	} else if ((cmd != CMD0) && (cmd != ACMD41) && (cmd != CMD1)) {
 		xfertyp = xfertyp | ESDHC_XFERTYP_CCCEN | ESDHC_XFERTYP_CICEN;
+	}
 
 	if ((cmd == CMD8 || cmd == CMD14 || cmd == CMD19) &&
 			mmc->card.type == MMC_CARD) {
 		xfertyp |=  ESDHC_XFERTYP_DPSEL;
-		if (cmd != CMD19)
+		if (cmd != CMD19) {
 			xfertyp |= ESDHC_XFERTYP_DTDSEL;
+		}
 	}
 
 	if (cmd == CMD6 || cmd == CMD17 || cmd == CMD18 || cmd == CMD24 ||
 	    cmd == ACMD51) {
 		if (!(mmc->card.type == MMC_CARD && cmd == CMD6)) {
-			if (cmd == CMD24)
+			if (cmd == CMD24) {
 				xfertyp |= ESDHC_XFERTYP_DPSEL;
-			else
+			} else {
 				xfertyp |= (ESDHC_XFERTYP_DPSEL |
 					    ESDHC_XFERTYP_DTDSEL);
+			}
 		}
 
 		if (cmd == CMD18) {
 			xfertyp |= ESDHC_XFERTYP_BCEN;
-			if (mmc->dma_support)
+			if (mmc->dma_support != 0) {
 				/* Set BCEN of XFERTYP */
 				xfertyp |= ESDHC_XFERTYP_DMAEN;
+			}
 		}
 
-		if ((cmd == CMD17 || cmd == CMD24) && mmc->dma_support)
+		if ((cmd == CMD17 || cmd == CMD24) && (mmc->dma_support != 0)) {
 			xfertyp |= ESDHC_XFERTYP_DMAEN;
+		}
 	}
 
 	xfertyp |= ((cmd & 0x3F) << 24);
@@ -262,18 +280,19 @@ static int esdhc_wait_response(struct mmc *mmc, uint32_t *response)
 {
 	uint32_t val;
 	uint64_t start_time;
-	uint32_t status = 0;
+	uint32_t status = 0U;
 
 	/* Wait for the command to complete */
 	start_time = get_timer_val(0);
 	while (get_timer_val(start_time) < SD_TIMEOUT_HIGH) {
 		val = esdhc_in32(&mmc->esdhc_regs->irqstat) & ESDHC_IRQSTAT_CC;
-		if (val)
+		if (val != 0U) {
 			break;
+		}
 	}
 
 	val = esdhc_in32(&mmc->esdhc_regs->irqstat) & ESDHC_IRQSTAT_CC;
-	if (!val) {
+	if (val == 0U) {
 		ERROR("%s:IRQSTAT Cmd not complete(CC not set)\n", __func__);
 		return ERROR_ESDHC_COMMUNICATION_ERROR;
 	}
@@ -281,24 +300,24 @@ static int esdhc_wait_response(struct mmc *mmc, uint32_t *response)
 	status = esdhc_in32(&mmc->esdhc_regs->irqstat);
 
 	/* Check whether the interrupt is a CRC, CTOE or CIE error */
-	if (status & (ESDHC_IRQSTAT_CIE | ESDHC_IRQSTAT_CEBE |
-				ESDHC_IRQSTAT_CCE)) {
+	if ((status & (ESDHC_IRQSTAT_CIE | ESDHC_IRQSTAT_CEBE |
+				ESDHC_IRQSTAT_CCE)) != 0) {
 		ERROR("%s: IRQSTAT CRC, CEBE or CIE error = %x\n",
 							__func__, status);
 		return COMMAND_ERROR;
 	}
 
-	if (status & ESDHC_IRQSTAT_CTOE) {
+	if ((status & ESDHC_IRQSTAT_CTOE) != 0) {
 		INFO("%s: IRQSTAT CTOE set = %x\n", __func__, status);
 		return RESP_TIMEOUT;
 	}
 
-	if (status & ESDHC_IRQSTAT_DMAE) {
+	if ((status & ESDHC_IRQSTAT_DMAE) != 0) {
 		ERROR("%s: IRQSTAT DMAE set = %x\n", __func__, status);
 		return ERROR_ESDHC_DMA_ERROR;
 	}
 
-	if (response) {
+	if (response != NULL) {
 		/* Get response values from eSDHC CMDRSPx registers. */
 		response[0] = esdhc_in32(&mmc->esdhc_regs->cmdrsp[0]);
 		response[1] = esdhc_in32(&mmc->esdhc_regs->cmdrsp[1]);
@@ -340,35 +359,42 @@ static int mmc_switch_to_high_frquency(struct mmc *mmc)
 
 	mmc->card.bus_freq = MMC_SS_20MHZ;
 	/* mmc card bellow ver 4.0 does not support high speed */
-	if (mmc->card.version < MMC_CARD_VERSION_4_X)
+	if (mmc->card.version < MMC_CARD_VERSION_4_X) {
 		return 0;
+	}
 
 	/* send switch cmd to change the card to High speed */
 	error = esdhc_send_cmd(mmc, CMD_SWITCH_FUNC, SET_EXT_CSD_HS_TIMING);
-	if (error)
+	if (error != 0) {
 		return error;
+	}
 	error = esdhc_wait_response(mmc, response);
-	if (error)
+	if (error != 0) {
 		return error;
+	}
 
 	start_time = get_timer_val(0);
 	do {
 		/* check the status for which error */
 		error = esdhc_send_cmd(mmc,
 				CMD_SEND_STATUS, mmc->card.rca << 16);
-		if (error)
+		if (error != 0) {
 			return error;
+		}
+
 		error = esdhc_wait_response(mmc, response);
-		if (error)
+		if (error != 0) {
 			return error;
-	} while ((response[0] & SWITCH_ERROR) &&
+		}
+	} while (((response[0] & SWITCH_ERROR) != 0) &&
 			(get_timer_val(start_time) < SD_TIMEOUT));
 
 	/* Check for the present state of card */
-	if (response[0] & SWITCH_ERROR)
+	if ((response[0] & SWITCH_ERROR) != 0) {
 		mmc->card.bus_freq = MMC_HS_26MHZ;
-	else
+	} else {
 		mmc->card.bus_freq = MMC_HS_52MHZ;
+	}
 
 	return 0;
 }
@@ -394,12 +420,13 @@ static int esdhc_set_data_attributes(struct mmc *mmc, uint32_t *dest_ptr,
 	start_time = get_timer_val(0);
 	while (get_timer_val(start_time) < SD_TIMEOUT_HIGH) {
 		val = esdhc_in32(&mmc->esdhc_regs->prsstat) & ESDHC_PRSSTAT_DLA;
-		if (!val)
+		if (val == 0U) {
 			break;
+		}
 	}
 
 	val = esdhc_in32(&mmc->esdhc_regs->prsstat) & ESDHC_PRSSTAT_DLA;
-	if (val) {
+	if (val != 0U) {
 		ERROR("%s: Data line active.Can't set attribute\n", __func__);
 		return ERROR_ESDHC_COMMUNICATION_ERROR;
 	}
@@ -408,7 +435,7 @@ static int esdhc_set_data_attributes(struct mmc *mmc, uint32_t *dest_ptr,
 	wml &= ~(ESDHC_WML_WR_BRST_MASK | ESDHC_WML_RD_BRST_MASK |
 			ESDHC_WML_RD_WML_MASK | ESDHC_WML_WR_WML_MASK);
 
-	if (mmc->dma_support && dest_ptr) {
+	if ((mmc->dma_support != 0) && (dest_ptr != NULL)) {
 		/* Set burst length to 128 bytes */
 		esdhc_out32(&mmc->esdhc_regs->wml,
 				wml | ESDHC_WML_WR_BRST(BURST_128_BYTES));
@@ -444,7 +471,7 @@ static int esdhc_set_data_attributes(struct mmc *mmc, uint32_t *dest_ptr,
  ***************************************************************************/
 static int esdhc_read_data_nodma(struct mmc *mmc, void *dest_ptr, uint32_t len)
 {
-	uint32_t i = 0;
+	uint32_t i = 0U;
 	uint32_t status;
 	uint32_t num_blocks;
 	uint32_t *dst = (uint32_t *)dest_ptr;
@@ -453,22 +480,24 @@ static int esdhc_read_data_nodma(struct mmc *mmc, void *dest_ptr, uint32_t len)
 
 	num_blocks = len / mmc->block_len;
 
-	while (num_blocks--) {
+	while ((num_blocks--) != 0U) {
 
 		start_time = get_timer_val(0);
 		while (get_timer_val(start_time) < SD_TIMEOUT_HIGH) {
 			val = esdhc_in32(&mmc->esdhc_regs->prsstat) &
 				ESDHC_PRSSTAT_BREN;
-			if (val)
+			if (val != 0U) {
 				break;
+			}
 		}
 
 		val = esdhc_in32(&mmc->esdhc_regs->prsstat)
 			& ESDHC_PRSSTAT_BREN;
-		if (!val)
+		if (val == 0U) {
 			return ERROR_ESDHC_COMMUNICATION_ERROR;
+		}
 
-		for (i = 0, status = esdhc_in32(&mmc->esdhc_regs->irqstat);
+		for (i = 0U, status = esdhc_in32(&mmc->esdhc_regs->irqstat);
 				i < mmc->block_len / 4;    i++, dst++) {
 			/* get data from data port */
 			val = mmio_read_32(
@@ -478,8 +507,8 @@ static int esdhc_read_data_nodma(struct mmc *mmc, void *dest_ptr, uint32_t len)
 			status = esdhc_in32(&mmc->esdhc_regs->irqstat);
 		}
 		/* Check whether the interrupt is an DTOE/DCE/DEBE */
-		if (status & (ESDHC_IRQSTAT_DTOE | ESDHC_IRQSTAT_DCE |
-					ESDHC_IRQSTAT_DEBE)) {
+		if ((status & (ESDHC_IRQSTAT_DTOE | ESDHC_IRQSTAT_DCE |
+					ESDHC_IRQSTAT_DEBE)) != 0) {
 			ERROR("SD read error - DTOE, DCE, DEBE bit set = %x\n",
 									status);
 			return ERROR_ESDHC_COMMUNICATION_ERROR;
@@ -491,12 +520,13 @@ static int esdhc_read_data_nodma(struct mmc *mmc, void *dest_ptr, uint32_t len)
 	start_time = get_timer_val(0);
 	while (get_timer_val(start_time) < SD_TIMEOUT_HIGH) {
 		val = esdhc_in32(&mmc->esdhc_regs->irqstat) & ESDHC_IRQSTAT_TC;
-		if (val)
+		if (val != 0U) {
 			break;
+		}
 	}
 
 	val = esdhc_in32(&mmc->esdhc_regs->irqstat) & ESDHC_IRQSTAT_TC;
-	if (!val) {
+	if (val == 0U) {
 		ERROR("SD read timeout: Transfer bit not set in IRQSTAT\n");
 		return ERROR_ESDHC_COMMUNICATION_ERROR;
 	}
@@ -515,7 +545,7 @@ static int esdhc_read_data_nodma(struct mmc *mmc, void *dest_ptr, uint32_t len)
  ***************************************************************************/
 static int esdhc_write_data_nodma(struct mmc *mmc, void *src_ptr, uint32_t len)
 {
-	uint32_t i = 0;
+	uint32_t i = 0U;
 	uint32_t status;
 	uint32_t num_blocks;
 	uint32_t *src = (uint32_t *)src_ptr;
@@ -524,21 +554,23 @@ static int esdhc_write_data_nodma(struct mmc *mmc, void *src_ptr, uint32_t len)
 
 	num_blocks = len / mmc->block_len;
 
-	while (num_blocks--) {
+	while ((num_blocks--) != 0U) {
 		start_time = get_timer_val(0);
 		while (get_timer_val(start_time) < SD_TIMEOUT_HIGH) {
 			val = esdhc_in32(&mmc->esdhc_regs->prsstat) &
 					 ESDHC_PRSSTAT_BWEN;
-			if (val)
+			if (val != 0U) {
 				break;
+			}
 		}
 
 		val = esdhc_in32(&mmc->esdhc_regs->prsstat) &
 				 ESDHC_PRSSTAT_BWEN;
-		if (!val)
+		if (val == 0U) {
 			return ERROR_ESDHC_COMMUNICATION_ERROR;
+		}
 
-		for (i = 0, status = esdhc_in32(&mmc->esdhc_regs->irqstat);
+		for (i = 0U, status = esdhc_in32(&mmc->esdhc_regs->irqstat);
 		     i < mmc->block_len / 4; i++, src++) {
 			val = esdhc_in32(src);
 			/* put data to data port */
@@ -548,8 +580,8 @@ static int esdhc_write_data_nodma(struct mmc *mmc, void *src_ptr, uint32_t len)
 			status = esdhc_in32(&mmc->esdhc_regs->irqstat);
 		}
 		/* Check whether the interrupt is an DTOE/DCE/DEBE */
-		if (status & (ESDHC_IRQSTAT_DTOE | ESDHC_IRQSTAT_DCE |
-					ESDHC_IRQSTAT_DEBE)) {
+		if ((status & (ESDHC_IRQSTAT_DTOE | ESDHC_IRQSTAT_DCE |
+					ESDHC_IRQSTAT_DEBE)) != 0) {
 			ERROR("SD write error - DTOE, DCE, DEBE bit set = %x\n",
 			      status);
 			return ERROR_ESDHC_COMMUNICATION_ERROR;
@@ -560,12 +592,13 @@ static int esdhc_write_data_nodma(struct mmc *mmc, void *src_ptr, uint32_t len)
 	start_time = get_timer_val(0);
 	while (get_timer_val(start_time) < SD_TIMEOUT_HIGH) {
 		val = esdhc_in32(&mmc->esdhc_regs->irqstat) & ESDHC_IRQSTAT_TC;
-		if (val)
+		if (val != 0U) {
 			break;
+		}
 	}
 
 	val = esdhc_in32(&mmc->esdhc_regs->irqstat) & ESDHC_IRQSTAT_TC;
-	if (!val) {
+	if (val == 0U) {
 		ERROR("SD write timeout: Transfer bit not set in IRQSTAT\n");
 		return ERROR_ESDHC_COMMUNICATION_ERROR;
 	}
@@ -594,20 +627,20 @@ static int esdhc_read_data_dma(struct mmc *mmc, uint32_t len)
 	do {
 		status = esdhc_in32(&mmc->esdhc_regs->irqstat);
 
-		if (status & (ESDHC_IRQSTAT_DEBE | ESDHC_IRQSTAT_DCE
-					| ESDHC_IRQSTAT_DTOE)) {
+		if ((status & (ESDHC_IRQSTAT_DEBE | ESDHC_IRQSTAT_DCE
+					| ESDHC_IRQSTAT_DTOE)) != 0) {
 			ERROR("SD read error - DTOE, DCE, DEBE bit set = %x\n",
 								 status);
 			return ERROR_ESDHC_COMMUNICATION_ERROR;
 		}
 
-		if (status & (ESDHC_IRQSTAT_DMAE)) {
+		if ((status & ESDHC_IRQSTAT_DMAE) != 0) {
 			ERROR("SD read error - DMA error = %x\n", status);
 			return ERROR_ESDHC_DMA_ERROR;
 		}
 
-	} while (!(status & ESDHC_IRQSTAT_TC) &&
-		(esdhc_in32(&mmc->esdhc_regs->prsstat) & ESDHC_PRSSTAT_DLA) &&
+	} while (((status & ESDHC_IRQSTAT_TC) == 0) &&
+		((esdhc_in32(&mmc->esdhc_regs->prsstat) & ESDHC_PRSSTAT_DLA) != 0) &&
 		(get_timer_val(start_time) < SD_TIMEOUT_HIGH + tblk));
 
 	if (get_timer_val(start_time) > SD_TIMEOUT_HIGH + tblk) {
@@ -639,19 +672,19 @@ static int esdhc_write_data_dma(struct mmc *mmc, uint32_t len)
 	do {
 		status = esdhc_in32(&mmc->esdhc_regs->irqstat);
 
-		if (status & (ESDHC_IRQSTAT_DEBE | ESDHC_IRQSTAT_DCE
-					| ESDHC_IRQSTAT_DTOE)) {
+		if ((status & (ESDHC_IRQSTAT_DEBE | ESDHC_IRQSTAT_DCE
+					| ESDHC_IRQSTAT_DTOE)) != 0) {
 			ERROR("SD write error - DTOE, DCE, DEBE bit set = %x\n",
 			      status);
 			return ERROR_ESDHC_COMMUNICATION_ERROR;
 		}
 
-		if (status & (ESDHC_IRQSTAT_DMAE)) {
+		if ((status & ESDHC_IRQSTAT_DMAE) != 0) {
 			ERROR("SD write error - DMA error = %x\n", status);
 			return ERROR_ESDHC_DMA_ERROR;
 		}
-	} while (!(status & ESDHC_IRQSTAT_TC) &&
-		(esdhc_in32(&mmc->esdhc_regs->prsstat) & ESDHC_PRSSTAT_DLA) &&
+	} while (((status & ESDHC_IRQSTAT_TC) == 0) &&
+		((esdhc_in32(&mmc->esdhc_regs->prsstat) & ESDHC_PRSSTAT_DLA) != 0) &&
 		(get_timer_val(start_time) < SD_TIMEOUT_HIGH + tblk));
 
 	if (get_timer_val(start_time) > SD_TIMEOUT_HIGH + tblk) {
@@ -674,10 +707,11 @@ int esdhc_read_data(struct mmc *mmc, void *dest_ptr, uint32_t len)
 {
 	int ret;
 
-	if (mmc->dma_support && len > 64)
+	if (mmc->dma_support && len > 64) {
 		ret = esdhc_read_data_dma(mmc, len);
-	else
+	} else {
 		ret = esdhc_read_data_nodma(mmc, dest_ptr, len);
+	}
 
 	/* clear interrupt status */
 	esdhc_out32(&mmc->esdhc_regs->irqstat, ESDHC_IRQSTAT_CLEAR_ALL);
@@ -697,10 +731,11 @@ int esdhc_write_data(struct mmc *mmc, void *src_ptr, uint32_t len)
 {
 	int ret;
 
-	if (mmc->dma_support && len > 64)
+	if (mmc->dma_support && len > 64) {
 		ret = esdhc_write_data_dma(mmc, len);
-	else
+	} else {
 		ret = esdhc_write_data_nodma(mmc, src_ptr, len);
+	}
 
 	/* clear interrupt status */
 	esdhc_out32(&mmc->esdhc_regs->irqstat, ESDHC_IRQSTAT_CLEAR_ALL);
@@ -735,77 +770,93 @@ static int sd_switch_to_high_freq(struct mmc *mmc)
 	mmc->card.bus_freq = SD_SS_25MHZ;
 	/* Send Application command */
 	err = esdhc_send_cmd(mmc, CMD_APP_CMD, mmc->card.rca << 16);
-	if (err)
+	if (err != 0) {
 		return err;
+	}
 
 	err = esdhc_wait_response(mmc, response);
-	if (err)
+	if (err != 0) {
 		return err;
+	}
 
 	esdhc_set_data_attributes(mmc, NULL, 1, 8);
 	/* Read the SCR to find out if this card supports higher speeds */
 	err = esdhc_send_cmd(mmc, CMD_SEND_SCR,  mmc->card.rca << 16);
-	if (err)
+	if (err != 0) {
 		return err;
+	}
 	err = esdhc_wait_response(mmc, response);
-	if (err)
+	if (err != 0) {
 		return err;
-
-	/* read 8 bytes of scr data */
-	err = esdhc_read_data(mmc, scr, 8);
-	if (err)
-		return ERROR_ESDHC_COMMUNICATION_ERROR;
-
-	/* check version from SCR */
-	version = scr[0] & 0xF;
-	if (version <= 2)
-		mmc->card.version = sd_versions[version];
-	else
-		mmc->card.version = SD_CARD_VERSION_2_0;
-
-	/* does not support switch func */
-	if (mmc->card.version == SD_CARD_VERSION_1_0)
-		return 0;
-
-	/* read 64 bytes of status */
-	esdhc_set_data_attributes(mmc, NULL, 1, 64);
-
-	/* check the status of switch func */
-	for (count = 0; count < 4; count++) {
-		err = esdhc_send_cmd(mmc, CMD_SWITCH_FUNC,
-				SD_SWITCH_FUNC_CHECK_MODE);
-		if (err)
-			return err;
-		err = esdhc_wait_response(mmc, response);
-		if (err)
-			return err;
-		/* read 64 bytes of scr data */
-		err = esdhc_read_data(mmc, status, 64);
-		if (err)
-			return ERROR_ESDHC_COMMUNICATION_ERROR;
-
-		if (!(status[29] & SD_SWITCH_FUNC_HIGH_SPEED))
-			break;
 	}
 
-	if (!(status[13] & SD_SWITCH_FUNC_HIGH_SPEED))
+	/* read 8 bytes of scr data */
+	err = esdhc_read_data(mmc, scr, 8U);
+	if (err != 0) {
+		return ERROR_ESDHC_COMMUNICATION_ERROR;
+	}
+
+	/* check version from SCR */
+	version = scr[0] & U(0xF);
+	if (version <= 2U) {
+		mmc->card.version = sd_versions[version];
+	} else {
+		mmc->card.version = SD_CARD_VERSION_2_0;
+	}
+
+	/* does not support switch func */
+	if (mmc->card.version == SD_CARD_VERSION_1_0) {
 		return 0;
+	}
+
+	/* read 64 bytes of status */
+	esdhc_set_data_attributes(mmc, NULL, 1U, 64U);
+
+	/* check the status of switch func */
+	for (count = 0U; count < 4U; count++) {
+		err = esdhc_send_cmd(mmc, CMD_SWITCH_FUNC,
+				SD_SWITCH_FUNC_CHECK_MODE);
+		if (err != 0) {
+			return err;
+		}
+		err = esdhc_wait_response(mmc, response);
+		if (err != 0) {
+			return err;
+		}
+		/* read 64 bytes of scr data */
+		err = esdhc_read_data(mmc, status, 64U);
+		if (err != 0) {
+			return ERROR_ESDHC_COMMUNICATION_ERROR;
+		}
+
+		if ((status[29] & SD_SWITCH_FUNC_HIGH_SPEED) == 0) {
+			break;
+		}
+	}
+
+	if ((status[13] & SD_SWITCH_FUNC_HIGH_SPEED) == 0) {
+		return 0;
+	}
 
 	/* SWITCH */
 	esdhc_set_data_attributes(mmc, NULL, 1, 64);
 	err = esdhc_send_cmd(mmc, CMD_SWITCH_FUNC, SD_SWITCH_FUNC_SWITCH_MODE);
-	if (err)
+	if (err != 0) {
 		return err;
+	}
 	err = esdhc_wait_response(mmc, response);
-	if (err)
+	if (err != 0) {
 		return err;
+	}
 
-	err = esdhc_read_data(mmc, status, 64);
-	if (err)
+	err = esdhc_read_data(mmc, status, 64U);
+	if (err != 0) {
 		return ERROR_ESDHC_COMMUNICATION_ERROR;
+	}
 
-	if ((status[16]) == 0x01)
+	if ((status[16]) == U(0x01)) {
 		mmc->card.bus_freq = SD_HS_50MHZ;
+	}
 
 	return 0;
 }
@@ -829,31 +880,37 @@ static int change_state_to_transfer_state(struct mmc *mmc)
 	 * and transfer states
 	 */
 	error = esdhc_send_cmd(mmc, CMD_SELECT_CARD, mmc->card.rca << 16);
-	if (error)
+	if (error != 0) {
 		return error;
+	}
 	error = esdhc_wait_response(mmc, response);
-	if (error)
+	if (error != 0) {
 		return error;
+	}
 
 	start_time = get_timer_val(0);
 	while (get_timer_val(start_time) < SD_TIMEOUT_HIGH) {
 		/* send CMD13 to check card status */
 		error = esdhc_send_cmd(mmc,
 					CMD_SEND_STATUS, mmc->card.rca << 16);
-		if (error)
+		if (error != 0) {
 			return error;
+		}
 		error = esdhc_wait_response(mmc, response);
-		if (error || (response[0] & R1_ERROR))
+		if ((error != 0) || ((response[0] & R1_ERROR) != 0)) {
 			return error;
+		}
 
 		/* Check for the present state of card */
-		if (((response[0] >> 9) & 0xF) == STATE_TRAN)
+		if (((response[0] >> 9U) & U(0xF)) == STATE_TRAN) {
 			break;
+		}
 	}
-	if (((response[0] >> 9) & 0xF) == STATE_TRAN)
+	if (((response[0] >> 9U) & U(0xF)) == STATE_TRAN) {
 		return 0;
-	else
+	} else {
 		return ERROR_ESDHC_COMMUNICATION_ERROR;
+	}
 }
 
 /***************************************************************************
@@ -876,47 +933,56 @@ static int get_cid_rca_csd(struct mmc *mmc)
 		MMC_CARD_VERSION_4_X};
 
 	err = esdhc_send_cmd(mmc, CMD_ALL_SEND_CID, 0);
-	if (err)
+	if (err != 0) {
 		return err;
+	}
 	err = esdhc_wait_response(mmc, response);
-	if (err)
+	if (err != 0) {
 		return err;
+	}
 
 	/* get RCA for SD cards, set rca for mmc cards */
 	mmc->card.rca = SD_MMC_CARD_RCA;
 
 	/* send RCA cmd */
 	err = esdhc_send_cmd(mmc, CMD_SEND_RELATIVE_ADDR, mmc->card.rca << 16);
-	if (err)
+	if (err != 0) {
 		return err;
+	}
 	err = esdhc_wait_response(mmc, response);
-	if (err)
+	if (err != 0) {
 		return err;
+	}
 
 	/* for SD, get the the RCA */
-	if (mmc->card.type == SD_CARD)
+	if (mmc->card.type == SD_CARD) {
 		mmc->card.rca = (response[0] >> 16) & 0xFFFF;
+	}
 
 	/* Get the CSD (card specific data) from card. */
 	err = esdhc_send_cmd(mmc, CMD_SEND_CSD, mmc->card.rca << 16);
-	if (err)
+	if (err != 0) {
 		return err;
+	}
 	err = esdhc_wait_response(mmc, response);
-	if (err)
+	if (err != 0) {
 		return err;
+	}
 
-	version = (response[3] >> 18) & 0xF;
+	version = (response[3] >> 18U) & U(0xF);
 	if (mmc->card.type == MMC_CARD) {
-		if (version <= MMC_CARD_VERSION_4_X)
+		if (version <= MMC_CARD_VERSION_4_X) {
 			mmc->card.version = mmc_version[version];
-		else
+		} else {
 			mmc->card.version = MMC_CARD_VERSION_4_X;
+		}
 	}
 
 	mmc->card.block_len = 1 << ((response[2] >> 8) & 0xF);
 
-	if (mmc->card.block_len > BLOCK_LEN_512)
+	if (mmc->card.block_len > BLOCK_LEN_512) {
 		mmc->card.block_len = BLOCK_LEN_512;
+	}
 
 	return 0;
 }
@@ -938,12 +1004,14 @@ static int identify_mmc_card(struct mmc *mmc)
 	uint32_t args;
 
 	/* card reset */
-	ret = esdhc_send_cmd(mmc, CMD_GO_IDLE_STATE, 0);
-	if (ret)
+	ret = esdhc_send_cmd(mmc, CMD_GO_IDLE_STATE, 0U);
+	if (ret != 0) {
 		return ret;
+	}
 	ret = esdhc_wait_response(mmc, resp);
-	if (ret)
+	if (ret != 0) {
 		return ret;
+	}
 
 	/* Send CMD1 to get the ocr value repeatedly till the card */
 	/* busy is clear. timeout = 20sec */
@@ -953,19 +1021,23 @@ static int identify_mmc_card(struct mmc *mmc)
 		/* set the bits for the voltage ranges supported by host */
 		args = mmc->voltages_caps | MMC_OCR_SECTOR_MODE;
 		ret = esdhc_send_cmd(mmc, CMD_MMC_SEND_OP_COND, args);
-		if (ret)
+		if (ret != 0) {
 			return ret;
+		}
 		ret = esdhc_wait_response(mmc, resp);
-		if (ret)
+		if (ret != 0) {
 			return ERROR_ESDHC_UNUSABLE_CARD;
-	} while ((!(resp[0] & MMC_OCR_BUSY)) &&
+		}
+	} while (((resp[0] & MMC_OCR_BUSY) == 0U) &&
 			(get_timer_val(start_time) < SD_TIMEOUT_HIGH));
 
-	if (get_timer_val(start_time) > SD_TIMEOUT_HIGH)
+	if (get_timer_val(start_time) > SD_TIMEOUT_HIGH) {
 		return ERROR_ESDHC_UNUSABLE_CARD;
+	}
 
-	if ((resp[0] & MMC_OCR_CCS) == MMC_OCR_CCS)
+	if ((resp[0] & MMC_OCR_CCS) == MMC_OCR_CCS) {
 		mmc->card.is_high_capacity = 1;
+	}
 
 	return MMC_CARD;
 }
@@ -989,54 +1061,62 @@ static int check_for_sd_card(struct mmc *mmc)
 	uint32_t resp[4];
 
 	/* Send reset command */
-	ret = esdhc_send_cmd(mmc, CMD_GO_IDLE_STATE, 0);
-	if (ret)
+	ret = esdhc_send_cmd(mmc, CMD_GO_IDLE_STATE, 0U);
+	if (ret != 0) {
 		return ret;
+	}
 	ret = esdhc_wait_response(mmc, resp);
-	if (ret)
+	if (ret != 0) {
 		return ret;
+	}
 
 	/* send CMD8 with  pattern 0xAA */
 	args = MMC_VDD_HIGH_VOLTAGE | 0xAA;
 	ret = esdhc_send_cmd(mmc, CMD_SEND_IF_COND, args);
-	if (ret)
+	if (ret != 0) {
 		return ret;
+	}
 	ret = esdhc_wait_response(mmc, resp);
-	if (ret == RESP_TIMEOUT) /* sd ver 1.x or not sd */
+	if (ret == RESP_TIMEOUT) { /* sd ver 1.x or not sd */
 		mmc->card.is_high_capacity = 0;
-	else if ((resp[0] & 0xFF) == 0xAA) /* ver 2.0 or later */
+	} else if ((resp[0] & U(0xFF)) == U(0xAA)) { /* ver 2.0 or later */
 		mmc->card.version = SD_CARD_VERSION_2_0;
-	else
+	} else {
 		return  NOT_SD_CARD;
-
+	}
 	/* Send Application command-55 to get the ocr value repeatedly till
 	 * the card busy is clear. timeout = 20sec
 	 */
 
 	start_time = get_timer_val(0);
 	do {
-		ret = esdhc_send_cmd(mmc, CMD_APP_CMD, 0);
-		if (ret)
+		ret = esdhc_send_cmd(mmc, CMD_APP_CMD, 0U);
+		if (ret != 0) {
 			return ret;
+		}
 		ret = esdhc_wait_response(mmc, resp);
-		if (ret == COMMAND_ERROR)
+		if (ret == COMMAND_ERROR) {
 			return ERROR_ESDHC_UNUSABLE_CARD;
+		}
 
 		/* set the bits for the voltage ranges supported by host */
 		args = mmc->voltages_caps;
-		if (mmc->card.version == SD_CARD_VERSION_2_0)
+		if (mmc->card.version == SD_CARD_VERSION_2_0) {
 			args |= SD_OCR_HCS;
+		}
 
 		/* Send ACMD41 to set voltage range */
 		ret = esdhc_send_cmd(mmc, CMD_SD_SEND_OP_COND, args);
-		if (ret)
+		if (ret != 0) {
 			return ret;
+		}
 		ret = esdhc_wait_response(mmc, resp);
-		if (ret == COMMAND_ERROR)
+		if (ret == COMMAND_ERROR) {
 			return ERROR_ESDHC_UNUSABLE_CARD;
-		else if (ret == RESP_TIMEOUT)
+		} else if (ret == RESP_TIMEOUT) {
 			return NOT_SD_CARD;
-	} while ((!(resp[0] & MMC_OCR_BUSY)) &&
+		}
+	} while (((resp[0] & MMC_OCR_BUSY) == 0U) &&
 			(get_timer_val(start_time) < SD_TIMEOUT_HIGH));
 
 	if (get_timer_val(start_time) > SD_TIMEOUT_HIGH) {
@@ -1045,8 +1125,9 @@ static int check_for_sd_card(struct mmc *mmc)
 	}
 
 	/* bit set in card capacity status */
-	if ((resp[0] & MMC_OCR_CCS) == MMC_OCR_CCS)
+	if ((resp[0] & MMC_OCR_CCS) == MMC_OCR_CCS) {
 		mmc->card.is_high_capacity = 1;
+	}
 
 	return SD_CARD;
 }
@@ -1064,8 +1145,9 @@ int esdhc_emmc_init(struct mmc *mmc, bool card_detect)
 	int ret = 0;
 
 	error = esdhc_init(mmc, card_detect);
-	if (error)
+	if (error != 0) {
 		return error;
+	}
 
 	mmc->card.bus_freq = CARD_IDENTIFICATION_FREQ;
 	mmc->card.rca = 0;
@@ -1094,10 +1176,11 @@ int esdhc_emmc_init(struct mmc *mmc, bool card_detect)
 
 	case NOT_SD_CARD:
 		/* try for MMC card */
-		if (identify_mmc_card(mmc) == MMC_CARD)
+		if (identify_mmc_card(mmc) == MMC_CARD) {
 			mmc->card.type = MMC_CARD;
-		else
+		} else {
 			return ERROR_ESDHC_UNUSABLE_CARD;
+		}
 		break;
 
 	default:
@@ -1106,21 +1189,25 @@ int esdhc_emmc_init(struct mmc *mmc, bool card_detect)
 
 	/* get CID, RCA and CSD. For MMC, set the rca */
 	error = get_cid_rca_csd(mmc);
-	if (error)
+	if (error != 0) {
 		return ERROR_ESDHC_COMMUNICATION_ERROR;
+	}
 
 	/* change state to Transfer mode */
 	error = change_state_to_transfer_state(mmc);
-	if (error)
+	if (error != 0) {
 		return ERROR_ESDHC_COMMUNICATION_ERROR;
+	}
 
 	/* change to high frequency if supported */
-	if (mmc->card.type == SD_CARD)
+	if (mmc->card.type == SD_CARD) {
 		error = sd_switch_to_high_freq(mmc);
-	else
+	} else {
 		error = mmc_switch_to_high_frquency(mmc);
-	if (error)
+	}
+	if (error != 0) {
 		return ERROR_ESDHC_COMMUNICATION_ERROR;
+	}
 
 	/* mmc: 20000000, 26000000, 52000000 */
 	/* sd: 25000000, 50000000 */
@@ -1168,24 +1255,29 @@ static int esdhc_read_block(struct mmc *mmc, void *dst, uint32_t block)
 
 	/* send cmd16 to set the block size. */
 	err = esdhc_send_cmd(mmc, CMD_SET_BLOCKLEN, mmc->card.block_len);
-	if (err)
+	if (err != 0) {
 		return err;
+	}
 	err = esdhc_wait_response(mmc, NULL);
-	if (err)
+	if (err != 0) {
 		return ERROR_ESDHC_COMMUNICATION_ERROR;
+	}
 
-	if (mmc->card.is_high_capacity)
+	if (mmc->card.is_high_capacity != 0) {
 		offset = block;
-	else
+	} else {
 		offset = block * mmc->card.block_len;
+	}
 
 	esdhc_set_data_attributes(mmc, dst, 1, mmc->card.block_len);
 	err = esdhc_send_cmd(mmc, CMD_READ_SINGLE_BLOCK, offset);
-	if (err)
+	if (err != 0) {
 		return err;
+	}
 	err = esdhc_wait_response(mmc, NULL);
-	if (err)
+	if (err != 0) {
 		return err;
+	}
 
 	err = esdhc_read_data(mmc, dst, mmc->card.block_len);
 
@@ -1209,24 +1301,29 @@ static int esdhc_write_block(struct mmc *mmc, void *src, uint32_t block)
 
 	/* send cmd16 to set the block size. */
 	err = esdhc_send_cmd(mmc, CMD_SET_BLOCKLEN, mmc->card.block_len);
-	if (err)
+	if (err != 0) {
 		return err;
+	}
 	err = esdhc_wait_response(mmc, NULL);
-	if (err)
+	if (err != 0) {
 		return ERROR_ESDHC_COMMUNICATION_ERROR;
+	}
 
-	if (mmc->card.is_high_capacity)
+	if (mmc->card.is_high_capacity != 0) {
 		offset = block;
-	else
+	} else {
 		offset = block * mmc->card.block_len;
+	}
 
 	esdhc_set_data_attributes(mmc, src, 1, mmc->card.block_len);
 	err = esdhc_send_cmd(mmc, CMD_WRITE_SINGLE_BLOCK, offset);
-	if (err)
+	if (err != 0) {
 		return err;
+	}
 	err = esdhc_wait_response(mmc, NULL);
-	if (err)
+	if (err != 0) {
 		return err;
+	}
 
 	err = esdhc_write_data(mmc, src, mmc->card.block_len);
 
@@ -1255,8 +1352,9 @@ int esdhc_read(struct mmc *mmc, uint32_t src_offset, uintptr_t dst, size_t size)
 #endif
 
 	/* check for size */
-	if (size == 0)
+	if (size == 0) {
 		return 0;
+	}
 
 	if ((size % mmc->card.block_len) != 0) {
 		ERROR("Size is not block aligned\n");
@@ -1279,7 +1377,7 @@ int esdhc_read(struct mmc *mmc, uint32_t src_offset, uintptr_t dst, size_t size)
 
 	while (num_blocks) {
 		error = esdhc_read_block(mmc, buff, blk);
-		if (error) {
+		if (error != 0) {
 			ERROR("Read error = %x\n", error);
 			return error;
 		}
@@ -1316,8 +1414,9 @@ int esdhc_write(struct mmc *mmc, uintptr_t src, uint32_t dst_offset,
 #endif
 
 	/* check for size */
-	if (size == 0)
+	if (size == 0) {
 		return 0;
+	}
 
 	if ((size % mmc->card.block_len) != 0) {
 		ERROR("Size is not block aligned\n");
@@ -1338,9 +1437,9 @@ int esdhc_write(struct mmc *mmc, uintptr_t src, uint32_t dst_offset,
 	/* Number of blocks to be written */
 	num_blocks = size / mmc->card.block_len;
 
-	while (num_blocks) {
+	while (num_blocks != 0U) {
 		error = esdhc_write_block(mmc, buff, blk);
-		if (error) {
+		if (error != 0U) {
 			ERROR("Write error = %x\n", error);
 			return error;
 		}
@@ -1385,8 +1484,9 @@ int sd_emmc_init(uintptr_t *block_dev_spec,
 	int ret;
 
 	ret = sd_mmc_init(nxp_esdhc_addr, card_detect);
-	if (ret)
+	if (ret != 0) {
 		return ret;
+	}
 
 	ls_emmc_dev_spec.buffer.offset = nxp_sd_block_offset;
 	ls_emmc_dev_spec.buffer.length = nxp_sd_block_size;

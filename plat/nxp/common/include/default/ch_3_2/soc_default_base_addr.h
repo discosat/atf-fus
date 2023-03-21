@@ -1,7 +1,8 @@
 /*
- * Copyright 2018-2021 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
+ *
  */
 
 #ifndef SOC_DEFAULT_BASE_ADDR_H

@@ -1,35 +1,35 @@
 /*
- * Copyright 2018-2019, 2021 NXP
+ * Copyright 2018-2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include <arch.h>
 #include <assert.h>
+
+#include <arch.h>
 #include <caam.h>
 #include <cci.h>
 #include <common/debug.h>
-#include <csu.h>
 #include <dcfg.h>
-#include <endian.h>
+#include <lib/mmio.h>
 #include <ls_interconnect.h>
-#include <mmio.h>
-#include <ns_access.h>
 #ifdef POLICY_FUSE_PROVISION
 #include <nxp_gpio.h>
 #endif
 #include <nxp_timer.h>
-#include <plat_common.h>
 #include <plat_console.h>
 #include <plat_gic.h>
 #include <scfg.h>
 #if defined(NXP_SFP_ENABLED)
 #include <sfp.h>
 #endif
-#include <soc.h>
+
+#include <ns_access.h>
 #ifdef CONFIG_OCRAM_ECC_EN
 #include <ocram.h>
 #endif
+#include <plat_common.h>
+#include <soc.h>
 
 const unsigned char _power_domain_tree_desc[] = {1, 1, 1};
 
@@ -160,10 +160,11 @@ void soc_early_init(void)
 	 */
 #ifndef MBEDTLS_X509
 	/* Initialize the crypto accelerator if enabled */
-	if (is_sec_enabled() == false)
+	if (is_sec_enabled() == false) {
 		INFO("SEC is disabled.\n");
-	else
+	} else {
 		sec_init(NXP_CAAM_ADDR);
+	}
 #endif
 #elif defined(POLICY_FUSE_PROVISION)
 	sfp_init(NXP_SFP_ADDR);
@@ -196,7 +197,9 @@ enum boot_device get_boot_dev(void)
 	INFO("BOOT SRC is QSPI\n");
 	return src;
 }
-#else
+
+#else /* IMAGE_BL2 */
+
 void soc_early_platform_setup2(void)
 {
 	dcfg_init(&dcfg_init_data);
@@ -265,17 +268,18 @@ void soc_init(void)
 	enable_layerscape_ns_access(ns_dev, ARRAY_SIZE(ns_dev), NXP_CSU_ADDR);
 
 	/* Initialize the crypto accelerator if enabled */
-	if (is_sec_enabled() == false)
+	if (is_sec_enabled() == false) {
 		INFO("SEC is disabled.\n");
-	else
+	} else {
 		sec_init(NXP_CAAM_ADDR);
+	}
 }
 
 void soc_runtime_setup(void)
 {
 
 }
-#endif
+#endif /* IMAGE_BL2 */
 
 /*
  * Function to return the SoC SYS CLK
@@ -301,7 +305,7 @@ unsigned int plat_get_syscnt_freq2(void)
 	 * As per NXP Board Manuals:
 	 * The system counter always works with 25000000Hz clock.
 	 */
-	counter_base_frequency = 25000000;
+	counter_base_frequency = U(25000000);
 
 	return counter_base_frequency;
 }
@@ -312,4 +316,12 @@ unsigned int plat_get_syscnt_freq2(void)
 void soc_mem_access(void)
 {
 	/* Nothing to do for ls1012 as there is no TZASC block */
+}
+
+/*
+ * This function sets up DTB address to be passed to next boot stage
+ */
+void plat_set_dt_address(entry_point_info_t *image_info)
+{
+	image_info->args.arg3 = BL32_FDT_OVERLAY_ADDR;
 }

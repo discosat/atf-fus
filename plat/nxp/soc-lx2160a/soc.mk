@@ -1,5 +1,5 @@
 #
-# Copyright 2018-2021 NXP
+# Copyright 2018-2020 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -15,7 +15,8 @@ BOARD_PATH	:=	${PLAT_SOC_PATH}/${BOARD}
 
  # get SoC-specific defnitions
 include ${PLAT_SOC_PATH}/soc.def
-include ${PLAT_COMMON_PATH}/soc_common_def.mk
+include ${PLAT_COMMON_PATH}/plat_make_helper/soc_common_def.mk
+include ${PLAT_COMMON_PATH}/plat_make_helper/plat_build_macros.mk
 
  # SoC-specific
 NXP_WDOG_RESTART	:= yes
@@ -35,42 +36,61 @@ endif
 
  # For Security Features
 DISABLE_FUSE_WRITE	:= 1
+$(eval $(call SET_NXP_MAKE_FLAG,SMMU_NEEDED,BL2))
 ifeq (${TRUSTED_BOARD_BOOT}, 1)
 ifeq (${GENERATE_COT},1)
 # Save Keys to be used by DDR FIP image
 SAVE_KEYS=1
 endif
-$(eval $(call SET_FLAG,SMMU_NEEDED,BL2))
-$(eval $(call SET_FLAG,SFP_NEEDED,BL2))
-$(eval $(call SET_FLAG,SNVS_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,SFP_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,SNVS_NEEDED,BL2))
 # Used by create_pbl tool to
 # create bl2_<boot_mode>_sec.pbl image
 SECURE_BOOT	:= yes
 endif
-$(eval $(call SET_FLAG,CRYPTO_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,CRYPTO_NEEDED,BL_COMM))
 
 
  # Selecting Drivers for SoC
-$(eval $(call SET_FLAG,DCFG_NEEDED,BL_COMM))
-$(eval $(call SET_FLAG,TIMER_NEEDED,BL_COMM))
-$(eval $(call SET_FLAG,INTERCONNECT_NEEDED,BL_COMM))
-$(eval $(call SET_FLAG,GIC_NEEDED,BL31))
-$(eval $(call SET_FLAG,CONSOLE_NEEDED,BL_COMM))
-$(eval $(call SET_FLAG,PMU_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,DCFG_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,TIMER_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,INTERCONNECT_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,GIC_NEEDED,BL31))
+$(eval $(call SET_NXP_MAKE_FLAG,CONSOLE_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,PMU_NEEDED,BL_COMM))
 
-$(eval $(call SET_FLAG,DDR_DRIVER_NEEDED,BL2))
-$(eval $(call SET_FLAG,TZASC_NEEDED,BL2))
-$(eval $(call SET_FLAG,I2C_NEEDED,BL2))
-$(eval $(call SET_FLAG,IMG_LOADR_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,DDR_DRIVER_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,TZASC_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,I2C_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,IMG_LOADR_NEEDED,BL2))
 
 
  # Selecting PSCI & SIP_SVC support
-$(eval $(call SET_FLAG,PSCI_NEEDED,BL31))
-$(eval $(call SET_FLAG,SIPSVC_NEEDED,BL31))
+$(eval $(call SET_NXP_MAKE_FLAG,PSCI_NEEDED,BL31))
+$(eval $(call SET_NXP_MAKE_FLAG,SIPSVC_NEEDED,BL31))
+
+
+ # Selecting Boot Source for the TFA images.
+ifeq (${BOOT_MODE}, flexspi_nor)
+$(eval $(call SET_NXP_MAKE_FLAG,XSPI_NEEDED,BL2))
+$(eval $(call add_define,FLEXSPI_NOR_BOOT))
+else
+ifeq (${BOOT_MODE}, sd)
+$(eval $(call SET_NXP_MAKE_FLAG,SD_MMC_NEEDED,BL2))
+$(eval $(call add_define,SD_BOOT))
+else
+ifeq (${BOOT_MODE}, emmc)
+$(eval $(call SET_NXP_MAKE_FLAG,SD_MMC_NEEDED,BL2))
+$(eval $(call add_define,EMMC_BOOT))
+else
+$(error Un-supported Boot Mode = ${BOOT_MODE})
+endif
+endif
+endif
 
 
  # Separate DDR-FIP image to be loaded.
-$(eval $(call SET_FLAG,DDR_FIP_IO_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,DDR_FIP_IO_NEEDED,BL2))
 
 
 # Source File Addition

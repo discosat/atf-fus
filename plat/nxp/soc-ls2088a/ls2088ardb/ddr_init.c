@@ -1,62 +1,67 @@
 /*
- * Copyright 2018-2021 NXP
+ * Copyright 2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include <common/debug.h>
-#include <lib/utils.h>
 #include <errno.h>
 
-#include "ddr.h"
-#include "platform_def.h"
+#include <common/debug.h>
+#include <ddr.h>
+#include <lib/utils.h>
+
+#include <platform_def.h>
+
+#ifdef CONFIG_STATIC_DDR
+#error No static value defined
+#endif
 
 static const struct rc_timing rcb_1[] = {
-	{1600, 10, 9},
-	{1867, 12, 0xB},
-	{2134, 12, 0xB},
+	{U(1600), U(10), U(9)},
+	{U(1867), U(12), U(0xB)},
+	{U(2134), U(12), U(0xB)},
 	{}
 };
 
 static const struct rc_timing rce_1[] = {
-	{1600, 10, 9},
-	{1867, 12, 0xA},
-	{2134, 12, 0xB},
+	{U(1600), U(10), U(9)},
+	{U(1867), U(12), U(0xA)},
+	{U(2134), U(12), U(0xB)},
 	{}
 };
 
 static const struct board_timing udimm1[] = {
-	{0x01, rcb_1, 0x01020306, 0x07090A00},
-	{0x04, rce_1, 0x01020407, 0x090A0B05},
-	{0x1f, rce_1, 0x01020306, 0x07080903},
+	{U(0x01), rcb_1, U(0x01020306), U(0x07090A00)},
+	{U(0x04), rce_1, U(0x01020407), U(0x090A0B05)},
+	{U(0x1f), rce_1, U(0x01020306), U(0x07080903)},
 };
 
 static const struct rc_timing rcb_2[] = {
-	{1600, 8, 0xD},
+	{U(1600), U(8), U(0xD)},
 	{}
 };
 
 static const struct rc_timing rce_2[] = {
-	{1600, 8, 0xD},
+	{U(1600), U(8), U(0xD)},
 	{}
 };
 
 static const struct board_timing udimm2[] = {
-	{0x01, rcb_2, 0xFEFCFD00, 0x00000000},
-	{0x04, rce_2, 0xFEFCFD00, 0x000000FD},
-	{0x1f, rce_2, 0xFEFCFD00, 0x000000FD},
+	{U(0x01), rcb_2, U(0xFEFCFD00), U(0x00000000)},
+	{U(0x04), rce_2, U(0xFEFCFD00), U(0x000000FD)},
+	{U(0x1f), rce_2, U(0xFEFCFD00), U(0x000000FD)},
 };
 
 static const struct rc_timing rcb[] = {
-	{1600, 8, 0x0F},
-	{1867, 8, 0x10},
-	{2134, 8, 0x13},
+	{U(1600), U(8), U(0x0F)},
+	{U(1867), U(8), U(0x10)},
+	{U(2134), U(8), U(0x13)},
 	{}
 };
 
 static const struct board_timing rdimm[] = {
-	{0x01, rcb, 0xFEFCFAFA, 0xFAFCFEF9},
-	{0x04, rcb, 0xFEFCFAFA, 0xFAFCFEF9},
+	{U(0x01), rcb, U(0xFEFCFAFA), U(0xFAFCFEF9)},
+	{U(0x04), rcb, U(0xFEFCFAFA), U(0xFAFCFEF9)},
 };
 
 int ddr_board_options(struct ddr_info *priv)
@@ -86,12 +91,13 @@ int ddr_board_options(struct ddr_info *priv)
 					       ARRAY_SIZE(udimm1));
 		}
 	}
-	if (ret)
+	if (ret != 0) {
 		return ret;
+	}
 
-	popts->cpo_sample = 0x78;
+	popts->cpo_sample = U(0x78);
 
-	if (is_dpddr) {
+	if (is_dpddr != 0) {
 		/* DPDDR bus width 32 bits */
 		popts->data_bus_used = DDR_DBUS_32;
 		popts->otf_burst_chop_en = 0;
@@ -168,8 +174,9 @@ long long init_ddr(void)
 	info.ddr[0] = (void *)NXP_DDR_ADDR;
 	info.ddr[1] = (void *)NXP_DDR2_ADDR;
 	info.clk = get_ddr_freq(&sys, 0);
-	if (!info.clk)
+	if (info.clk == 0) {
 		info.clk = get_ddr_freq(&sys, 1);
+	}
 
 	dram_size = dram_init(&info
 #if defined(NXP_HAS_CCN504) || defined(NXP_HAS_CCN508)
@@ -177,8 +184,9 @@ long long init_ddr(void)
 #endif
 		    );
 
-	if (dram_size < 0)
+	if (dram_size < 0) {
 		ERROR("DDR init failed.\n");
+	}
 
 	zeromem(&info, sizeof(info));
 	info.num_ctlrs = 1;
@@ -192,8 +200,9 @@ long long init_ddr(void)
 		    , NXP_CCN_HN_F_0_ADDR
 #endif
 		    );
-	if (dp_dram_size < 0)
+	if (dp_dram_size < 0) {
 		debug("DPDDR init failed.\n");
+	}
 
 	return dram_size;
 }

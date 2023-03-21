@@ -1,11 +1,12 @@
 /*
- * Copyright 2017-2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -58,6 +59,7 @@ static inline void hw_remove_entries(sec_job_ring_t *jr, int num)
 {
 	struct jobring_regs *regs =
 	    (struct jobring_regs *)jr->register_base_addr;
+
 	sec_out32(&regs->orjr, num);
 }
 
@@ -69,6 +71,7 @@ static inline int hw_get_available_slots(sec_job_ring_t *jr)
 {
 	struct jobring_regs *regs =
 	    (struct jobring_regs *)jr->register_base_addr;
+
 	return sec_in32(&regs->irsa);
 }
 
@@ -81,6 +84,7 @@ static inline int hw_get_no_finished_jobs(sec_job_ring_t *jr)
 {
 	struct jobring_regs *regs =
 	    (struct jobring_regs *)jr->register_base_addr;
+
 	return sec_in32(&regs->orsf);
 }
 
@@ -149,7 +153,7 @@ int hw_reset_job_ring(sec_job_ring_t *job_ring)
 
 	/* First reset the job ring in hw */
 	ret = hw_shutdown_job_ring(job_ring);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Failed resetting job ring in hardware");
 		return ret;
 	}
@@ -178,7 +182,7 @@ int hw_shutdown_job_ring(sec_job_ring_t *job_ring)
 	struct jobring_regs *regs =
 	    (struct jobring_regs *)job_ring->register_base_addr;
 	unsigned int timeout = SEC_TIMEOUT;
-	uint32_t tmp = 0;
+	uint32_t tmp = 0U;
 
 	VERBOSE("Resetting Job ring\n");
 
@@ -201,14 +205,15 @@ int hw_shutdown_job_ring(sec_job_ring_t *job_ring)
 	do {
 		tmp = sec_in32(&regs->jrint);
 	} while (((tmp & JRINT_ERR_HALT_MASK) ==
-		  JRINT_ERR_HALT_INPROGRESS) && --timeout);
+		  JRINT_ERR_HALT_INPROGRESS) && ((--timeout) != 0U));
 
 	if ((tmp & JRINT_ERR_HALT_MASK) != JRINT_ERR_HALT_COMPLETE ||
-	    timeout == 0) {
+	    timeout == 0U) {
 		ERROR("Failed to flush hw job ring %x\n %u", tmp, timeout);
 		/* unmask interrupts */
-		if (job_ring->jr_mode != SEC_NOTIFICATION_TYPE_POLL)
+		if (job_ring->jr_mode != SEC_NOTIFICATION_TYPE_POLL) {
 			jr_enable_irqs(job_ring);
+		}
 		return -1;
 	}
 	/* Initiate reset */
@@ -217,18 +222,21 @@ int hw_shutdown_job_ring(sec_job_ring_t *job_ring)
 
 	do {
 		tmp = sec_in32(&regs->jrcr);
-	} while ((tmp & JR_REG_JRCR_VAL_RESET) && --timeout);
+	} while (((tmp & JR_REG_JRCR_VAL_RESET) != 0U) &&
+		 ((--timeout) != 0U));
 
-	if (timeout == 0) {
+	if (timeout == 0U) {
 		ERROR("Failed to reset hw job ring\n");
 		/* unmask interrupts */
-		if (job_ring->jr_mode != SEC_NOTIFICATION_TYPE_POLL)
+		if (job_ring->jr_mode != SEC_NOTIFICATION_TYPE_POLL) {
 			jr_enable_irqs(job_ring);
+		}
 		return -1;
 	}
 	/* unmask interrupts */
-	if (job_ring->jr_mode != SEC_NOTIFICATION_TYPE_POLL)
+	if (job_ring->jr_mode != SEC_NOTIFICATION_TYPE_POLL) {
 		jr_enable_irqs(job_ring);
+	}
 	return 0;
 
 }
@@ -275,8 +283,9 @@ int hw_job_ring_error(sec_job_ring_t *job_ring)
 	struct jobring_regs *regs =
 	    (struct jobring_regs *)job_ring->register_base_addr;
 
-	if (JR_REG_JRINT_JRE_EXTRACT(sec_in32(&regs->jrint)) == 0)
+	if (JR_REG_JRINT_JRE_EXTRACT(sec_in32(&regs->jrint)) == 0) {
 		return 0;
+	}
 
 	jrint_error_code =
 	    JR_REG_JRINT_ERR_TYPE_EXTRACT(sec_in32(&regs->jrint));
@@ -316,7 +325,7 @@ int hw_job_ring_set_coalescing_param(sec_job_ring_t *job_ring,
 				     uint16_t irq_coalescing_timer,
 				     uint8_t irq_coalescing_count)
 {
-	uint32_t reg_val = 0;
+	uint32_t reg_val = 0U;
 	struct jobring_regs *regs =
 	    (struct jobring_regs *)job_ring->register_base_addr;
 
@@ -336,7 +345,7 @@ int hw_job_ring_set_coalescing_param(sec_job_ring_t *job_ring,
 
 int hw_job_ring_enable_coalescing(sec_job_ring_t *job_ring)
 {
-	uint32_t reg_val = 0;
+	uint32_t reg_val = 0U;
 	struct jobring_regs *regs =
 	    (struct jobring_regs *)job_ring->register_base_addr;
 
@@ -356,7 +365,7 @@ int hw_job_ring_enable_coalescing(sec_job_ring_t *job_ring)
 
 int hw_job_ring_disable_coalescing(sec_job_ring_t *job_ring)
 {
-	uint32_t reg_val = 0;
+	uint32_t reg_val = 0U;
 	struct jobring_regs *regs =
 	    (struct jobring_regs *)job_ring->register_base_addr;
 
@@ -409,8 +418,9 @@ void hw_flush_job_ring(struct sec_job_ring_t *job_ring,
 	}
 
 	if (do_notify == true) {
-		if (notified_descs == NULL)
+		if (notified_descs == NULL) {
 			return;
+		}
 		*notified_descs = discarded_descs_no;
 	}
 }
@@ -425,8 +435,8 @@ int hw_poll_job_ring(struct sec_job_ring_t *job_ring, int32_t limit)
 	int32_t jobs_no_to_notify = 0;
 	int32_t number_of_jobs_available = 0;
 	int32_t notified_descs_no = 0;
-	uint32_t error_descs_no = 0;
-	uint32_t sec_error_code = 0;
+	uint32_t error_descs_no = 0U;
+	uint32_t sec_error_code = 0U;
 	uint32_t do_driver_shutdown = false;
 	phys_addr_t *fnptr, *arg_addr;
 	user_callback usercall = NULL;
@@ -444,7 +454,7 @@ int hw_poll_job_ring(struct sec_job_ring_t *job_ring, int32_t limit)
 	 * in the output status word has occurred
 	 */
 	sec_error_code = hw_job_ring_error(job_ring);
-	if (unlikely(sec_error_code)) {
+	if (unlikely(sec_error_code) != 0) {
 		ERROR("Error here itself %x\n", sec_error_code);
 		return -1;
 	}
@@ -498,7 +508,7 @@ int hw_poll_job_ring(struct sec_job_ring_t *job_ring, int32_t limit)
 		job_ring->cidx = SEC_CIRCULAR_COUNTER(job_ring->cidx,
 						      SEC_JOB_RING_SIZE);
 
-		if (sec_error_code) {
+		if (sec_error_code != 0) {
 			ERROR("desc at cidx %d\n ", job_ring->cidx);
 			ERROR("generated error %x\n", sec_error_code);
 
@@ -522,7 +532,7 @@ int hw_poll_job_ring(struct sec_job_ring_t *job_ring, int32_t limit)
 					+  sizeof(void *)));
 
 		arg = (void *)*(arg_addr);
-		if (*fnptr) {
+		if (*fnptr != 0) {
 			VERBOSE("Callback Function called\n");
 			usercall = (user_callback) *(fnptr);
 			(*usercall) ((uint32_t *) current_desc,
@@ -564,17 +574,18 @@ int shutdown_job_ring(struct sec_job_ring_t *job_ring)
 	int ret = 0;
 
 	ret = hw_shutdown_job_ring(job_ring);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Failed to shutdown hardware job ring\n");
 		return ret;
 	}
 
-	if (job_ring->coalescing_en)
+	if (job_ring->coalescing_en != 0) {
 		hw_job_ring_disable_coalescing(job_ring);
+	}
 
 	if (job_ring->jr_mode != SEC_NOTIFICATION_TYPE_POLL) {
 		ret = jr_disable_irqs(job_ring);
-		if (ret) {
+		if (ret != 0) {
 			ERROR("Failed to disable irqs for job ring");
 			return ret;
 		}
@@ -585,7 +596,7 @@ int shutdown_job_ring(struct sec_job_ring_t *job_ring)
 
 int jr_enable_irqs(struct sec_job_ring_t *job_ring)
 {
-	uint32_t reg_val = 0;
+	uint32_t reg_val = 0U;
 	struct jobring_regs *regs =
 	    (struct jobring_regs *)job_ring->register_base_addr;
 
@@ -605,7 +616,7 @@ int jr_enable_irqs(struct sec_job_ring_t *job_ring)
 
 int jr_disable_irqs(struct sec_job_ring_t *job_ring)
 {
-	uint32_t reg_val = 0;
+	uint32_t reg_val = 0U;
 	struct jobring_regs *regs =
 	    (struct jobring_regs *)job_ring->register_base_addr;
 

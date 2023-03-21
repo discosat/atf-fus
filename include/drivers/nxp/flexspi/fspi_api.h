@@ -1,7 +1,10 @@
-// SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright 2020 NXP
+ * Copyright 2021 NXP
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  */
+
 
 /*!
  * @file	fspi_api.h
@@ -11,8 +14,8 @@
  * @{
  */
 
-#ifndef __FSPI_API_H_
-#define __FSPI_API_H_
+#ifndef FSPI_API_H
+#define FSPI_API_H
 
 #if DEBUG_FLEXSPI
 #define SZ_57M			0x3900000u
@@ -115,5 +118,5 @@ int xspi_bulk_erase(void);
 /*!
  * Add test cases to confirm flash read/erase/write functionality.
  */
-void fspi_test(uint32_t piSfAddress, uint32_t size, int extra);
-#endif /* __FSPI_API_H_ */
+void fspi_test(uint32_t fspi_test_addr, uint32_t size, int extra);
+#endif /* FSPI_API_H */

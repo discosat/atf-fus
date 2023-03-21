@@ -1,275 +1,271 @@
-Blow Fuses
-==========
 
-* Enable POVDD
+Steps to blow fuses on NXP LS SoC:
+==================================
 
-  * Refer board GSG (Getting Started Guide) for the steps to enable POVDD.
-  * Once the POVDD is enabled, make sure to set variable POVDD_ENABLE := yes, in the platform.mk.
 
-+------------+--------+------------+---------------+----------------------------+
-| Platform   | Jumper | Switch     | LED to Verify | Thorugh GPIO Pin (=number) |
-+============+========+============+===============+============================+
-| lx2160ardb | J9     |            |               | no                         |
-+------------+--------+------------+---------------+----------------------------+
-| lx2160aqds | J35    |            |               | no                         |
-+------------+--------+------------+---------------+----------------------------+
-| lx2162aqds | J35    | SW9[4] = 1 | D15           | no                         |
-+------------+--------+------------+---------------+----------------------------+
+- Enable POVDD
+  -- Refer board GSG(Getting Started Guide) for the steps to enable POVDD.
+  -- Once the POVDD is enabled, make sure to set variable POVDD_ENABLE := yes, in the platform.mk.
 
-* SFP registers to be written to
++---+-----------------+-----------+------------+-----------------+-----------------------------+
+|   |   Platform      |  Jumper   |  Switch    | LED to Verify   |  Through GPIO Pin (=number) |
++===+=================+===========+============+=================+=============================+
+| 1.| lx2160ardb      |  J9       |            |                 |             no              |
++---+-----------------+-----------+------------+-----------------+-----------------------------+
+| 2.| lx2160aqds      |  J35      |            |                 |             no              |
++---+-----------------+-----------+------------+-----------------+-----------------------------+
+| 3.| lx2162aqds      |  J35      | SW9[4] = 1 |    D15          |             no              |
++---+-----------------+-----------+------------+-----------------+-----------------------------+
 
-+----------------------------------+----------------------+----------------------+
-| Platform                         | OTPMKR0..OTPMKR7     | SRKHR0..SRKHR7       |
-+==================================+======================+======================+
-| lx2160ardb/lx2160aqds/lx2162aqds | 0x1e80234..0x1e80250 | 0x1e80254..0x1e80270 |
-+----------------------------------+----------------------+----------------------+
+- SFP registers to be written to:
 
-* At U-Boot prompt, verify that SNVS register - HPSR, whether OTPMK was written already
++---+----------------------------------+----------------------+----------------------+
+|   |   Platform                       |   OTPMKR0..OTPMKR7   |   SRKHR0..SRKHR7     |
++===+==================================+======================+======================+
+| 1.| lx2160ardb/lx2160aqds/lx2162aqds | 0x1e80234..0x1e80250 | 0x1e80254..0x1e80270 |
++---+----------------------------------+----------------------+----------------------+
 
-+----------------------------------+------------------------------------------+---------------+
-| Platform                         | OTPMK_ZERO_BIT(=value)                   | SNVS_HPSR_REG |
-+==================================+==========================================+===============+
-| lx2160ardb/lx2160aqds/lx2162aqds | 27 (=1 means not blown, =0 means blown)  | 0x01E90014    |
-+----------------------------------+------------------------------------------+---------------+
+- At U-Boot prompt, verify that SNVS register - HPSR, whether OTPMK was written, already:
 
-  From u-boot prompt
++---+----------------------------------+-------------------------------------------+---------------+
+|   |   Platform                       |           OTPMK_ZERO_BIT(=value)          | SNVS_HPSR_REG |
++===+==================================+===========================================+===============+
+| 1.| lx2160ardb/lx2160aqds/lx2162aqds | 27 (= 1 means not blown, =0 means blown)  | 0x01E90014    |
++---+----------------------------------+-------------------------------------------+---------------+
 
-  * Check for the OTPMK
+From u-boot prompt:
 
-    .. code:: shell
+  --  Check for the OTPMK.
+   .. code:: shell
 
-      => md $SNVS_HPSR_REG
-      => 88000900
+        md $SNVS_HPSR_REG
 
-    In case it is read as 00000000, then read this register using jtag (in development mode only through CW tap).
+      Command Output:
+          01e90014: 88000900
 
-    .. code:: shell
+          In case it is read as 00000000, then read this register using jtag (in development mode only through CW tap).
+                       +0       +4       +8       +C
+          [0x01E90014] 88000900
 
-                   +0       +4       +8       +C
-      [0x01E90014] 88000900
+          Note: OTPMK_ZERO_BIT is 1, indicating that the OTPMK is not blown.
 
-    Note: OTPMK_ZERO_BIT is 1, indicating that the OTPMK is not blown.
+  --  Check for the SRK Hash.
+   .. code:: shell
 
-  * Check for the SRK Hash
+        md $SRKHR0 0x10
 
-    .. code:: shell
+      Command Output:
+          01e80254: 00000000 00000000 00000000 00000000    ................
+          01e80264: 00000000 00000000 00000000 00000000    ................
 
-      => md $SRKHR0 0x10
-      01e80254: 00000000 00000000 00000000 00000000    ................
-      01e80264: 00000000 00000000 00000000 00000000    ................
+          Note: Zero means that SRK hash is not blown.
 
-    Note: Zero means that SRK hash is not blown.
+- If not blown, then from the U-Boot prompt, using following commands:
+  --  Provision the OTPMK.
 
-* If not blown, then from the u-boot prompt, using following commands
+   .. code:: shell
 
-  * Provision the OTPMK.
+        mw.l $OTPMKR0  <OTMPKR_0_32Bit_val>
+        mw.l $OTPMKR1  <OTMPKR_1_32Bit_val>
+        mw.l $OTPMKR2  <OTMPKR_2_32Bit_val>
+        mw.l $OTPMKR3  <OTMPKR_3_32Bit_val>
+        mw.l $OTPMKR4  <OTMPKR_4_32Bit_val>
+        mw.l $OTPMKR5  <OTMPKR_5_32Bit_val>
+        mw.l $OTPMKR6  <OTMPKR_6_32Bit_val>
+        mw.l $OTPMKR7  <OTMPKR_7_32Bit_val>
 
-    .. code:: shell
+  --  Provision the SRK Hash.
 
-      => mw.l $OTPMKR0  <OTMPKR_0_32Bit_val>
-      => mw.l $OTPMKR1  <OTMPKR_1_32Bit_val>
-      => mw.l $OTPMKR2  <OTMPKR_2_32Bit_val>
-      => mw.l $OTPMKR3  <OTMPKR_3_32Bit_val>
-      => mw.l $OTPMKR4  <OTMPKR_4_32Bit_val>
-      => mw.l $OTPMKR5  <OTMPKR_5_32Bit_val>
-      => mw.l $OTPMKR6  <OTMPKR_6_32Bit_val>
-      => mw.l $OTPMKR7  <OTMPKR_7_32Bit_val>
+   .. code:: shell
 
-  * Provision the SRK Hash.
+        mw.l $SRKHR0  <SRKHR_0_32Bit_val>
+        mw.l $SRKHR1  <SRKHR_1_32Bit_val>
+        mw.l $SRKHR2  <SRKHR_2_32Bit_val>
+        mw.l $SRKHR3  <SRKHR_3_32Bit_val>
+        mw.l $SRKHR4  <SRKHR_4_32Bit_val>
+        mw.l $SRKHR5  <SRKHR_5_32Bit_val>
+        mw.l $SRKHR6  <SRKHR_6_32Bit_val>
+        mw.l $SRKHR7  <SRKHR_7_32Bit_val>
 
-    .. code:: shell
+      Note: SRK Hash should be carefully written keeping in mind the SFP Block Endianness.
 
-      => mw.l $SRKHR0  <SRKHR_0_32Bit_val>
-      => mw.l $SRKHR1  <SRKHR_1_32Bit_val>
-      => mw.l $SRKHR2  <SRKHR_2_32Bit_val>
-      => mw.l $SRKHR3  <SRKHR_3_32Bit_val>
-      => mw.l $SRKHR4  <SRKHR_4_32Bit_val>
-      => mw.l $SRKHR5  <SRKHR_5_32Bit_val>
-      => mw.l $SRKHR6  <SRKHR_6_32Bit_val>
-      => mw.l $SRKHR7  <SRKHR_7_32Bit_val>
+- At U-Boot prompt, verify that SNVS registers for OTPMK are correctly written:
 
-    Note: SRK Hash should be carefully written keeping in mind the SFP Block Endianness.
+  --  Check for the OTPMK.
+   .. code:: shell
 
-* At U-Boot prompt, verify that SNVS registers for OTPMK are correctly written:
+        md $SNVS_HPSR_REG
 
-  * Check for the OTPMK.
+      Command Output:
+          01e90014: 80000900
 
-    .. code:: shell
+          OTPMK_ZERO_BIT is zero, indicating that the OTPMK is blown.
 
-      => md $SNVS_HPSR_REG
-      => 80000900
+          Note: In case it is read as 00000000, then read this register using jtag (in development mode only through CW tap).
 
-    In case it is read as 00000000, then read this register using jtag (in development mode only through CW tap).
+   .. code:: shell
 
-    .. code:: shell
+        md $OTPMKR0 0x10
 
-                   +0       +4       +8       +C
-      [0x01E90014] 80000900
+      Command Output:
+          01e80234: ffffffff ffffffff ffffffff ffffffff    ................
+          01e80244: ffffffff ffffffff ffffffff ffffffff    ................
 
-    Note: OTPMK_ZERO_BIT is zero, indicating that the OTPMK is blown.
+          Note: OTPMK will never be visible in plain.
 
-    .. code:: shell
+  --  Check for the SRK Hash. For example, if following SRK hash is written:
 
-      => md $OTPMKR0 0x10
-      01e80234: ffffffff ffffffff ffffffff ffffffff    ................
-      01e80244: ffffffff ffffffff ffffffff ffffffff    ................
+       SFP SRKHR0 = fdc2fed4
+       SFP SRKHR1 = 317f569e
+       SFP SRKHR2 = 1828425c
+       SFP SRKHR3 = e87b5cfd
+       SFP SRKHR4 = 34beab8f
+       SFP SRKHR5 = df792a70
+       SFP SRKHR6 = 2dff85e1
+       SFP SRKHR7 = 32a29687,
 
-    Note: OTPMK will never be visible in plain.
+       then following would be the value on dumping SRK hash.
 
-  * Check for the SRK Hash.
+   .. code:: shell
 
-    For example, if following SRK hash is written:
+        md $SRKHR0 0x10
 
-    .. code:: shell
+      Command Output:
+          01e80254: d4fec2fd 9e567f31 5c422818 fd5c7be8    ....1.V..(B\.{\.
+          01e80264: 8fabbe34 702a79df e185ff2d 8796a232    4....y*p-...2...
 
-      SFP SRKHR0 = fdc2fed4
-      SFP SRKHR1 = 317f569e
-      SFP SRKHR2 = 1828425c
-      SFP SRKHR3 = e87b5cfd
-      SFP SRKHR4 = 34beab8f
-      SFP SRKHR5 = df792a70
-      SFP SRKHR6 = 2dff85e1
-      SFP SRKHR7 = 32a29687
+          Note: SRK Hash is visible in plain based on the SFP Block Endianness.
 
-    Then following could be the value on dumping SRK hash.
+- Caution: Donot proceed to the next step, until you are sure that OTPMK and SRKH are correctly blown from above steps.
+  -- After the next step, there is no turning back.
+  -- Fuses will be burnt, which cannot be undo.
 
-    .. code:: shell
+- Write SFP_INGR[INST] with the PROGFB(0x2) instruction to blow the fuses.
+  -- User need to save the SRK key pair and OTPMK Key forever, to continue using this board.
 
-      => md $SRKHR0 0x10
-      01e80254: d4fec2fd 9e567f31 5c422818 fd5c7be8    ....1.V..(B\.{\.
-      01e80264: 8fabbe34 702a79df e185ff2d 8796a232    4....y*p-...2...
++---+----------------------------------+-------------------------------------------+-----------+
+|   |   Platform                       | SFP_INGR_REG | SFP_WRITE_DATE_FRM_MIRROR_REG_TO_FUSE  |
++===+==================================+=======================================================+
+| 1.| lx2160ardb/lx2160aqds/lx2162aqds | 0x01E80020   |    0x2                                 |
++---+----------------------------------+--------------+----------------------------------------+
 
-    Note: SRK Hash is visible in plain based on the SFP Block Endianness.
+   .. code:: shell
 
-* Caution: Donot proceed to the next step, until you are sure that OTPMK and SRKH are correctly blown from above steps.
+        md $SFP_INGR_REG  $SFP_WRITE_DATE_FRM_MIRROR_REG_TO_FUSE
 
-  * After the next step, there is no turning back.
-  * Fuses will be burnt, which cannot be undo.
+- On reset, if the SFP register were read from u-boot, it will show the following:
+  --  Check for the OTPMK.
 
-* Write SFP_INGR[INST] with the PROGFB(0x2) instruction to blow the fuses.
+   .. code:: shell
 
-  * User need to save the SRK key pair and OTPMK Key forever, to continue using this board.
+        md $SNVS_HPSR_REG
 
-+----------------------------------+------------------------------------------+-----------+
-| Platform                         | SFP_INGR_REG | SFP_WRITE_DATE_FRM_MIRROR_REG_TO_FUSE |
-+==================================+======================================================+
-| lx2160ardb/lx2160aqds/lx2162aqds | 0x01E80020   | 0x2                                   |
-+----------------------------------+--------------+---------------------------------------+
+      Command Output:
+          01e90014: 80000900
 
-    .. code:: shell
+          In case it is read as 00000000, then read this register using jtag (in development mode only through CW tap).
+                       +0       +4       +8       +C
+          [0x01E90014] 80000900
 
-      => md $SFP_INGR_REG  $SFP_WRITE_DATE_FRM_MIRROR_REG_TO_FUSE
+          Note: OTPMK_ZERO_BIT is zero, indicating that the OTPMK is blown.
 
-* On reset, if the SFP register were read from u-boot, it will show the following:
+   .. code:: shell
 
-  * Check for the OTPMK.
+        md $OTPMKR0 0x10
 
-    .. code:: shell
+      Command Output:
+          01e80234: ffffffff ffffffff ffffffff ffffffff    ................
+          01e80244: ffffffff ffffffff ffffffff ffffffff    ................
 
-      => md $SNVS_HPSR_REG
-      => 80000900
+          Note: OTPMK will never be visible in plain.
 
-    In case it is read as 00000000, then read this register using jtag (in development mode only through CW tap).
+  -- SRK Hash
 
-    .. code:: shell
+   .. code:: shell
 
-                   +0       +4       +8       +C
-      [0x01E90014] 80000900
+        md $SRKHR0 0x10
 
-    Note: OTPMK_ZERO_BIT is zero, indicating that the OTPMK is blown.
+      Command Output:
+          01e80254: d4fec2fd 9e567f31 5c422818 fd5c7be8    ....1.V..(B\.{\.
+          01e80264: 8fabbe34 702a79df e185ff2d 8796a232    4....y*p-...2...
 
-    .. code:: shell
+          Note: SRK Hash is visible in plain based on the SFP Block Endianness.
 
-      => md $OTPMKR0 0x10
-      01e80234: ffffffff ffffffff ffffffff ffffffff    ................
-      01e80244: ffffffff ffffffff ffffffff ffffffff    ................
-
-    Note: OTPMK will never be visible in plain.
-
-  * SRK Hash
-
-    .. code:: shell
-
-      => md $SRKHR0 0x10
-      01e80254: d4fec2fd 9e567f31 5c422818 fd5c7be8    ....1.V..(B\.{\.
-      01e80264: 8fabbe34 702a79df e185ff2d 8796a232    4....y*p-...2...
-
-    Note: SRK Hash is visible in plain based on the SFP Block Endianness.
-
-Second Method of Fuse Provsioning
-=================================
+Second method to do the fuse provsioning:
+=========================================
 
 This method is used for quick way to provision fuses.
 Typically used by those who needs to provision number of boards.
 
-* Enable POVDD
+- Enable POVDD:
+  -- Refer the table above to enable POVDD.
 
-  * Refer the table above to enable POVDD.
-  * If GPIO Pin supports enabling POVDD, it can be done through the below input_fuse_file.
-  * Once the POVDD is enabled, make sure to set variable POVDD_ENABLE := yes, in the platform.mk.
+     Note: If GPIO Pin supports enabling POVDD, it can be done through the below input_fuse_file.
 
-* User need to populate the "input_fuse_file", corresponding to the platform for:
+  -- Once the POVDD is enabled, make sure to set variable POVDD_ENABLE := yes, in the platform.mk.
 
-  a. OTPMK
-  b. SRKH
+- User need to populate the "input_fuse_file", corresponding to the platform for:
+
+  -- OTPMK
+  -- SRKH
 
   Table of fuse provisioning input file for every supported platform:
 
-+----------------------------------+----------------------------------------------------------------+
-| Platform                         | FUSE_PROV_FILE                                                 |
-+==================================+================================================================+
-| lx2160ardb/lx2160aqds/lx2162aqds | ${CST_DIR}/input_files/gen_fusescr/ls2088_1088/input_fuse_file |
-+----------------------------------+--------------+-------------------------------------------------+
++---+----------------------------------+-----------------------------------------------------------------+
+|   |   Platform                       |                        FUSE_PROV_FILE                           |
++===+==================================+=================================================================+
+| 1.| lx2160ardb/lx2160aqds/lx2162aqds | ${CST_DIR}/input_files/gen_fusescr/ls2088_1088/input_fuse_file  |
++---+----------------------------------+--------------+--------------------------------------------------+
 
-* Create the TF-A binary with FUSE_PROG=1.
+- Create the TF-A binary with FUSE_PROG=1.
 
-  .. code:: shell
+   .. code:: shell
 
-    make PLAT=$PLAT FUSE_PROG=1\
-      BOOT_MODE=<platform_supported_boot_mode> \
-      RCW=$RCW_BIN \
-      BL32=$TEE_BIN SPD=opteed\
-      BL33=$UBOOT_SECURE_BIN \
-      pbl \
-      fip \
-      fip_fuse \
-      FUSE_PROV_FILE=../../apps/security/cst/input_files/gen_fusescr/ls2088_1088/input_fuse_file
+        make PLAT=$PLAT FUSE_PROG=1\
+          BOOT_MODE=<platform_supported_boot_mode> \
+          RCW=$RCW_BIN \
+          BL32=$TEE_BIN SPD=opteed\
+          BL33=$UBOOT_SECURE_BIN \
+          pbl \
+          fip \
+          fip_fuse \
+          FUSE_PROV_FILE=../../apps/security/cst/input_files/gen_fusescr/ls2088_1088/input_fuse_file
 
-* Deployment
+- Deployment:
+  -- Refer the nxp-layerscape.rst for deploying TF-A images.
+  -- Deploying fip_fuse.bin:
 
-  * Refer the nxp-layerscape.rst for deploying TF-A images.
-  * Deploy fip_fuse.bin:
+       For Flexspi-Nor:
 
-  For FlexSPI-NOR
+   .. code:: shell
 
-  .. code:: shell
+        tftp 82000000  $path/fuse_fip.bin;
+        i2c mw 66 50 20;sf probe 0:0; sf erase 0x880000 +$filesize; sf write 0x82000000 0x880000 $filesize;
 
-    => tftp 82000000  $path/fuse_fip.bin;
-    => i2c mw 66 50 20;sf probe 0:0; sf erase 0x880000 +$filesize; sf write 0x82000000 0x880000 $filesize;
+      For SD or eMMC [file_size_in_block_sizeof_512 = (Size_of_bytes_tftp / 512)]:
 
-  For SD or eMMC [file_size_in_block_sizeof_512 = (Size_of_bytes_tftp / 512)]:
+   .. code:: shell
 
-  .. code:: shell
+        tftp 82000000  $path/fuse_fip.bin;
+        mmc write 82000000 0x4408 <file_size_in_block_sizeof_512>;
 
-    => tftp 82000000  $path/fuse_fip.bin;
-    => mmc write 82000000 0x4408 <file_size_in_block_sizeof_512>;
+- Valiation:
 
-* Valiation
++---+----------------------------------+---------------------------------------------------+
+|   |   Platform                       |    Error_Register        | Error_Register_Address |
++===+==================================+===================================================+
+| 1.| lx2160ardb/lx2160aqds/lx2162aqds | DCFG scratch 4 register  |     0x01EE020C         |
++---+----------------------------------+---------------------------------------------------+
 
-+----------------------------------+-------------------------+------------------+
-| Platform                         | Error_Register          | Register Address |
-+==================================+=========================+==================+
-| lx2160ardb/lx2160aqds/lx2162aqds | DCFG scratch 4 register | 0x01EE020C       |
-+----------------------------------+-------------------------+------------------+
+   At the U-Boot prompt, check DCFG scratch 4 register for any error.
 
-  At the u-boot prompt, check DCFG scratch 4 register for any.
+   .. code:: shell
 
-  .. code:: shell
+        md $Error_Register_Address 1
 
-    => md $Error_Register_address 1
-    01ee020c: 00000000
+      Command Ouput:
+          01ee020c: 00000000
 
-  Note
-
-  * 0x00000000 shows no error, then fuse provisioning is successful.
-  * For non-zero value, refer the code header file ".../drivers/nxp/sfp/sfp_error_codes.h"
+      Note:
+       - 0x00000000 shows no error, then fuse provisioning is successful.
+       - For non-zero value, refer the code header file ".../drivers/nxp/sfp/sfp_error_codes.h"

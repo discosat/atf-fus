@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015-2020, ARM Limited and Contributors. All rights reserved.
+# Copyright (c) 2015-2021, ARM Limited and Contributors. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -11,6 +11,7 @@
 # Expected environment:
 #
 #   BUILD_PLAT: output directory
+#   NEED_BL2: indicates whether BL2 is needed by the platform
 #   NEED_BL32: indicates whether BL32 is needed by the platform
 #   BL2: image filename (optional). Default is IMG_BIN(2) (see macro IMG_BIN)
 #   SCP_BL2: image filename (optional). Default is IMG_BIN(30)
@@ -33,6 +34,7 @@
 #
 
 # Certificate generation tool default parameters
+TRUSTED_KEY_CERT	?=	${BUILD_PLAT}/trusted_key.crt
 FWU_CERT		:=	${BUILD_PLAT}/fwu_cert.crt
 
 # Default non-volatile counter values (overridable by the platform)
@@ -43,17 +45,7 @@ NTFW_NVCTR_VAL		?=	0
 $(eval $(call CERT_ADD_CMD_OPT,${TFW_NVCTR_VAL},--tfw-nvctr))
 $(eval $(call CERT_ADD_CMD_OPT,${NTFW_NVCTR_VAL},--ntfw-nvctr))
 
-# Add Trusted Key certificate to the fiptool and cert_create command line options.
-#
-# Few platform like NXP SoC LX2160A based platforms, needs additional images
-# like fip-ddr to be part of chain-of-trust.
-#
-# As part of TBBR build-images step, "trusted_key.crt" that got generated, needs
-# to be retained for trust anchoring the key cert & content cert of this additional
-# fip image, with the "trusted_key.crt".
-ifeq (${TRUSTED_KEY_CERT},)
-TRUSTED_KEY_CERT	?=	${BUILD_PLAT}/trusted_key.crt
-endif
+# Add Trusted Key certificate to the fiptool and cert_create command line options
 $(eval $(call TOOL_ADD_PAYLOAD,${TRUSTED_KEY_CERT},--trusted-key-cert))
 
 # Add fwu certificate to the fiptool and cert_create command line options
@@ -76,8 +68,10 @@ $(if ${NON_TRUSTED_WORLD_KEY},$(eval $(call CERT_ADD_CMD_OPT,${NON_TRUSTED_WORLD
 
 
 # Add the BL2 CoT (image cert)
+ifeq (${NEED_BL2},yes)
 ifeq (${BL2_AT_EL3}, 0)
 $(eval $(call TOOL_ADD_PAYLOAD,${BUILD_PLAT}/tb_fw.crt,--tb-fw-cert))
+endif
 endif
 
 # Add the SCP_BL2 CoT (key cert + img cert)

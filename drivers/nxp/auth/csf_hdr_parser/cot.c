@@ -94,6 +94,7 @@ static const auth_img_desc_t bl33_image = {
 		}
 	}
 };
+#ifdef POLICY_FUSE_PROVISION
 static const auth_img_desc_t fuse_prov_img = {
 	.img_id = FUSE_PROV_IMAGE_ID,
 	.img_type = IMG_PLAT,
@@ -126,6 +127,8 @@ static const auth_img_desc_t fuse_upgrade_img = {
 		}
 	}
 };
+#endif
+#ifdef CONFIG_DDR_FIP_IMAGE
 static const auth_img_desc_t ddr_imem_udimm_1d_img = {
 	.img_id = DDR_IMEM_UDIMM_1D_IMAGE_ID,
 	.img_type = IMG_PLAT,
@@ -254,14 +257,18 @@ static const auth_img_desc_t ddr_dmem_rdimm_2d_img = {
 		}
 	}
 };
+#endif
 
 static const auth_img_desc_t * const cot_desc[] = {
 	[BL31_IMAGE_ID]			=	&bl31_image,
 	[SCP_BL2_IMAGE_ID]		=	&scp_bl2_image,
 	[BL32_IMAGE_ID]			=	&bl32_image,
 	[BL33_IMAGE_ID]			=	&bl33_image,
+#ifdef POLICY_FUSE_PROVISION
 	[FUSE_PROV_IMAGE_ID]		=	&fuse_prov_img,
 	[FUSE_UP_IMAGE_ID]		=	&fuse_upgrade_img,
+#endif
+#ifdef CONFIG_DDR_FIP_IMAGE
 	[DDR_IMEM_UDIMM_1D_IMAGE_ID]	=	&ddr_imem_udimm_1d_img,
 	[DDR_IMEM_UDIMM_2D_IMAGE_ID]	=	&ddr_imem_udimm_2d_img,
 	[DDR_DMEM_UDIMM_1D_IMAGE_ID]	=	&ddr_dmem_udimm_1d_img,
@@ -270,6 +277,7 @@ static const auth_img_desc_t * const cot_desc[] = {
 	[DDR_IMEM_RDIMM_2D_IMAGE_ID]	=	&ddr_imem_rdimm_2d_img,
 	[DDR_DMEM_RDIMM_1D_IMAGE_ID]	=	&ddr_dmem_rdimm_1d_img,
 	[DDR_DMEM_RDIMM_2D_IMAGE_ID]	=	&ddr_dmem_rdimm_2d_img,
+#endif
 };
 
 /* Register the CoT in the authentication module */

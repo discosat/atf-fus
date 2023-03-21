@@ -5,8 +5,143 @@
  */
 
 #include <common/debug.h>
+#include <plat_tzc380.h>
 
-#include "plat_tzc380.h"
+#pragma weak populate_tzc380_reg_list
+
+#ifdef DEFAULT_TZASC_CONFIG
+/*
+ * Typical Memory map of DRAM0
+ *    |-----------NXP_NS_DRAM_ADDR ( = NXP_DRAM0_ADDR)----------|
+ *    |								|
+ *    |								|
+ *    |			Non-SECURE REGION			|
+ *    |								|
+ *    |								|
+ *    |								|
+ *    |------- (NXP_NS_DRAM_ADDR + NXP_NS_DRAM_SIZE - 1) -------|
+ *    |-----------------NXP_SECURE_DRAM_ADDR--------------------|
+ *    |								|
+ *    |								|
+ *    |								|
+ *    |			SECURE REGION (= 64MB)			|
+ *    |								|
+ *    |								|
+ *    |								|
+ *    |--- (NXP_SECURE_DRAM_ADDR + NXP_SECURE_DRAM_SIZE - 1)----|
+ *    |-----------------NXP_SP_SHRD_DRAM_ADDR-------------------|
+ *    |								|
+ *    |	       Secure EL1 Payload SHARED REGION (= 2MB)         |
+ *    |								|
+ *    |-----------(NXP_DRAM0_ADDR + NXP_DRAM0_SIZE - 1)---------|
+ *
+ *
+ *
+ * Typical Memory map of DRAM1
+ *    |---------------------NXP_DRAM1_ADDR----------------------|
+ *    |								|
+ *    |								|
+ *    |			Non-SECURE REGION			|
+ *    |								|
+ *    |								|
+ *    |---(NXP_DRAM1_ADDR + Dynamically calculated Size - 1) ---|
+ *
+ *
+ * Typical Memory map of DRAM2
+ *    |---------------------NXP_DRAM2_ADDR----------------------|
+ *    |								|
+ *    |								|
+ *    |			Non-SECURE REGION			|
+ *    |								|
+ *    |								|
+ *    |---(NXP_DRAM2_ADDR + Dynamically calculated Size - 1) ---|
+ */
+
+/*****************************************************************************
+ * This function sets up access permissions on memory regions
+ *
+ * Input:
+ *	tzc380_reg_list	: TZC380 Region List
+ *	dram_idx	: DRAM index
+ *	list_idx	: TZC380 Region List Index
+ *	dram_start_addr	: Start address of DRAM at dram_idx.
+ *	dram_size	: Size of DRAM at dram_idx.
+ *	secure_dram_sz	: Secure DRAM Size
+ *	shrd_dram_sz	: Shared DRAM Size
+ *
+ * Out:
+ *	list_idx	: last populated index + 1
+ *
+ ****************************************************************************/
+int populate_tzc380_reg_list(struct tzc380_reg *tzc380_reg_list,
+			     int dram_idx, int list_idx,
+			     uint64_t dram_start_addr,
+			     uint64_t dram_size,
+			     uint32_t secure_dram_sz,
+			     uint32_t shrd_dram_sz)
+{
+	/* Region 0: Default region marked as Non-Secure */
+	if (list_idx == 0) {
+		tzc380_reg_list[list_idx].secure = TZC_ATTR_SP_NS_RW;
+		tzc380_reg_list[list_idx].enabled = TZC_ATTR_REGION_DISABLE;
+		tzc380_reg_list[list_idx].addr = UL(0x0);
+		tzc380_reg_list[list_idx].size = 0x0;
+		tzc380_reg_list[list_idx].sub_mask = 0x0; /* all enabled */
+		list_idx++;
+	}
+	/* Continue with list entries for index > 0 */
+	if (dram_idx == 0) {
+		/*
+		 * Region 1: Secure Region on DRAM 1 for  2MB out of  2MB,
+		 * excluding 0 sub-region(=256KB).
+		 */
+		tzc380_reg_list[list_idx].secure = TZC_ATTR_SP_S_RW;
+		tzc380_reg_list[list_idx].enabled = TZC_ATTR_REGION_ENABLE;
+		tzc380_reg_list[list_idx].addr = dram_start_addr + dram_size;
+		tzc380_reg_list[list_idx].size = TZC_REGION_SIZE_2M;
+		tzc380_reg_list[list_idx].sub_mask = 0x0; /* all enabled */
+		list_idx++;
+
+		/*
+		 * Region 2: Secure Region on DRAM 1 for 54MB out of 64MB,
+		 * excluding 1 sub-rgion(=8MB) of 8MB.
+		 */
+		tzc380_reg_list[list_idx].secure = TZC_ATTR_SP_S_RW;
+		tzc380_reg_list[list_idx].enabled = TZC_ATTR_REGION_ENABLE;
+		tzc380_reg_list[list_idx].addr = dram_start_addr + dram_size + shrd_dram_sz;
+		tzc380_reg_list[list_idx].size = TZC_REGION_SIZE_64M;
+		tzc380_reg_list[list_idx].sub_mask = 0x80; /* Disable sub-region 7 */
+		list_idx++;
+
+		/*
+		 * Region 3: Secure Region on DRAM 1 for  6MB out of  8MB,
+		 * excluding 2 sub-rgion(=1MB) of 2MB.
+		 */
+		tzc380_reg_list[list_idx].secure = TZC_ATTR_SP_S_RW;
+		tzc380_reg_list[list_idx].enabled = TZC_ATTR_REGION_ENABLE;
+		tzc380_reg_list[list_idx].addr = dram_start_addr + dram_size + secure_dram_sz;
+		tzc380_reg_list[list_idx].size = TZC_REGION_SIZE_8M;
+		tzc380_reg_list[list_idx].sub_mask = 0xC0; /* Disable sub-region 6 & 7 */
+		list_idx++;
+
+	}
+
+	return list_idx;
+}
+#else
+int populate_tzc380_reg_list(struct tzc380_reg *tzc380_reg_list,
+			     int dram_idx, int list_idx,
+			     uint64_t dram_start_addr,
+			     uint64_t dram_size,
+			     uint32_t secure_dram_sz,
+			     uint32_t shrd_dram_sz)
+{
+	ERROR("tzc380_reg_list used is not a default list\n");
+	ERROR("%s needs to be over-written.\n", __func__);
+	return 0;
+}
+#endif	/* DEFAULT_TZASC_CONFIG */
+
 
 void mem_access_setup(uintptr_t base, uint32_t total_regions,
 			struct tzc380_reg *tzc380_reg_list)
@@ -14,7 +149,7 @@ void mem_access_setup(uintptr_t base, uint32_t total_regions,
 	uint32_t indx = 0;
 	unsigned int attr_value;
 
-	INFO("Configuring TrustZone Controller tzc380\n");
+	VERBOSE("Configuring TrustZone Controller tzc380\n");
 
 	tzc380_init(base);
 
@@ -30,9 +165,5 @@ void mem_access_setup(uintptr_t base, uint32_t total_regions,
 				attr_value);
 	}
 
-	/*
-	 * Raise an exception if a NS device tries to access secure memory
-	 * TODO: Add interrupt handling support.
-	 */
 	tzc380_set_action(TZC_ACTION_ERR);
 }

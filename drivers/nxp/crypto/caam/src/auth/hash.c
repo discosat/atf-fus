@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -47,8 +47,9 @@ int hash_init(enum hash_algo algo, void **ctx)
 		glbl_ctx.algo = algo;
 		*ctx = &glbl_ctx;
 		return 0;
-	} else
+	} else {
 		return -1;
+	}
 }
 
 /***************************************************************************
@@ -112,7 +113,7 @@ int hash_final(enum hash_algo algo, void *context, void *hash_ptr,
 {
 	int ret = 0;
 	struct hash_ctx *ctx = context;
-	uint32_t final = 0;
+	uint32_t final = 0U;
 
 	struct job_descriptor jobdesc __aligned(CACHE_WRITEBACK_GRANULE);
 
@@ -145,7 +146,7 @@ int hash_final(enum hash_algo algo, void *context, void *hash_ptr,
 
 	/* Finally, generate the requested random data bytes */
 	ret = run_descriptor_jr(&jobdesc);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Error in running descriptor\n");
 		ret = -1;
 	}

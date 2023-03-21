@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 NXP
+ * Copyright 2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -7,14 +7,14 @@
 .section .text, "ax"
 
 #include <asm_macros.S>
-#include <bl31_data.h>
 #include <lib/psci/psci.h>
+#include <nxp_timer.h>
+#include <plat_gic.h>
+#include <pmu.h>
 
+#include "bl31_data.h"
 #include "plat_psci.h"
-#include "pmu.h"
 #include "platform_def.h"
-#include "plat_gic.h"
-#include "nxp_timer.h"
 
 .global soc_init_lowlevel
 .global soc_init_percpu

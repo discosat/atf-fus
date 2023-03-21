@@ -1,44 +1,42 @@
 /*
- * Copyright 2018-2021 NXP
+ * Copyright 2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include <platform_def.h>
+#include <assert.h>
+
 #include <arch.h>
-#include <cassert.h>
-#include <mmio.h>
-#include <errata.h>
+#include "caam.h"
 #include <ccn.h>
 #include <common/debug.h>
-#include <lib/xlat_tables/xlat_tables_v2.h>
-
-#include "caam.h"
-#include "nxp_timer.h"
-#include "plat_console.h"
-#include "plat_gic.h"
-#include "ls_interconnect.h"
-#include "dcfg.h"
-#include "plat_tzc400.h"
-#include "plat_common.h"
-#include "platform_def.h"
-#include "soc.h"
-#include "pmu.h"
+#include <dcfg.h>
 #ifdef I2C_INIT
-#include "i2c.h"
+#include <i2c.h>
 #endif
+#include <lib/mmio.h>
+#include <lib/xlat_tables/xlat_tables_v2.h>
+#include "ls_interconnect.h"
 #ifdef POLICY_FUSE_PROVISION
-#include "nxp_gpio.h"
+#include <nxp_gpio.h>
 #endif
-#if defined(NXP_SFP_ENABLED)
-#include "sfp.h"
-#endif
-#if TRUSTED_BOARD_BOOT
 #include <nxp_smmu.h>
+#include <nxp_timer.h>
+#include <plat_console.h>
+#include <plat_gic.h>
+#include <plat_tzc400.h>
+#include <pmu.h>
+#if defined(NXP_SFP_ENABLED)
+#include <sfp.h>
 #endif
+
+#include <errata.h>
 #ifdef CONFIG_OCRAM_ECC_EN
 #include <ocram.h>
 #endif
+#include "plat_common.h"
+#include "platform_def.h"
+#include "soc.h"
 
 static struct soc_type soc_list[] =  {
 	SOC_ENTRY(LS2080A, LS2080A, 4, 2),
@@ -92,7 +90,8 @@ unsigned int get_tot_num_cores(void)
 {
 	uint8_t num_clusters, cores_per_cluster;
 
-	get_cluster_info(soc_list, ARRAY_SIZE(soc_list), &num_clusters, &cores_per_cluster);
+	get_cluster_info(soc_list, ARRAY_SIZE(soc_list), &num_clusters,
+			&cores_per_cluster);
 
 	return (num_clusters * cores_per_cluster);
 }
@@ -137,12 +136,14 @@ static void soc_interconnect_config(void)
 	uint32_t idx = 0;
 	uint8_t num_clusters, cores_per_cluster;
 
-	get_cluster_info(soc_list, ARRAY_SIZE(soc_list), &num_clusters, &cores_per_cluster);
+	get_cluster_info(soc_list, ARRAY_SIZE(soc_list), &num_clusters,
+			&cores_per_cluster);
 
-	if (num_clusters == 2)
+	if (num_clusters == 2) {
 		ccn_init(&plat_two_cluster_ccn_desc);
-	else
+	} else {
 		ccn_init(&plat_ccn_desc);
+	}
 
 	/* Enable Interconnect coherency for the primary CPU's cluster.*/
 	plat_ls_interconnect_enter_coherency(num_clusters);
@@ -287,6 +288,12 @@ void soc_early_init(void)
 	sfp_init(NXP_SFP_ADDR);
 #endif
 
+    /*
+     * Unlock write access for SMMU SMMU_CBn_ACTLR in all Non-secure contexts.
+     */
+    smmu_cache_unlock(NXP_SMMU_ADDR);
+    INFO("SMMU Cache Unlocking is Configured.\n");
+
 #if TRUSTED_BOARD_BOOT
 	uint32_t mode;
 
@@ -295,8 +302,9 @@ void soc_early_init(void)
 	 * Later when platform security policy comes in picture,
 	 * this might get modified based on the policy
 	 */
-	if (check_boot_mode_secure(&mode) == true)
+	if (check_boot_mode_secure(&mode) == true) {
 		bypass_smmu(NXP_SMMU_ADDR);
+	}
 
 	/*
 	 * For Mbedtls currently crypto is not supported via CAAM
@@ -305,10 +313,11 @@ void soc_early_init(void)
 	 */
 #ifndef MBEDTLS_X509
 	/* Initialize the crypto accelerator if enabled */
-	if (is_sec_enabled() == false)
+	if (is_sec_enabled() == false) {
 		INFO("SEC is disabled.\n");
-	else
+	} else {
 		sec_init(NXP_CAAM_ADDR);
+	}
 #endif
 #endif
 
@@ -403,7 +412,8 @@ unsigned int get_pmu_idle_cluster_mask(void)
 {
 	uint8_t num_clusters, cores_per_cluster;
 
-	get_cluster_info(soc_list, ARRAY_SIZE(soc_list), &num_clusters, &cores_per_cluster);
+	get_cluster_info(soc_list, ARRAY_SIZE(soc_list), &num_clusters,
+			&cores_per_cluster);
 
 	return ((1 << num_clusters) - 2);
 }
@@ -413,7 +423,8 @@ unsigned int get_pmu_flush_cluster_mask(void)
 {
 	uint8_t num_clusters, cores_per_cluster;
 
-	get_cluster_info(soc_list, ARRAY_SIZE(soc_list), &num_clusters, &cores_per_cluster);
+	get_cluster_info(soc_list, ARRAY_SIZE(soc_list), &num_clusters,
+			&cores_per_cluster);
 
 	return ((1 << num_clusters) - 2);
 }
@@ -433,7 +444,8 @@ const unsigned char *plat_get_power_domain_tree_desc(void)
 	unsigned int i;
 	uint8_t num_clusters, cores_per_cluster;
 
-	get_cluster_info(soc_list, ARRAY_SIZE(soc_list), &num_clusters, &cores_per_cluster);
+	get_cluster_info(soc_list, ARRAY_SIZE(soc_list), &num_clusters,
+			&cores_per_cluster);
 
 	/*
 	 * The highest level is the system level. The next level is constituted
@@ -506,7 +518,8 @@ void soc_init(void)
 	}
 #endif
 
-	get_cluster_info(soc_list, ARRAY_SIZE(soc_list), &num_clusters, &cores_per_cluster);
+	get_cluster_info(soc_list, ARRAY_SIZE(soc_list), &num_clusters,
+			&cores_per_cluster);
 	/*
 	 * Initialize Interconnect for this cluster during cold boot.
 	 * No need for locks as no other CPU is active.
@@ -522,10 +535,11 @@ void soc_init(void)
 	_set_platform_security();
 
 	/* Init SEC Engine which will be used by SiP */
-	if (is_sec_enabled() == false)
+	if (is_sec_enabled() == false) {
 		INFO("SEC is disabled.\n");
-	else
+	} else {
 		sec_init(NXP_CAAM_ADDR);
+	}
 }
 
 /* Function to return the SoC SYS CLK */
@@ -540,3 +554,11 @@ void soc_runtime_setup(void)
 }
 
 #endif /* IMAGE_BL2 */
+
+/*
+ * This function sets up DTB address to be passed to next boot stage
+ */
+void plat_set_dt_address(entry_point_info_t *image_info)
+{
+	image_info->args.arg3 = BL32_FDT_OVERLAY_ADDR;
+}

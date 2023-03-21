@@ -150,4 +150,3 @@ func prefetch_disable
 	mov   x0, xzr
 	ret
 endfunc prefetch_disable
-

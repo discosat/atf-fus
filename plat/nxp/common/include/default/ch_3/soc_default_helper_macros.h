@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 NXP
+ * Copyright 2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -7,10 +7,6 @@
 #define SOC_DEFAULT_HELPER_MACROS_H
 
 #ifdef NXP_OCRAM_TZPC_ADDR
-/*
- * 0x1: means 4 KB
- * 0x2: means 8 KB
- */
 #define TZPC_BLOCK_SIZE			0x1000
 #endif
 
@@ -26,7 +22,6 @@
 /* helper macros */
 #define RSTRQMR_RPTOE_MASK		(1 << 19)
 #endif /* NXP_RESET_ADDR */
-
 
 #define PCIeRC_RN_I_NODE_ID_OFFSET	0x8
 #define PoS_CONTROL_REG_OFFSET		0x0
@@ -82,13 +77,12 @@
 #define ENABLE_WUO			0x10
 #endif
 
-
 /* reset register bit */
 #define RSTRQMR_RPTOE_MASK		(1 << 19)
 
 /* secmon register offsets and bitfields */
-#define SECMON_HPCOMR_OFFSET	0x4
-#define SECMON_HPCOMR_NPSWAEN	0x80000000
+#define SECMON_HPCOMR_OFFSET		0x4
+#define SECMON_HPCOMR_NPSWAEN		0x80000000
 
 /* Secure-Register-File register offsets and bit masks */
 #ifdef NXP_RST_ADDR

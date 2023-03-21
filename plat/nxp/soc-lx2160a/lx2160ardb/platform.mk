@@ -1,5 +1,5 @@
 #
-# Copyright 2018-2020 NXP
+# Copyright 2021 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -19,6 +19,10 @@ DDR_ECC_EN	:=	yes
  #enable address decoding feature
 DDR_ADDR_DEC	:=	yes
 APPLY_MAX_CDD	:=	yes
+
+# DDR Errata
+ERRATA_DDR_A011396	:= 1
+ERRATA_DDR_A050450	:= 1
 
  # On-Board Flash Details
 FLASH_TYPE	:=	MT35XU512A
@@ -41,7 +45,7 @@ SUPPORTED_BOOT_MODE	:=	flexspi_nor	\
 				emmc
 
 # Adding platform board build info
-include plat/nxp/common/plat_common_def.mk
+include plat/nxp/common/plat_make_helper/plat_common_def.mk
 
  # Adding SoC build info
 include plat/nxp/soc-lx2160a/soc.mk

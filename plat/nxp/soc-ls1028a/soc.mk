@@ -1,5 +1,5 @@
 #
-# Copyright 2018-2021 NXP
+# Copyright 2020-2021 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -14,30 +14,31 @@ BOARD_PATH		:=	${PLAT_SOC_PATH}/${BOARD}
 
 # Get SoC-specific definitions
 include ${PLAT_SOC_PATH}/soc.def
-include ${PLAT_COMMON_PATH}/soc_common_def.mk
+include ${PLAT_COMMON_PATH}/plat_make_helper/soc_common_def.mk
+include ${PLAT_COMMON_PATH}/plat_make_helper/plat_build_macros.mk
 
 ifeq (${TRUSTED_BOARD_BOOT},1)
-$(eval $(call SET_FLAG,SMMU_NEEDED,BL2))
-$(eval $(call SET_FLAG,SFP_NEEDED,BL2))
-$(eval $(call SET_FLAG,SNVS_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,SMMU_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,SFP_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,SNVS_NEEDED,BL2))
 SECURE_BOOT := yes
 endif
-$(eval $(call SET_FLAG,CRYPTO_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,CRYPTO_NEEDED,BL_COMM))
 
-$(eval $(call SET_FLAG,DCFG_NEEDED,BL_COMM))
-$(eval $(call SET_FLAG,TIMER_NEEDED,BL_COMM))
-$(eval $(call SET_FLAG,INTERCONNECT_NEEDED,BL_COMM))
-$(eval $(call SET_FLAG,GIC_NEEDED,BL31))
-$(eval $(call SET_FLAG,CONSOLE_NEEDED,BL_COMM))
-$(eval $(call SET_FLAG,PMU_NEEDED,BL_COMM))
-$(eval $(call SET_FLAG,DDR_DRIVER_NEEDED,BL2))
-$(eval $(call SET_FLAG,TZASC_NEEDED,BL2))
-$(eval $(call SET_FLAG,I2C_NEEDED,BL2))
-$(eval $(call SET_FLAG,IMG_LOADR_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,DCFG_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,TIMER_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,INTERCONNECT_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,GIC_NEEDED,BL31))
+$(eval $(call SET_NXP_MAKE_FLAG,CONSOLE_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,PMU_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,DDR_DRIVER_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,TZASC_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,I2C_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,IMG_LOADR_NEEDED,BL2))
 
 # Selecting PSCI & SIP_SVC support
-$(eval $(call SET_FLAG,PSCI_NEEDED,BL31))
-$(eval $(call SET_FLAG,SIPSVC_NEEDED,BL31))
+$(eval $(call SET_NXP_MAKE_FLAG,PSCI_NEEDED,BL31))
+$(eval $(call SET_NXP_MAKE_FLAG,SIPSVC_NEEDED,BL31))
 
 PLAT_INCLUDES		+=	-I${PLAT_COMMON_PATH}/include/default\
 				-I${BOARD_PATH}\
@@ -78,10 +79,10 @@ ifeq (${IMG_LOADR_NEEDED},yes)
 include $(PLAT_COMMON_PATH)/img_loadr/img_loadr.mk
 endif
 
-# Add source files for the above selected drivers.
+# Adding source files for the above selected drivers.
 include ${PLAT_DRIVERS_PATH}/drivers.mk
 
-# Add SoC specific files
+# Adding SoC specific files
 include ${PLAT_COMMON_PATH}/soc_errata/errata.mk
 
 PLAT_INCLUDES		+=	${NV_STORAGE_INCLUDES}\
@@ -108,5 +109,5 @@ BL2_SOURCES		+=	${DDR_CNTLR_SOURCES}\
 				${TBBR_SOURCES}\
 				${FUSE_SOURCES}
 
-# Add TFA setup files
+# Adding TFA setup files
 include ${PLAT_PATH}/common/setup/common.mk

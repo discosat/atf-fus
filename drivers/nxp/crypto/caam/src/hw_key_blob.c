@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -41,7 +41,7 @@ int get_hw_unq_key_blob_hw(uint8_t *hw_key, int size)
 	uint8_t out_data[16 + KEY_BLOB_SIZE + MAC_SIZE];
 	struct job_descriptor desc __aligned(CACHE_WRITEBACK_GRANULE);
 	struct job_descriptor *jobdesc = &desc;
-	uint32_t in_sz = 16;
+	uint32_t in_sz = 16U;
 
 	/* Output blob will have 32 bytes key blob in beginning and
 	 * 16 byte HMAC identifier at end of data blob
@@ -67,7 +67,7 @@ int get_hw_unq_key_blob_hw(uint8_t *hw_key, int size)
 
 	/* Finally, generate the blob. */
 	ret = run_descriptor_jr(jobdesc);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Error in running hw unq key blob descriptor\n");
 		return -1;
 	}

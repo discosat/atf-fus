@@ -1,16 +1,21 @@
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include <errno.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <common/debug.h>
 #include <ddr.h>
+#ifndef CONFIG_DDR_NODIMM
+#include <i2c.h>
+#endif
 #include <nxp_timer.h>
 
 struct dynamic_odt {
@@ -251,7 +256,7 @@ static inline unsigned int auto_bank_intlv(const int cs_in_use,
 		break;
 	}
 
-	return 0;
+	return 0U;
 }
 
 static int cal_odt(const unsigned int clk,
@@ -293,7 +298,7 @@ static int cal_odt(const unsigned int clk,
 	}
 
 	/* Pick chip-select local options. */
-	for (i = 0; i < DDRC_NUM_CS; i++) {
+	for (i = 0U; i < DDRC_NUM_CS; i++) {
 		debug("cs %d\n", i);
 		popts->cs_odt[i].odt_rd_cfg = pdodt[i].odt_rd_cfg;
 		debug("     odt_rd_cfg 0x%x\n",
@@ -354,13 +359,15 @@ static int cal_opts(const unsigned int clk,
 	debug("x4_en %d\n", popts->x4_en);
 
 	/* for RDIMM and DDR4 UDIMM/discrete memory, address parity enable */
-	if (popts->rdimm)
+	if (popts->rdimm != 0) {
 		popts->ap_en = 1; /* 0 = disable,  1 = enable */
-	else
+	} else {
 		popts->ap_en = 0; /* disabled for DDR4 UDIMM/discrete default */
+	}
 
-	if (ip_rev == 0x50500)
+	if (ip_rev == 0x50500) {
 		popts->ap_en = 0;
+	}
 
 	debug("ap_en %d\n", popts->ap_en);
 
@@ -397,7 +404,7 @@ static int update_burst_length(struct memctl_opt *popts)
 		/* 32-bit or 16-bit bus */
 		popts->otf_burst_chop_en = 0;
 		popts->burst_length = DDR_BL8;
-	} else if (popts->otf_burst_chop_en) {	/* on-the-fly burst chop */
+	} else if (popts->otf_burst_chop_en != 0) { /* on-the-fly burst chop */
 		popts->burst_length = DDR_OTF;	/* on-the-fly BC4 and BL8 */
 	} else {
 		popts->burst_length = DDR_BL8;
@@ -439,18 +446,18 @@ int cal_board_params(struct ddr_info *priv,
 			break;
 		}
 	}
-	if (!prt) {
+	if (prt == NULL) {
 		ERROR("Board parameters no match.\n");
 		return -EINVAL;
 	}
-	while (prt->speed_bin) {
+	while (prt->speed_bin != 0) {
 		if (speed <= prt->speed_bin) {
 			chosen = prt;
 			break;
 		}
 		prt++;
 	}
-	if (!chosen) {
+	if (chosen == NULL) {
 		ERROR("timing no match for speed %lu\n", speed);
 		return -EINVAL;
 	}
@@ -473,8 +480,9 @@ static int synthesize_ctlr(struct ddr_info *priv)
 		      &priv->conf,
 		      &priv->dimm,
 		      priv->dimm_on_ctlr);
-	if (ret)
+	if (ret != 0) {
 		return ret;
+	}
 
 	ret = cal_opts(priv->clk,
 		       &priv->opt,
@@ -483,13 +491,15 @@ static int synthesize_ctlr(struct ddr_info *priv)
 		       priv->dimm_on_ctlr,
 		       priv->ip_rev);
 
-	if (ret)
+	if (ret != 0) {
 		return ret;
+	}
 
 	cal_intlv(priv->num_ctlrs, &priv->opt, &priv->conf, &priv->dimm);
 	ret = ddr_board_options(priv);
-	if (ret)
+	if (ret != 0) {
 		ERROR("Failed matching board timing.\n");
+	}
 
 	ret = update_burst_length(&priv->opt);
 
@@ -525,8 +535,8 @@ static int parse_spd(struct ddr_info *priv)
 		for (j = 0; j < num_dimm; j++, addr_idx++) {
 			debug("DIMM %d\n", j);
 			addr = spd_addr[addr_idx];
-			if (!addr) {
-				if (!j) {
+			if (addr == 0) {
+				if (j == 0) {
 					ERROR("First SPD addr wrong.\n");
 					return -EINVAL;
 				}
@@ -535,7 +545,7 @@ static int parse_spd(struct ddr_info *priv)
 			debug("addr 0x%x\n", addr);
 			ret = read_spd(addr, &spd[spd_idx],
 				       sizeof(struct ddr4_spd));
-			if (ret) {	/* invalid */
+			if (ret != 0) {	/* invalid */
 				debug("Invalid SPD at address 0x%x\n", addr);
 				continue;
 			}
@@ -546,20 +556,20 @@ static int parse_spd(struct ddr_info *priv)
 				(spd[spd_idx].mod_section.uc[127] << 8) |
 				(spd[spd_idx].mod_section.uc[126] << 0);
 			debug("checksum 0x%x\n", spd_checksum[spd_idx]);
-			if (!spd_checksum[spd_idx]) {
+			if (spd_checksum[spd_idx] == 0) {
 				debug("Bad checksum, ignored.\n");
 				continue;
 			}
-			if (!spd_idx) {
+			if (spd_idx == 0) {
 				/* first valid SPD */
 				ret = cal_dimm_params(&spd[0], dimm);
-				if (ret) {
+				if (ret != 0) {
 					ERROR("SPD calculation error\n");
 					return -EINVAL;
 				}
 			}
 
-			if (spd_idx && spd_checksum[0] !=
+			if (spd_idx != 0 && spd_checksum[0] !=
 			    spd_checksum[spd_idx]) {
 				ERROR("Not identical DIMMs.\n");
 				return -EINVAL;
@@ -572,7 +582,7 @@ static int parse_spd(struct ddr_info *priv)
 	}
 	switch (num_ctlrs) {
 	case 1:
-		if (!(valid_mask & 0x1)) {
+		if ((valid_mask & 0x1) == 0) {
 			ERROR("First slot cannot be empty.\n");
 			return -EINVAL;
 		}
@@ -580,7 +590,7 @@ static int parse_spd(struct ddr_info *priv)
 	case 2:
 		switch (num_dimm) {
 		case 1:
-			if (!valid_mask) {
+			if (valid_mask == 0) {
 				ERROR("Both slot empty\n");
 				return -EINVAL;
 			}
@@ -609,8 +619,9 @@ static int parse_spd(struct ddr_info *priv)
 	debug("cal cs\n");
 	conf->cs_in_use = 0;
 	for (j = 0; j < DDRC_NUM_DIMM; j++) {
-		if (!conf->dimm_in_use[j])
+		if (conf->dimm_in_use[j] == 0) {
 			continue;
+		}
 		switch (dimm->n_ranks) {
 		case 4:
 			ERROR("Quad-rank DIMM not supported\n");
@@ -631,10 +642,11 @@ static int parse_spd(struct ddr_info *priv)
 		debug("cs_on_dimm[%d] = %x\n", j, conf->cs_on_dimm[j]);
 	}
 #ifndef CONFIG_DDR_NODIMM
-	if (priv->dimm.rdimm)
+	if (priv->dimm.rdimm != 0) {
 		NOTICE("RDIMM %s\n", priv->dimm.mpart);
-	else
+	} else {
 		NOTICE("UDIMM %s\n", priv->dimm.mpart);
+	}
 #else
 	NOTICE("%s\n", priv->dimm.mpart);
 #endif
@@ -703,7 +715,7 @@ static unsigned long long assign_non_intlv_addr(
 	int i;
 	const unsigned long long rank_density = pdimm->rank_density >>
 						opt->dbw_cap_shift;
-	unsigned long long total_ctlr_mem = 0;
+	unsigned long long total_ctlr_mem = 0ULL;
 
 	debug("rank density 0x%llx\n", rank_density);
 	conf->base_addr = current_mem_base;
@@ -718,13 +730,14 @@ static unsigned long long assign_non_intlv_addr(
 		}
 		break;
 	case DDR_BA_INTLV_CS01:
-		for (i = 0; (conf->cs_in_use & (1 << i)) && i < 2; i++) {
+		for (i = 0; ((conf->cs_in_use & (1 << i)) != 0) && i < 2; i++) {
 			conf->cs_base_addr[i] = current_mem_base;
 			conf->cs_size[i] = rank_density << 1;
 			total_ctlr_mem += rank_density;
 		}
 		current_mem_base += total_ctlr_mem;
-		for (; (conf->cs_in_use & (1 << i)) && i < DDRC_NUM_CS; i++) {
+		for (; ((conf->cs_in_use & (1 << i)) != 0) && i < DDRC_NUM_CS;
+		     i++) {
 			conf->cs_base_addr[i] = current_mem_base;
 			conf->cs_size[i] = rank_density;
 			total_ctlr_mem += rank_density;
@@ -732,8 +745,8 @@ static unsigned long long assign_non_intlv_addr(
 		}
 		break;
 	case DDR_BA_NONE:
-		for (i = 0; (conf->cs_in_use & (1 << i)) && i < DDRC_NUM_CS;
-		     i++) {
+		for (i = 0; ((conf->cs_in_use & (1 << i)) != 0) &&
+			     (i < DDRC_NUM_CS); i++) {
 			conf->cs_base_addr[i] = current_mem_base;
 			conf->cs_size[i] = rank_density;
 			current_mem_base += rank_density;
@@ -744,7 +757,8 @@ static unsigned long long assign_non_intlv_addr(
 		ERROR("Unsupported bank interleaving\n");
 		return 0;
 	}
-	for (i = 0; (conf->cs_in_use & (1 << i)) && i < DDRC_NUM_CS; i++) {
+	for (i = 0; ((conf->cs_in_use & (1 << i)) != 0) &&
+		     (i < DDRC_NUM_CS); i++) {
 		debug("CS %d\n", i);
 		debug("    base_addr 0x%llx\n", conf->cs_base_addr[i]);
 		debug("    size 0x%llx\n", conf->cs_size[i]);
@@ -764,9 +778,9 @@ unsigned long long assign_addresses(struct ddr_info *priv)
 	unsigned long long current_mem_base = priv->mem_base;
 	unsigned long long total_mem;
 
-	total_mem = 0;
+	total_mem = 0ULL;
 	debug("ctlr_intlv %d\n", opt->ctlr_intlv);
-	if (opt->ctlr_intlv) {
+	if (opt->ctlr_intlv != 0) {
 		total_mem = assign_intlv_addr(dimm, opt, conf,
 					      current_mem_base);
 	} else {
@@ -794,9 +808,8 @@ static int cal_ddrc_regs(struct ddr_info *priv)
 			   &priv->ddr_reg,
 			   &priv->dimm,
 			   priv->ip_rev);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Calculating DDR registers failed\n");
-		return ret;
 	}
 
 	return ret;
@@ -811,7 +824,7 @@ static int write_ddrc_regs(struct ddr_info *priv)
 
 	for (i = 0; i < priv->num_ctlrs; i++) {
 		ret = ddrc_set_regs(priv->clk, &priv->ddr_reg, priv->ddr[i], 0);
-		if (ret) {
+		if (ret != 0) {
 			ERROR("Writing DDR register(s) failed\n");
 			return ret;
 		}
@@ -838,7 +851,7 @@ long long dram_init(struct ddr_info *priv
 	priv->ip_rev = ip_rev;
 
 #ifndef CONFIG_STATIC_DDR
-	INFO("time base %llu ms\n", time_base);
+	INFO("time base %" PRIu64 " ms\n", time_base);
 	debug("Parse DIMM SPD(s)\n");
 	valid_spd_mask = parse_spd(priv);
 
@@ -851,41 +864,42 @@ long long dram_init(struct ddr_info *priv
 	if (priv->num_ctlrs == 2 || priv->num_ctlrs == 1) {
 		ret = disable_unused_ddrc(priv, valid_spd_mask,
 					  nxp_ccn_hn_f0_addr);
-		if (ret)
+		if (ret != 0) {
 			return ret;
+		}
 	}
 #endif
 
 	time = get_timer_val(time_base);
-	INFO("Time after parsing SPD %llu ms\n", time);
+	INFO("Time after parsing SPD %" PRIu64 " ms\n", time);
 	debug("Synthesize configurations\n");
 	ret = synthesize_ctlr(priv);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Synthesize config error\n");
 		return ret;
 	}
 
 	debug("Assign binding addresses\n");
 	dram_size = assign_addresses(priv);
-	if (!dram_size) {
+	if (dram_size == 0) {
 		ERROR("Assigning address error\n");
 		return -EINVAL;
 	}
 
 	debug("Calculate controller registers\n");
 	ret = cal_ddrc_regs(priv);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Calculate register error\n");
 		return ret;
 	}
 
 	ret = compute_ddr_phy(priv);
-	if (ret)
+	if (ret != 0)
 		ERROR("Calculating DDR PHY registers failed.\n");
 
 #else
 	dram_size = board_static_ddr(priv);
-	if (!dram_size) {
+	if (dram_size == 0) {
 		ERROR("Error getting static DDR settings.\n");
 		return -EINVAL;
 	}
@@ -898,10 +912,10 @@ long long dram_init(struct ddr_info *priv
 	}
 
 	time = get_timer_val(time_base);
-	INFO("Time before programming controller %llu ms\n", time);
+	INFO("Time before programming controller %" PRIu64 " ms\n", time);
 	debug("Program controller registers\n");
 	ret = write_ddrc_regs(priv);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Programing DDRC error\n");
 		return ret;
 	}
@@ -911,7 +925,7 @@ long long dram_init(struct ddr_info *priv
 	print_ddr_info(priv->ddr[0]);
 
 	time = get_timer_val(time_base);
-	INFO("Time used by DDR driver %llu ms\n", time);
+	INFO("Time used by DDR driver %" PRIu64 " ms\n", time);
 
 	return dram_size;
 }

@@ -1,4 +1,4 @@
-# Copyright 2018-2020 NXP
+# Copyright 2018-2021 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -20,4 +20,3 @@ CPU_LIBS		+=	lib/cpus/${ARCH}/cortex_$(CORE_TYPE).S
 endif
 
 # -----------------------------------------------------------------------------
-

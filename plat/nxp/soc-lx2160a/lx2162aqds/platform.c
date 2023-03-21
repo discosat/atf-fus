@@ -27,4 +27,3 @@ bool board_disable_povdd(void)
 	return false;
 #endif
 }
-

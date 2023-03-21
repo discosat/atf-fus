@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 NXP
+ * Copyright 2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -8,14 +8,15 @@
 #define PLAT_DEF_H
 
 #include <arch.h>
-#include <policy.h>
-#include <soc.h>
 /*
  * Required without TBBR.
  * To include the defines for DDR PHY
  * Images.
  */
 #include <tbbr_img_def.h>
+
+#include <policy.h>
+#include <soc.h>
 
 #define NXP_SPD_EEPROM0		0x51
 
@@ -39,6 +40,8 @@
 
 #define BL2_START		NXP_OCRAM_ADDR
 #define BL2_LIMIT		(NXP_OCRAM_ADDR + NXP_OCRAM_SIZE)
+#define BL2_NOLOAD_START	NXP_OCRAM_ADDR
+#define BL2_NOLOAD_LIMIT	BL2_BASE
 
 /* IO defines as needed by IO driver framework */
 #define MAX_IO_DEVICES		4

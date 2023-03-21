@@ -1,11 +1,12 @@
 /*
- * Copyright 2018 - 2021 NXP
+ * Copyright 2018-2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include <arch.h>
 #include <asm_macros.S>
+
 #include <platform_def.h>
 
 	.globl	plat_secondary_cold_boot_setup
@@ -22,15 +23,12 @@ func platform_mem_init
 endfunc	platform_mem_init
 
 func apply_platform_errata
-	/*TODO if needed*/
 	ret
 endfunc apply_platform_errata
 
 func plat_reset_handler
 	mov	x29, x30
 	bl	apply_platform_errata
-	/* Apply ARM core specific erratas */
-	/*TODO: Other platform specific settings */
 
 #if defined(IMAGE_BL31)
 	ldr	x0, =POLICY_SMMU_PAGESZ_64K
@@ -39,37 +37,30 @@ func plat_reset_handler
 	bl	_set_smmu_pagesz_64
 #endif
 1:
-	/*
-	 * May be cntfrq_el0 needs to be assigned
-	 * the value COUNTER_FREQUENCY
-	 */
 	mov	x30, x29
-
 	ret
 endfunc plat_reset_handler
 
-	/*
-	 * void plat_secondary_cold_boot_setup (void);
-	 *
-	 * This function performs any platform specific actions
-	 * needed for a secondary cpu after a cold reset e.g
-	 * mark the cpu's presence, mechanism to place it in a
-	 * holding pen etc.
-	 * TODO: Should we read the PSYS register to make sure
-	 * that the request has gone through.
-	 */
+/*
+ * void plat_secondary_cold_boot_setup (void);
+ *
+ * This function performs any platform specific actions
+ * needed for a secondary cpu after a cold reset e.g
+ * mark the cpu's presence, mechanism to place it in a
+ * holding pen etc.
+ */
 func plat_secondary_cold_boot_setup
 	/* ls1043a does not do cold boot for secondary CPU */
 cb_panic:
 	b	cb_panic
 endfunc plat_secondary_cold_boot_setup
 
-	/*
-	 * unsigned int plat_is_my_cpu_primary (void);
-	 *
-	 * Find out whether the current cpu is the primary
-	 * cpu.
-	 */
+/*
+ * unsigned int plat_is_my_cpu_primary (void);
+ *
+ * Find out whether the current cpu is the primary
+ * cpu.
+ */
 func plat_is_my_cpu_primary
 	mrs	x0, mpidr_el1
 	and	x0, x0, #(MPIDR_CLUSTER_MASK | MPIDR_CPU_MASK)

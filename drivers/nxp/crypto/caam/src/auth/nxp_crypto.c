@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -25,8 +25,9 @@ static void init(void)
 	/* Initialize NXP crypto library`:*/
 	NOTICE("Initializing & configuring SEC block.\n");
 
-	if (config_sec_block() < 0)
+	if (config_sec_block() < 0) {
 		ERROR("Init & config failure for caam.\n");
+	}
 }
 
 /*
@@ -58,8 +59,9 @@ static int verify_signature(void *data_ptr, unsigned int data_len,
 		break;
 	}
 
-	if (ret)
+	if (ret != 0) {
 		ERROR("RSA verification Failed\n");
+	}
 	return ret;
 
 }
@@ -84,27 +86,32 @@ static int verify_hash(void *data_ptr, unsigned int data_len,
 
 	NOTICE("Verifying hash\n");
 	ret = hash_init(algo, &ctx);
-	if (ret)
+	if (ret != 0) {
 		return CRYPTO_ERR_HASH;
+	}
 
 	/* Update hash with that of SRK table */
 	ret = hash_update(algo, ctx, data_ptr, data_len);
-	if (ret)
+	if (ret != 0) {
 		return CRYPTO_ERR_HASH;
+	}
 
 	/* Copy hash at destination buffer */
 	ret = hash_final(algo, ctx, hash, digest_size);
-	if (ret)
+	if (ret != 0) {
 		return CRYPTO_ERR_HASH;
+	}
 
 	VERBOSE("%s Calculated hash\n", __func__);
-	for (i = 0; i < SHA256_BYTES/4; i++)
+	for (i = 0; i < SHA256_BYTES/4; i++) {
 		VERBOSE("%x\n", *((uint32_t *)hash + i));
+	}
 
 	for (i = 0; i < digest_info_len; i++) {
 		if (memcmp(hash, (hash_tbl + (i * digest_size)),
-			   digest_size) == 0)
+			   digest_size) == 0) {
 			return CRYPTO_SUCCESS;
+		}
 	}
 
 	return CRYPTO_ERR_HASH;

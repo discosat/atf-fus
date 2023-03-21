@@ -1,5 +1,5 @@
 /*
- * Copyright 2018,2021 NXP
+ * Copyright 2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -23,19 +23,12 @@ func platform_mem_init
 endfunc	platform_mem_init
 
 func apply_platform_errata
-	/*TODO if needed*/
 	ret
 endfunc apply_platform_errata
 
 func plat_reset_handler
 	mov	x29, x30
 	bl	apply_platform_errata
-	/* Apply ARM core specific erratas */
-	/* TODO: Other platform specific settings */
-	/*
-	 * May be cntfrq_el0 needs to be assigned
-	 * the value COUNTER_FREQUENCY
-	 */
 
 #if defined(IMAGE_BL31)
 	ldr	x0, =POLICY_SMMU_PAGESZ_64K
@@ -55,11 +48,9 @@ endfunc plat_reset_handler
 	 * needed for a secondary cpu after a cold reset e.g
 	 * mark the cpu's presence, mechanism to place it in a
 	 * holding pen etc.
-	 * TODO: Should we read the PSYS register to make sure
-	 * that the request has gone through.
 	 */
 func plat_secondary_cold_boot_setup
-	/* lx2160a does not do cold boot for secondary CPU */
+	/* ls2088a does not do cold boot for secondary CPU */
 cb_panic:
 	b	cb_panic
 endfunc plat_secondary_cold_boot_setup

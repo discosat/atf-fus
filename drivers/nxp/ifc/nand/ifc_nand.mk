@@ -1,5 +1,5 @@
 #
-# Copyright 2020-2021 NXP
+# Copyright 2022 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -13,7 +13,7 @@ NAND_DRIVERS_PATH	:=  ${PLAT_DRIVERS_PATH}/ifc/nand
 NAND_SOURCES		:=  $(NAND_DRIVERS_PATH)/ifc_nand.c \
 			    drivers/io/io_block.c
 
-PLAT_INCLUDES		+= -I$(NAND_DRIVERS_PATH)
+PLAT_INCLUDES		+= -I$(PLAT_DRIVERS_INCLUDE_PATH)/ifc
 
 ifeq (${BL_COMM_IFC_NAND_NEEDED},yes)
 BL_COMMON_SOURCES	+= ${NAND_SOURCES}

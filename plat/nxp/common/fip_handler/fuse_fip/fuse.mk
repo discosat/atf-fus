@@ -6,18 +6,31 @@
 #
 
 NEED_FUSE	:= yes
-$(eval $(call add_define, POLICY_FUSE_PROVISION))
 
-$(eval $(call SET_FLAG,IMG_LOADR_NEEDED,BL2))
-$(eval $(call SET_FLAG,SFP_NEEDED,BL2))
-$(eval $(call SET_FLAG,GPIO_NEEDED,BL2))
-FUSE_SOURCES	:=	plat/nxp/common/fip_handler/fuse_fip/fuse_io_storage.c
-PLAT_INCLUDES	+=	-Iplat/nxp/common/fip_handler/fuse_fip/
-FUSE_FIP_NAME	:=	fuse_fip.bin
+$(eval $(call add_define, PLAT_DEF_FIP_UUID))
+$(eval $(call add_define, POLICY_FUSE_PROVISION))
+$(eval $(call add_define, PLAT_TBBR_IMG_DEF))
+
+$(eval $(call SET_NXP_MAKE_FLAG,IMG_LOADR_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,SFP_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,GPIO_NEEDED,BL2))
+
+FIP_HANDLER_PATH	:=  ${PLAT_COMMON_PATH}/fip_handler
+FIP_HANDLER_COMMON_PATH	:=  ${FIP_HANDLER_PATH}/common
+
+FUSE_SOURCES		:=  ${FIP_HANDLER_PATH}/fuse_fip/fuse_io_storage.c
+
+PLAT_INCLUDES		+=  -I${FIP_HANDLER_COMMON_PATH}\
+			    -I${FIP_HANDLER_PATH}/fuse_fip
+
+FUSE_FIP_NAME		:=	fuse_fip.bin
 
 fip_fuse: ${BUILD_PLAT}/${FUSE_FIP_NAME}
 
 ifeq (${FUSE_PROV_FILE},)
+
+$(shell cp tools/nxp/plat_fiptool/plat_fiptool.mk ${PLAT_DIR})
+
 else
 ifeq (${TRUSTED_BOARD_BOOT},1)
 FUSE_PROV_FILE_SB = $(notdir ${FUSE_PROV_FILE})_prov.sb
@@ -85,4 +98,3 @@ endif
 	@${ECHO_BLANK_LINE}
 	@echo "Built $@ successfully"
 	@${ECHO_BLANK_LINE}
-

@@ -7,8 +7,8 @@
 
 #include <asm_macros.S>
 #include <cortex_a53.h>
-#include <cortex_a72.h>
 #include <drivers/console.h>
+#include <lib/cpus/aarch64/cortex_a72.h>
 
 #include <platform_def.h>
 
@@ -25,18 +25,13 @@
 	.globl _disable_ldstr_pfetch_A72
 	.global	_set_smmu_pagesz_64
 
-
-#define	CORTEX_A53_CPUACTLR_L1PCTL_MASK 0x0000E000
-
-	/*
-	 * int plat_crash_console_init(void)
+	/* int plat_crash_console_init(void)
 	 * Function to initialize the crash console
 	 * without a C Runtime to print crash report.
 	 * Clobber list : x0 - x4
 	 */
 
-	/*
-	 * int plat_crash_console_init(void)
+	/* int plat_crash_console_init(void)
 	 * Use normal console by default. Switch it to crash
 	 * mode so serial consoles become active again.
 	 * NOTE: This default implementation will only work for
@@ -70,57 +65,54 @@ func plat_crash_console_flush
 	b	console_flush
 endfunc plat_crash_console_flush
 
-/*
- * This function implements a part of the critical interface between the psci
+/* This function implements a part of the critical interface between the psci
  * generic layer and the platform that allows the former to query the platform
  * to convert an MPIDR to a unique linear index. An error code (-1) is returned
  * in case the MPIDR is invalid.
  */
 func plat_core_pos_by_mpidr
 
-	b  plat_core_pos
+	b	plat_core_pos
 
 endfunc plat_core_pos_by_mpidr
 
 #if (SYMMETRICAL_CLUSTERS)
-/*
- * unsigned int plat_my_core_mask(void)
- * generate a mask bit for this core
+/* unsigned int plat_my_core_mask(void)
+ *  generate a mask bit for this core
  */
 func plat_my_core_mask
-	mrs  x0, MPIDR_EL1
-	b    plat_core_mask
+	mrs	x0, MPIDR_EL1
+	b	plat_core_mask
 endfunc plat_my_core_mask
 
-/*
- * unsigned int plat_core_mask(u_register_t mpidr)
+/* unsigned int plat_core_mask(u_register_t mpidr)
  * generate a lsb-based mask bit for the core specified by mpidr in x0.
  *
  * SoC core = ((cluster * cpu_per_cluster) + core)
  * mask = (1 << SoC core)
  */
 func plat_core_mask
-	mov   w1, wzr
-	mov   w2, wzr
+	mov	w1, wzr
+	mov	w2, wzr
 
 	/* extract cluster */
-	bfxil w1, w0, #8, #8
+	bfxil	w1, w0, #8, #8
 	/* extract cpu # */
-	bfxil w2, w0, #0, #8
+	bfxil	w2, w0, #0, #8
 
-	mov   w0, wzr
+	mov	w0, wzr
 
 	/* error checking */
-	cmp   w1, #NUMBER_OF_CLUSTERS
-	b.ge  1f
-	cmp   w2, #CORES_PER_CLUSTER
-	b.ge  1f
+	cmp	w1, #NUMBER_OF_CLUSTERS
+	b.ge	1f
+	cmp	w2, #CORES_PER_CLUSTER
+	b.ge	1f
 
-	mov   w0, #CORES_PER_CLUSTER
-	mul   w1, w1, w0
-	add   w1, w1, w2
-	mov   w2, #0x1
-	lsl   w0, w2, w1
+	mov	w0, #CORES_PER_CLUSTER
+	mul	w1, w1, w0
+	add	w1, w1, w2
+	mov	w2, #0x1
+	lsl	w0, w2, w1
 1:
 	ret
 endfunc plat_core_mask
@@ -130,8 +122,8 @@ endfunc plat_core_mask
  *  generate a linear core number for this core
  */
 func plat_my_core_pos
-	mrs  x0, MPIDR_EL1
-	b    plat_core_pos
+	mrs	x0, MPIDR_EL1
+	b	plat_core_pos
 endfunc plat_my_core_pos
 
 /*
@@ -142,74 +134,72 @@ endfunc plat_my_core_pos
  * Returns -1 if mpidr invalid
  */
 func plat_core_pos
-	mov   w1, wzr
-	mov   w2, wzr
-	bfxil w1, w0, #8, #8	/* extract cluster */
-	bfxil w2, w0, #0, #8	/* extract cpu #   */
+	mov	w1, wzr
+	mov	w2, wzr
+	bfxil	w1, w0, #8, #8	/* extract cluster */
+	bfxil	w2, w0, #0, #8	/* extract cpu #   */
 
-	mov   w0, #-1
+	mov	w0, #-1
 
 	/* error checking */
-	cmp   w1, #NUMBER_OF_CLUSTERS
-	b.ge  1f
-	cmp   w2, #CORES_PER_CLUSTER
-	b.ge  1f
+	cmp	w1, #NUMBER_OF_CLUSTERS
+	b.ge	1f
+	cmp	w2, #CORES_PER_CLUSTER
+	b.ge	1f
 
-	mov   w0, #CORES_PER_CLUSTER
-	mul   w1, w1, w0
-	add   w0, w1, w2
+	mov	w0, #CORES_PER_CLUSTER
+	mul	w1, w1, w0
+	add	w0, w1, w2
 1:
 	ret
 endfunc plat_core_pos
 
 #endif
 
-
-/*
- * this function disables the load-store prefetch of the calling core
+/* this function disables the load-store prefetch of the calling core
  * Note: this function is for A53 cores ONLY
- * in: none
+ * in:  none
  * out: none
  * uses x0
  */
 func _disable_ldstr_pfetch_A53
-
-    mrs   x0, CORTEX_A53_CPUACTLR_EL1
-    tst   x0, #CORTEX_A53_CPUACTLR_L1PCTL_MASK
-    b.ne  1f
-    b     2f
+	mrs	x0, CORTEX_A53_CPUACTLR_EL1
+	tst	x0, #CORTEX_A53_CPUACTLR_EL1_L1PCTL
+	b.ne	1f
+	b	2f
 
 .align 6
-1:  /* disable L1 prefetch for this A53 core */
-    dsb   sy
-    isb
-    bic   x0, x0, #CORTEX_A53_CPUACTLR_L1PCTL_MASK
-    msr   CORTEX_A53_CPUACTLR_EL1, x0
-    isb
+1:
+	dsb	sy
+	isb
+	bic	x0, x0, #CORTEX_A53_CPUACTLR_EL1_L1PCTL
+	msr	CORTEX_A53_CPUACTLR_EL1, x0
+	isb
 
 2:
-    ret
+	ret
 endfunc _disable_ldstr_pfetch_A53
 
-/*
- * this function disables the load-store prefetch of the calling core
+
+/* this function disables the load-store prefetch of the calling core
  * Note: this function is for A72 cores ONLY
  * in:  none
  * out: none
  * uses x0
  */
 func _disable_ldstr_pfetch_A72
-	mrs   x0, CORTEX_A72_CPUACTLR_EL1
-	tst   x0, #CORTEX_A72_CPUACTLR_EL1_DISABLE_L1_DCACHE_HW_PFTCH
-	b.eq  1f
-	b     2f
+
+	mrs	x0, CORTEX_A72_CPUACTLR_EL1
+	tst	x0, #CORTEX_A72_CPUACTLR_EL1_DISABLE_L1_DCACHE_HW_PFTCH
+	b.eq	1f
+	b	2f
 
 .align 6
 1:
-	dsb   sy
+	dsb	sy
 	isb
-	orr   x0, x0, #CORTEX_A72_CPUACTLR_EL1_DISABLE_L1_DCACHE_HW_PFTCH
-	msr   CORTEX_A72_CPUACTLR_EL1, x0
+	orr	x0, x0, #CORTEX_A72_CPUACTLR_EL1_DISABLE_L1_DCACHE_HW_PFTCH
+	msr	CORTEX_A72_CPUACTLR_EL1, x0
 	isb
 
 2:
@@ -223,8 +213,7 @@ func _set_smmu_pagesz_64
 
 	ldr	x1, =NXP_SMMU_ADDR
 	ldr	w0, [x1, #0x10]
-	/* setting to 64K page */
-	orr	w0, w0, #1 << 16
+	orr	w0, w0, #1 << 16	/* setting to 64K page */
 	str	w0, [x1, #0x10]
 
 	ret

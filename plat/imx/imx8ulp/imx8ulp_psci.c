@@ -17,6 +17,8 @@
 #include <upower_soc_defs.h>
 #include <upower_api.h>
 
+static uintptr_t secure_entrypoint;
+
 #define CORE_PWR_STATE(state) ((state)->pwr_domain_state[MPIDR_AFFLVL0])
 #define CLUSTER_PWR_STATE(state) ((state)->pwr_domain_state[MPIDR_AFFLVL1])
 #define SYSTEM_PWR_STATE(state) ((state)->pwr_domain_state[PLAT_MAX_PWR_LVL])
@@ -78,11 +80,16 @@ static int imx_pwr_set_cpu_entry(unsigned int cpu, unsigned int entry)
 	return 0;
 }
 
+static volatile uint32_t cgc1_nicclk;
 int imx_pwr_domain_on(u_register_t mpidr)
 {
 	unsigned int cpu = MPIDR_AFFLVL0_VAL(mpidr);
 
-	imx_pwr_set_cpu_entry(cpu, BL31_BASE);
+	imx_pwr_set_cpu_entry(cpu, secure_entrypoint);
+
+	/* slow down the APD NIC bus clock */
+	cgc1_nicclk = mmio_read_32(IMX_CGC1_BASE + 0x34);
+	mmio_clrbits_32(IMX_CGC1_BASE + 0x34, GENMASK_32(29, 28));
 
 	mmio_write_32(IMX_CMC1_BASE + 0x18, 0x3f);
 	mmio_write_32(IMX_CMC1_BASE + 0x50 + 0x4 * cpu, 0);
@@ -98,6 +105,9 @@ void imx_pwr_domain_on_finish(const psci_power_state_t *target_state)
 	imx_pwr_set_cpu_entry(0, IMX_ROM_ENTRY);
 	plat_gic_pcpu_init();
 	plat_gic_cpuif_enable();
+
+	/* set APD NIC back to orignally setting */
+	mmio_write_32(IMX_CGC1_BASE + 0x34, cgc1_nicclk);
 }
 
 int imx_validate_ns_entrypoint(uintptr_t ns_entrypoint)
@@ -124,7 +134,7 @@ ps_apd_pwr_mode_cfgs_t apd_pwr_mode_cfgs = {
 		.swt_board_offs = 0x180,
 		.swt_mem_offs = 0x188,
 		.pmic_cfg = PMIC_CFG(0x23, 0xa, 0x2),
-		.pad_cfg = PAD_CFG(0xc, 0x0, 0x01e80a02),
+		.pad_cfg = PAD_CFG(0x0, 0xc, 0x01e80a02),
 		.bias_cfg = BIAS_CFG(0x0, 0x2, 0x2, 0x0),
 	},
 
@@ -133,7 +143,7 @@ ps_apd_pwr_mode_cfgs_t apd_pwr_mode_cfgs = {
 		.swt_board_offs = 0x170,
 		.swt_mem_offs = 0x178,
 		.pmic_cfg = PMIC_CFG(0x23, 0x2, 0x2),
-		.pad_cfg = PAD_CFG(0x0, 0x0, 0x01e80a00),
+		.pad_cfg = PAD_CFG(0x0, 0xc, 0x01e80a00),
 		.bias_cfg = BIAS_CFG(0x0, 0x2, 0x2, 0x0),
 	},
 
@@ -157,34 +167,94 @@ ps_apd_pwr_mode_cfgs_t apd_pwr_mode_cfgs = {
 /* APD power switch config */
 ps_apd_swt_cfgs_t apd_swt_cfgs = {
 	[DPD_PWR_MODE] = {
-		.swt_board[0] = SWT_BOARD(0x00060003, 0x7c),
+		.swt_board[0] = SWT_BOARD(0x0, 0x1fffc),
 		.swt_mem[0] = SWT_MEM(0x0, 0x0, 0x1ffff),
 		.swt_mem[1] = SWT_MEM(0x003fffff, 0x003fffff, 0x0),
 	},
 
 	[PD_PWR_MODE] = {
-		.swt_board[0] = SWT_BOARD(0x00060003, 0x00001e74),
+		.swt_board[0] = SWT_BOARD(0x0, 0x00001fffc),
 		.swt_mem[0] = SWT_MEM(0x00010c00, 0x0, 0x1ffff),
 		.swt_mem[1] = SWT_MEM(0x003fffff, 0x003f0000, 0x0),
 	},
 
 	[ADMA_PWR_MODE] = {
-		.swt_board[0] = SWT_BOARD(0x0006ff77, 0x0006ff7c),
+		.swt_board[0] = SWT_BOARD(0x15f74, 0x15f74),
 		.swt_mem[0] = SWT_MEM(0x0001fffd, 0x0001fffd, 0x1ffff),
 		.swt_mem[1] = SWT_MEM(0x003fffff, 0x003fffff, 0x0),
 	},
 
 	[ACT_PWR_MODE] = {
-		.swt_board[0] = SWT_BOARD(0x0006ff77, 0x0000ff7c),
+		.swt_board[0] = SWT_BOARD(0x15f74, 0x15f74),
 		.swt_mem[0] = SWT_MEM(0x0001fffd, 0x0001fffd, 0x1ffff),
 		.swt_mem[1] = SWT_MEM(0x003fffff, 0x003fffff, 0x0),
 	},
 };
 
+/* PMIC config for power down, LDO1 should be OFF */
+ps_apd_pmic_reg_data_cfgs_t pd_pmic_reg_cfgs = {
+	[0] = {
+		.tag = PMIC_REG_VALID_TAG,
+		.power_mode = PD_PWR_MODE,
+		.i2c_addr = 0x30,
+		.i2c_data = 0x9c,
+	},
+	[1] = {
+		.tag = PMIC_REG_VALID_TAG,
+		.power_mode = PD_PWR_MODE,
+		.i2c_addr = 0x22,
+		.i2c_data = 0xb,
+	},
+	[2] = {
+		.tag = PMIC_REG_VALID_TAG,
+		.power_mode = ACT_PWR_MODE,
+		.i2c_addr = 0x30,
+		.i2c_data = 0x9d,
+	},
+	[3] = {
+		.tag = PMIC_REG_VALID_TAG,
+		.power_mode = ACT_PWR_MODE,
+		.i2c_addr = 0x22,
+		.i2c_data = 0x28,
+	},
+};
+
+/* PMIC config for deep power down, BUCK3 should be OFF */
+ps_apd_pmic_reg_data_cfgs_t dpd_pmic_reg_cfgs = {
+	[0] = {
+		.tag = PMIC_REG_VALID_TAG,
+		.power_mode = DPD_PWR_MODE,
+		.i2c_addr = 0x21,
+		.i2c_data = 0x78,
+	},
+	[1] = {
+		.tag = PMIC_REG_VALID_TAG,
+		.power_mode = DPD_PWR_MODE,
+		.i2c_addr = 0x30,
+		.i2c_data = 0x9c,
+	},
+	[2] = {
+		.tag = PMIC_REG_VALID_TAG,
+		.power_mode = ACT_PWR_MODE,
+		.i2c_addr = 0x21,
+		.i2c_data = 0x79,
+	},
+	[3] = {
+		.tag = PMIC_REG_VALID_TAG,
+		.power_mode = ACT_PWR_MODE,
+		.i2c_addr = 0x30,
+		.i2c_data = 0x9d,
+	},
+};
+
 struct ps_pwr_mode_cfg_t *pwr_sys_cfg = (struct ps_pwr_mode_cfg_t *)UPWR_DRAM_SHARED_BASE_ADDR;
+extern bool is_lpav_owned_by_apd(void);
+extern int upower_pmic_i2c_read(uint32_t reg_addr, uint32_t *reg_val);
 
 void imx_set_pwr_mode_cfg(abs_pwr_mode_t mode)
 {
+	uint32_t volt;
+
 	if ( mode >= NUM_PWR_MODES)
 		return;
 
@@ -194,6 +264,25 @@ void imx_set_pwr_mode_cfg(abs_pwr_mode_t mode)
 
 	/* apd power switch config */
 	memcpy(&pwr_sys_cfg->ps_apd_swt_cfg[mode], &apd_swt_cfgs[mode], sizeof(swt_config_t));
+
+	/*
+	 * BUCK3 & LDO1 can only be shutdown when LPAV is owned by APD side
+	 * otherwise RTD side is responsible to control them in low power mode.
+	 */
+	if (is_lpav_owned_by_apd()) {
+		/* power off the BUCK3 in DPD mode */
+		if (mode == DPD_PWR_MODE) {
+			memcpy(&pwr_sys_cfg->ps_apd_pmic_reg_data_cfg, &dpd_pmic_reg_cfgs,
+				 sizeof(ps_apd_pmic_reg_data_cfgs_t));
+		/* LDO1 should be power off in PD mode */
+		} else if (mode == PD_PWR_MODE) {
+			/* overwrite the buck3 voltage setting in active mode */
+			upower_pmic_i2c_read(0x22, &volt);
+			pd_pmic_reg_cfgs[3].i2c_data = volt;
+			memcpy(&pwr_sys_cfg->ps_apd_pmic_reg_data_cfg, &pd_pmic_reg_cfgs,
+				 sizeof(ps_apd_pmic_reg_data_cfgs_t));
+		}
+	}
 }
 
 extern void cgc1_save(void);
@@ -208,7 +297,7 @@ void imx_domain_suspend(const psci_power_state_t *target_state)
 
 	if (is_local_state_off(CORE_PWR_STATE(target_state))) {
 		plat_gic_cpuif_disable();
-		imx_pwr_set_cpu_entry(cpu, BL31_BASE);
+		imx_pwr_set_cpu_entry(cpu, secure_entrypoint);
 		/* core put into power down */
 		mmio_write_32(IMX_CMC1_BASE + 0x50 + 0x4 * cpu, 0x3);
 		/* FIXME config wakeup interrupt in WKPU */
@@ -252,7 +341,7 @@ void imx_domain_suspend(const psci_power_state_t *target_state)
 		upwr_xcp_set_rtd_apd_llwu(APD_DOMAIN, 0, NULL);
 		upower_wait_resp();
 
-		/* enable the USB wakeup */ 
+		/* enable the USB wakeup */
 		usb_wakeup_enable(true);
 
 		/* config the WUU to enabled the wakeup source */
@@ -330,11 +419,8 @@ void __dead2 imx8ulp_system_reset(void)
 {
 	imx_pwr_set_cpu_entry(0, IMX_ROM_ENTRY);
 
-	mmio_write_32(IMX_WDOG3_BASE + 0x4, 0xd928c520);
-	while ((mmio_read_32(IMX_WDOG3_BASE) & 0x800) == 0)
-		;
-	mmio_write_32(IMX_WDOG3_BASE + 0x8, 0x10);
-	mmio_write_32(IMX_WDOG3_BASE, 0x21a3);
+	/* Write invalid command to WDOG CNT to trigger reset */
+	mmio_write_32(IMX_WDOG3_BASE + 0x4, 0x12345678);
 
 	while (true)
 		;
@@ -369,6 +455,8 @@ void imx_get_sys_suspend_power_state(psci_power_state_t *req_state)
 		req_state->pwr_domain_state[i] = PLAT_POWER_DOWN_OFF_STATE;
 }
 
+extern void apd_io_pad_off(void);
+
 void __dead2 imx_system_off(void)
 {
 	int i;
@@ -386,6 +474,9 @@ void __dead2 imx_system_off(void)
 	}
 
 	plat_gic_cpuif_disable();
+
+	/* power off all the pad */
+	apd_io_pad_off();
 
 	/* Config the power mode info for entering DPD mode and ACT mode */
 	imx_set_pwr_mode_cfg(ADMA_PWR_MODE);
@@ -430,7 +521,8 @@ static const plat_psci_ops_t imx_plat_psci_ops = {
 int plat_setup_psci_ops(uintptr_t sec_entrypoint,
 			const plat_psci_ops_t **psci_ops)
 {
-	imx_mailbox_init(sec_entrypoint);
+	secure_entrypoint = sec_entrypoint;
+	imx_pwr_set_cpu_entry(0, sec_entrypoint);
 	*psci_ops = &imx_plat_psci_ops;
 
 	mmio_write_32(IMX_CMC1_BASE + 0x18, 0x3f);

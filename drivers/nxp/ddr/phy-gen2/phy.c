@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2022 NXP
+ * Copyright 2021-2022 NXP
  * SPDX-License-Identifier: BSD-3-Clause
  *
  */
@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <common/debug.h>
@@ -24,7 +25,9 @@
 #ifdef DDR_PHY_DEBUG
 #include "messages.h"
 #endif
+#ifdef NXP_WARM_BOOT
 #include "phy.h"
+#endif
 #include "pie.h"
 
 #define TIMEOUTDEFAULT 500
@@ -34,10 +37,10 @@
 static uint32_t map_phy_addr_space(uint32_t addr)
 {
 	/* 23 bit addressing */
-	int pstate =     (addr & 0x700000) >> 20; /* bit 22:20 */
-	int block_type = (addr & 0x0f0000) >> 16; /* bit 19:16 */
-	int instance =   (addr & 0x00f000) >> 12; /* bit 15:12 */
-	int offset =     (addr & 0x000fff);       /* bit 11:0 */
+	uint32_t pstate =     (addr & U(0x700000)) >> 20U; /* bit 22:20 */
+	uint32_t block_type = (addr & U(0x0f0000)) >> 16U; /* bit 19:16 */
+	uint32_t instance =   (addr & U(0x00f000)) >> 12U; /* bit 15:12 */
+	uint32_t offset =     (addr & U(0x000fff));        /* bit 11:0 */
 
 	switch (block_type) {
 	case 0x0: /* 0x0 : ANIB */
@@ -96,26 +99,26 @@ static inline uint16_t phy_io_read16(uint16_t *phy, uint32_t addr)
 static void read_phy_reg(uint16_t *phy, uint32_t addr,
 		uint16_t *buf, uint32_t len)
 {
-	uint32_t i = 0;
+	uint32_t i = 0U;
 
-	for (i = 0; i < len/2; i++) {
+	for (i = 0U; i < len/2; i++) {
 		buf[i] = phy_io_read16(phy, (addr + i));
 	}
 }
 
 static uint32_t findrank(uint32_t cs_in_use)
 {
-	uint32_t val = 0;
+	uint32_t val = 0U;
 
 	switch (cs_in_use) {
-	case 0xf:
-		val = 4;
+	case U(0xf):
+		val = 4U;
 		break;
-	case 0x3:
-		val = 2;
+	case U(0x3):
+		val = 2U;
 		break;
-	case 0x1:
-		val = 1;
+	case U(0x1):
+		val = 1U;
 		break;
 	default:
 		printf("Error - Invalid cs_in_use value\n");
@@ -125,12 +128,13 @@ static uint32_t findrank(uint32_t cs_in_use)
 
 static uint8_t findmax(uint8_t *buf, uint32_t len)
 {
-	uint8_t max = 0;
-	uint32_t i = 0;
+	uint8_t max = 0U;
+	uint32_t i = 0U;
 
-	for (i = 0; i < len; i++) {
-		if (buf[i] > max)
+	for (i = 0U; i < len; i++) {
+		if (buf[i] > max) {
 			max = buf[i];
+		}
 	}
 
 	return max;
@@ -139,29 +143,30 @@ static uint8_t findmax(uint8_t *buf, uint32_t len)
 static void get_cdd_val(uint16_t **phy_ptr, uint32_t rank, uint32_t freq,
 		uint32_t *tcfg0, uint32_t *tcfg4)
 {
-	uint8_t cdd[CDD_DATA_LEN+4] = {0};
-	uint32_t i, val = 0;
+	uint8_t cdd[CDD_DATA_LEN+4] = {0U};
+	uint32_t i, val = 0U;
 	uint16_t *phy;
-	uint8_t buf[16] = {0x0};
-	uint8_t trr = 0, tww = 0, trw = 0, twr = 0;
-	uint8_t rrmax = 0, wwmax = 0, rwmax = 0, wrmax = 0;
-	uint8_t tmp = 0x0;
+	uint8_t buf[16] = {U(0x0)};
+	uint8_t trr = 0U, tww = 0U, trw = 0U, twr = 0U;
+	uint8_t rrmax = 0U, wwmax = 0U, rwmax = 0U, wrmax = 0U;
+	uint8_t tmp = U(0x0);
 	uint8_t *c =  NULL;
 
-	for (i = 0; i < NUM_OF_DDRC; i++) {
+	for (i = 0U; i < NUM_OF_DDRC; i++) {
 
 		phy = phy_ptr[i];
-		if (!phy)
+		if (phy == NULL) {
 			continue;
+		}
 
 		phy_io_write16(phy, t_apbonly |
-				csr_micro_cont_mux_sel_addr, 0x0);
+				csr_micro_cont_mux_sel_addr, U(0x0));
 
 		read_phy_reg(phy, CDD_VAL_READ_ADDR,
 				(uint16_t *)&cdd, CDD_DATA_LEN);
 
 		phy_io_write16(phy, t_apbonly |
-				csr_micro_cont_mux_sel_addr, 0x1);
+				csr_micro_cont_mux_sel_addr, U(0x1));
 
 	/* CDD values and address
 	 *
@@ -229,60 +234,67 @@ static void get_cdd_val(uint16_t **phy_ptr, uint32_t rank, uint32_t freq,
 	 */
 
 		switch (rank) {
-		case 1:
+		case 1U:
 			tmp = rwmax;
 			rwmax = cdd[40];
-			if (tmp > rwmax)
+			if (tmp > rwmax) {
 				rwmax = tmp;
+			}
 
 			break;
 
-		case 2:
+		case 2U:
 			buf[0] = cdd[12];
 			buf[1] = cdd[9];
 			tmp = rrmax;
-			rrmax = findmax(buf, 2);
-			if (tmp > rrmax)
+			rrmax = findmax(buf, 2U);
+			if (tmp > rrmax) {
 				rrmax = tmp;
+			}
 
 			buf[0] = cdd[24];
 			buf[1] = cdd[21];
 			tmp = wwmax;
-			wwmax = findmax(buf, 2);
-			if (tmp > wwmax)
+			wwmax = findmax(buf, 2U);
+			if (tmp > wwmax) {
 				wwmax = tmp;
+			}
 
 			buf[0] = cdd[40];
 			buf[1] = cdd[39];
 			buf[2] = cdd[36];
 			buf[3] = cdd[35];
 			tmp = rwmax;
-			rwmax = findmax(buf, 4);
-			if (tmp > rwmax)
+			rwmax = findmax(buf, 4U);
+			if (tmp > rwmax) {
 				rwmax = tmp;
+			}
 
 			wrmax = wwmax;
 
 			break;
 
-		case 4:
+		case 4U:
 			tmp = rrmax;
 			c = &cdd[1];
-			rrmax = findmax(c, 12);
-			if (tmp > rrmax)
+			rrmax = findmax(c, 12U);
+			if (tmp > rrmax) {
 				rrmax = tmp;
+			}
 
 			tmp = wwmax;
 			c = &cdd[13];
-			wwmax = findmax(c, 12);
-			if (tmp > wwmax)
+			wwmax = findmax(c, 12U);
+			if (tmp > wwmax) {
 				wwmax = tmp;
+			}
 
 			tmp = rwmax;
 			c = &cdd[25];
-			rwmax = findmax(c, 16);
-			if (tmp > rwmax)
+			rwmax = findmax(c, 16U);
+			if (tmp > rwmax) {
 				rwmax = tmp;
+			}
 
 			wrmax = wwmax;
 
@@ -291,61 +303,69 @@ static void get_cdd_val(uint16_t **phy_ptr, uint32_t rank, uint32_t freq,
 		}
 	}
 
-	rrmax += 3;
-	wwmax += 4;
+	rrmax += 3U;
+	wwmax += 4U;
 
-	if (wwmax > 7)
-		wwmax = 7;
+	if (wwmax > 7U) {
+		wwmax = 7U;
+	}
 
-	if (rrmax > 7)
-		rrmax = 7;
+	if (rrmax > 7U) {
+		rrmax = 7U;
+	}
 
-	if (wrmax > 0xf)
-		wrmax = 0;
+	if (wrmax > U(0xf)) {
+		wrmax = 0U;
+	}
 
-	if (rwmax > 0x7)
-		rwmax = 0x7;
+	if (rwmax > U(0x7)) {
+		rwmax = U(0x7);
+	}
 
 	val = *tcfg0;
-	tww = (val >> 24) & 0x3;
-	trr = (val >> 26) & 0x3;
-	twr = (val >> 28) & 0x3;
-	trw = (val >> 30) & 0x3;
+	tww = (val >> 24U) & U(0x3);
+	trr = (val >> 26U) & U(0x3);
+	twr = (val >> 28U) & U(0x3);
+	trw = (val >> 30U) & U(0x3);
 
 	val = *tcfg4;
-	tww = tww | (((val >> 8) & 0x1) << 2);
-	trr = trr | (((val >> 10) & 0x1) << 2);
-	twr = twr | (((val >> 12) & 0x1) << 2);
-	trw = trw | (((val >> 14) & 0x3) << 2);
+	tww = tww | (((val >> 8U) & U(0x1)) << 2U);
+	trr = trr | (((val >> 10U) & U(0x1)) << 2U);
+	twr = twr | (((val >> 12U) & U(0x1)) << 2U);
+	trw = trw | (((val >> 14U) & U(0x3)) << 2U);
 
-	if (trr > rrmax)
+	if (trr > rrmax) {
 		rrmax = trr;
+	}
 
-	if (tww > wwmax)
+	if (tww > wwmax) {
 		wwmax = tww;
+	}
 
-	if (trw > rwmax)
+	if (trw > rwmax) {
 		rwmax = trw;
+	}
 
-	if (twr > wrmax)
+	if (twr > wrmax) {
 		wrmax = twr;
+	}
 
 	debug("CDD rrmax %x wwmax %x rwmax %x wrmax %x\n",
 			rrmax, wwmax, rwmax, wrmax);
 
-	val = ((wwmax & 0x3) << 24)
-		| ((rrmax & 0x3) << 26)
-		| ((wrmax & 0x3) << 28)
-		| ((rwmax & 0x3) << 30);
+	val = ((wwmax & U(0x3)) << 24U)
+		| ((rrmax & U(0x3)) << 26U)
+		| ((wrmax & U(0x3)) << 28U)
+		| ((rwmax & U(0x3)) << 30U);
 
-	*tcfg0 = (*tcfg0 & 0x00FFFFFF) | (val);
+	*tcfg0 = (*tcfg0 & U(0x00FFFFFF)) | (val);
 
-	val = (((wwmax >> 2) & 0x1) << 8)
-		| (((rrmax >> 2) & 0x1) << 10)
-		| (((wrmax >> 2) & 0x1) << 12)
-		| (((rwmax >> 2) & 0x3) << 14);
+	val = (((wwmax >> 2U) & U(0x1)) << 8U)
+		| (((rrmax >> 2U) & U(0x1)) << 10U)
+		| (((wrmax >> 2U) & U(0x1)) << 12U)
+		| (((rwmax >> 2U) & U(0x3)) << 14U);
 
-	*tcfg4 = (*tcfg4 & 0xffff00ff) | val;
+	*tcfg4 = (*tcfg4 & U(0xffff00ff)) | val;
 }
 #endif
 
@@ -359,12 +379,13 @@ int save_phy_training_values(uint16_t **phy_ptr, uint32_t address_to_store,
 
 {
 	uint16_t *phy = NULL, value = 0x0;
-	uint32_t size = 1, num_of_regs = 1, phy_store = 0;
+	uint32_t size = 1U, num_of_regs = 1U, phy_store = 0U;
 	int i = 0, j = 0, ret = -EINVAL;
 
 	ret = xspi_sector_erase(address_to_store, PHY_ERASE_SIZE);
-	if (ret)
+	if (ret != 0) {
 		return -EINVAL;
+	}
 
 	for (j = 0; j < num_of_phy; j++) {
 		/* Save training values of all PHYs */
@@ -378,7 +399,7 @@ int save_phy_training_values(uint16_t **phy_ptr, uint32_t address_to_store,
 		/* Enable clocks in case they were disabled. */
 		phy_io_write16(phy, t_drtub |
 				csr_ucclk_hclk_enables_addr, 0x3);
-		if (train2d) {
+		if (train2d != 0) {
 		/* Address to store training values is
 		 * to be appended for next PHY
 		 */
@@ -399,10 +420,10 @@ int save_phy_training_values(uint16_t **phy_ptr, uint32_t address_to_store,
 						training_1D_values[i].addr));
 #endif
 			training_1D_values[i].data = value;
-			}
+		}
 		/* Storing 1D training values on flash */
 		ret = xspi_write(phy_store, (void *)training_1D_values, size);
-		if (train2d) {
+		if (train2d != 0) {
 			phy_store = phy_store+size;
 			size = sizeof(training_2D_values);
 			num_of_regs = ARRAY_SIZE(training_2D_values);
@@ -437,8 +458,9 @@ int save_phy_training_values(uint16_t **phy_ptr, uint32_t address_to_store,
 		phy_io_write16(phy, t_apbonly |
 				csr_micro_cont_mux_sel_addr, 0x1);
 	}
-	if (ret)
+	if (ret != 0) {
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -451,7 +473,7 @@ int restore_phy_training_values(uint16_t **phy_ptr, uint32_t address_to_restore,
 		)
 {
 	uint16_t *phy = NULL;
-	uint32_t size = 1, num_of_regs = 1, phy_store = 0;
+	uint32_t size = 1U, num_of_regs = 1U, phy_store = 0U;
 	int i = 0, j = 0, ret = -EINVAL;
 
 	debug("Restoring Training register values\n");
@@ -459,7 +481,7 @@ int restore_phy_training_values(uint16_t **phy_ptr, uint32_t address_to_restore,
 		phy = phy_ptr[j];
 		size = sizeof(training_1D_values);
 		num_of_regs = ARRAY_SIZE(training_1D_values);
-		if (train2d) {
+		if (train2d != 0) {
 		/* The address to restore training values is
 		 * to be appended for next PHY
 		 */
@@ -480,6 +502,14 @@ int restore_phy_training_values(uint16_t **phy_ptr, uint32_t address_to_restore,
 		/* Reading 1D training values from flash*/
 		ret = xspi_read(phy_store, (uint32_t *)training_1D_values,
 				size);
+		if (ret) {
+#ifdef DEBUG_WARM_RESET
+			debug("Unable to Read 1D training values %d\n",
+					ret);
+#endif
+			return -EINVAL;
+		}
+
 		debug("Restoring 1D Training reg val at:%08x\n", phy_store);
 		for (i = 0; i < num_of_regs; i++) {
 			phy_io_write16(phy, training_1D_values[i].addr,
@@ -492,13 +522,22 @@ int restore_phy_training_values(uint16_t **phy_ptr, uint32_t address_to_restore,
 						training_1D_values[i].addr));
 #endif
 		}
-		if (train2d) {
+		if (train2d != 0) {
 			phy_store = phy_store + size;
 			size = sizeof(training_2D_values);
 			num_of_regs = ARRAY_SIZE(training_2D_values);
 			/* Reading 2D training values from flash */
 			ret = xspi_read(phy_store,
 					(uint32_t *)training_2D_values,	size);
+
+			if (ret) {
+#ifdef DEBUG_WARM_RESET
+				debug("Unable to Read 2D training values %d\n",
+						ret);
+#endif
+				return -EINVAL;
+			}
+
 			debug("Restoring 2D Training reg val at:%08x\n",
 					phy_store);
 			for (i = 0; i < num_of_regs; i++) {
@@ -525,8 +564,9 @@ int restore_phy_training_values(uint16_t **phy_ptr, uint32_t address_to_restore,
 		phy_io_write16(phy, t_apbonly |
 				csr_micro_cont_mux_sel_addr, 0x1);
 	}
-	if (ret)
+	if (ret != 0) {
 		return -EINVAL;
+	}
 	return 0;
 }
 #endif
@@ -558,7 +598,7 @@ static void load_pieimage(uint16_t *phy,
 		break;
 	}
 
-	if (image) {
+	if (image != NULL) {
 		for (i = 0; i < size; i++)
 			phy_io_write16(phy, image[i].addr, image[i].data);
 	}
@@ -574,20 +614,21 @@ static void prog_acsm_playback(uint16_t *phy,
 	uint32_t f0rc3x;
 	uint32_t f0rc5x;
 
-	if (input->basic.dimm_type != RDIMM)
+	if (input->basic.dimm_type != RDIMM) {
 		return;
+	}
 
 	msg_blk = msg;
-	f0rc0a = (msg_blk->f0rc0a_d0 & 0xf) | 0xa0;
-	f0rc3x = (msg_blk->f0rc3x_d0 & 0xff) | 0x300;
-	f0rc5x = (input->adv.phy_gen2_umctl_f0rc5x & 0xff) | 0x500;
+	f0rc0a = (msg_blk->f0rc0a_d0 & U(0xf)) | U(0xa0);
+	f0rc3x = (msg_blk->f0rc3x_d0 & U(0xff)) | U(0x300);
+	f0rc5x = (input->adv.phy_gen2_umctl_f0rc5x & U(0xff)) | U(0x500);
 
-	acsmplayback[0][0] = 0x3ff & f0rc0a;
-	acsmplayback[1][0] = (0x1c00 & f0rc0a) >> 10;
-	acsmplayback[0][1] = 0x3ff & f0rc3x;
-	acsmplayback[1][1] = (0x1c00 & f0rc3x) >> 10;
-	acsmplayback[0][2] = 0x3ff & f0rc5x;
-	acsmplayback[1][2] = (0x1c00 & f0rc5x) >> 10;
+	acsmplayback[0][0] = U(0x3ff) & f0rc0a;
+	acsmplayback[1][0] = (U(0x1c00) & f0rc0a) >> 10U;
+	acsmplayback[0][1] = U(0x3ff) & f0rc3x;
+	acsmplayback[1][1] = (U(0x1c00) & f0rc3x) >> 10U;
+	acsmplayback[0][2] = U(0x3ff) & f0rc5x;
+	acsmplayback[1][2] = (U(0x1c00) & f0rc5x) >> 10U;
 	for (vec = 0; vec < 3; vec++) {
 		phy_io_write16(phy, t_acsm | (csr_acsm_playback0x0_addr +
 			       (vec << 1)), acsmplayback[0][vec]);
@@ -599,8 +640,9 @@ static void prog_acsm_playback(uint16_t *phy,
 static void prog_acsm_ctr(uint16_t *phy,
 			  const struct input *input)
 {
-	if (input->basic.dimm_type != RDIMM)
+	if (input->basic.dimm_type != RDIMM) {
 		return;
+	}
 
 	phy_io_write16(phy, t_acsm | csr_acsm_ctrl13_addr,
 		       0xf << csr_acsm_cke_enb_lsb);
@@ -638,10 +680,11 @@ static void prog_seq0bdly0(uint16_t *phy,
 
 	frq = input->basic.frequency >> 1;
 	ps_count[0] = frq >> 3; /* 0.5 * frq / 4*/
-	if (input->basic.frequency < 400)
+	if (input->basic.frequency < 400) {
 		lower_freq_opt = (input->basic.dimm_type == RDIMM) ? 7 : 3;
-	else if (input->basic.frequency < 533)
+	} else if (input->basic.frequency < 533) {
 		lower_freq_opt = (input->basic.dimm_type == RDIMM) ? 14 : 11;
+	}
 
 	/* 1.0 * frq / 4 - lower_freq */
 	ps_count[1] = (frq >> 2) - lower_freq_opt;
@@ -655,12 +698,13 @@ static void prog_seq0bdly0(uint16_t *phy,
 		ps_count[2] = 0x668a; /* seq0bdly2 */
 	}
 #endif
-	if (frq > 266)
+	if (frq > 266) {
 		ps_count[3] = 44;
-	else if (frq > 200)
+	} else if (frq > 200) {
 		ps_count[3] = 33;
-	else
+	} else {
 		ps_count[3] = 16;
+	}
 
 	addr = t_master | csr_seq0bdly0_addr;
 	phy_io_write16(phy, addr, ps_count[0]);
@@ -693,44 +737,45 @@ static void i_load_pie(uint16_t **phy_ptr,
 
 	for (i = 0; i < NUM_OF_DDRC; i++) {
 		phy = phy_ptr[i];
-		if (!phy)
+		if (phy == NULL) {
 			continue;
+		}
 
 		phy_io_write16(phy,
 			       t_apbonly | csr_micro_cont_mux_sel_addr,
-			       0);
+			       0U);
 
 		load_pieimage(phy, input->basic.dimm_type);
 
 		prog_seq0bdly0(phy, input);
 		phy_io_write16(phy, t_initeng | csr_seq0bdisable_flag0_addr,
-			       0x0000);
+			       U(0x0000));
 		phy_io_write16(phy, t_initeng | csr_seq0bdisable_flag1_addr,
-			       0x0173);
+			       U(0x0173));
 		phy_io_write16(phy, t_initeng | csr_seq0bdisable_flag2_addr,
-			       0x0060);
+			       U(0x0060));
 		phy_io_write16(phy, t_initeng | csr_seq0bdisable_flag3_addr,
-			       0x6110);
+			       U(0x6110));
 		phy_io_write16(phy, t_initeng | csr_seq0bdisable_flag4_addr,
-			       0x2152);
+			       U(0x2152));
 		phy_io_write16(phy, t_initeng | csr_seq0bdisable_flag5_addr,
-			       0xdfbd);
+			       U(0xdfbd));
 		phy_io_write16(phy, t_initeng | csr_seq0bdisable_flag6_addr,
 			       input->basic.dimm_type == RDIMM &&
-			       input->adv.phy_gen2_umctl_opt == 1 ?
-			       0x6000 : 0xffff);
+			       input->adv.phy_gen2_umctl_opt == 1U ?
+			       U(0x6000) : U(0xffff));
 		phy_io_write16(phy, t_initeng | csr_seq0bdisable_flag7_addr,
-			       0x6152);
+			       U(0x6152));
 		prog_acsm_playback(phy, input, msg);		/* rdimm */
 		prog_acsm_ctr(phy, input);			/* rdimm */
 
-		phy_io_write16(phy, t_master | csr_cal_zap_addr, 0x1);
+		phy_io_write16(phy, t_master | csr_cal_zap_addr, U(0x1));
 		prog_cal_rate_run(phy, input);
 
 		phy_io_write16(phy, t_drtub | csr_ucclk_hclk_enables_addr,
-			       input->basic.dimm_type == RDIMM ? 0x2 : 0);
+			       input->basic.dimm_type == RDIMM ? U(0x2) : 0U);
 
-		phy_io_write16(phy, t_apbonly | csr_micro_cont_mux_sel_addr, 1);
+		phy_io_write16(phy, t_apbonly | csr_micro_cont_mux_sel_addr, 1U);
 	}
 }
 
@@ -755,8 +800,9 @@ static void phy_gen2_init_input(struct input *input)
 	input->adv.d4rx_preamble_length		= 0;
 	input->adv.d4tx_preamble_length		= 0;
 
-	for (i = 0; i < 7; i++)
+	for (i = 0; i < 7; i++) {
 		debug("mr[%d] = 0x%x\n", i, input->mr[i]);
+	}
 
 	debug("input->cs_d0 = 0x%x\n", input->cs_d0);
 	debug("input->cs_d1 = 0x%x\n", input->cs_d1);
@@ -765,12 +811,14 @@ static void phy_gen2_init_input(struct input *input)
 	debug("PHY DQ driver impedance = %d ohm\n", input->adv.tx_impedance);
 	debug("PHY Addr driver impedance = %d ohm\n", input->adv.atx_impedance);
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < 4; i++) {
 		debug("odt[%d] = 0x%x\n", i, input->odt[i]);
+	}
 
 	if (input->basic.dimm_type == RDIMM) {
-		for (i = 0; i < 16; i++)
+		for (i = 0; i < 16; i++) {
 			debug("input->rcw[%d] = 0x%x\n", i, input->rcw[i]);
+		}
 		debug("input->rcw3x = 0x%x\n", input->rcw3x);
 	}
 }
@@ -794,48 +842,50 @@ static int phy_gen2_msg_init(void *msg_1d,
 	case UDIMM:
 	case SODIMM:
 	case NODIMM:
-		msg_blk->dram_type	= 0x2;
+		msg_blk->dram_type	= U(0x2);
 		break;
 	case RDIMM:
-		msg_blk->dram_type	= 0x4;
+		msg_blk->dram_type	= U(0x4);
 		break;
 	case LRDIMM:
-		msg_blk->dram_type	= 0x5;
+		msg_blk->dram_type	= U(0x5);
 		break;
 	default:
 		ERROR("Unsupported DIMM type\n");
 		return -EINVAL;
 	}
-	msg_blk->pstate			= 0;
+	msg_blk->pstate			= 0U;
 
-	/* Enable quickRd2D, a substage of read deskew, to 1D training */
-	msg_blk->reserved00             = 0x20;
+	/*Enable quickRd2D, a substage of read deskew, to 1D training.*/
+	msg_blk->reserved00             = U(0x20);
 
 	/*Enable High-Effort WrDQ1D.*/
-	msg_blk->reserved00             |= 0x40;
+	msg_blk->reserved00             |= U(0x40);
 
 	/* Enable 1D extra effort training.*/
-	msg_blk->reserved1c[3]		= 0x3;
+	msg_blk->reserved1c[3]		= U(0x3);
 
-	if (input->basic.dimm_type == LRDIMM)
-		msg_blk->sequence_ctrl	= 0x3f1f;
-	else
-		msg_blk->sequence_ctrl	= 0x031f;
-	msg_blk->phy_config_override	= 0;
+	if (input->basic.dimm_type == LRDIMM) {
+		msg_blk->sequence_ctrl	= U(0x3f1f);
+	} else {
+		msg_blk->sequence_ctrl	= U(0x031f);
+	}
+	msg_blk->phy_config_override	= 0U;
 #ifdef DDR_PHY_DEBUG
-	msg_blk->hdt_ctrl		= 0x5;
+	msg_blk->hdt_ctrl		= U(0x5);
 #else
-	msg_blk->hdt_ctrl		= 0x0a;
+	msg_blk->hdt_ctrl		= U(0xc9);
 #endif
-	msg_blk->msg_misc		= 0x0;
-	msg_blk->dfimrlmargin		= 0x1;
-	msg_blk->phy_vref		= input->vref ? input->vref : 0x61;
+	msg_blk->msg_misc		= U(0x0);
+	msg_blk->dfimrlmargin		= U(0x1);
+	msg_blk->phy_vref		= input->vref ? input->vref : U(0x61);
 	msg_blk->cs_present		= input->cs_d0 | input->cs_d1;
 	msg_blk->cs_present_d0		= input->cs_d0;
 	msg_blk->cs_present_d1		= input->cs_d1;
-	if (input->mirror)
-		msg_blk->addr_mirror	= 0x0a;	/* odd CS are mirrored */
-	msg_blk->share2dvref_result	= 1;
+	if (input->mirror != 0) {
+		msg_blk->addr_mirror	= U(0x0a);	/* odd CS are mirrored */
+	}
+	msg_blk->share2dvref_result	= 1U;
 
 	msg_blk->acsm_odt_ctrl0		= input->odt[0];
 	msg_blk->acsm_odt_ctrl1		= input->odt[1];
@@ -845,16 +895,16 @@ static int phy_gen2_msg_init(void *msg_1d,
 				input->basic.num_active_dbyte_dfi1) * 8;
 	msg_blk->x16present		= input->basic.dram_data_width == 0x10 ?
 					  msg_blk->cs_present : 0;
-	msg_blk->d4misc			= 0x1;
-	msg_blk->cs_setup_gddec		= 0x1;
-	msg_blk->rtt_nom_wr_park0	= 0;
-	msg_blk->rtt_nom_wr_park1	= 0;
-	msg_blk->rtt_nom_wr_park2	= 0;
-	msg_blk->rtt_nom_wr_park3	= 0;
-	msg_blk->rtt_nom_wr_park4	= 0;
-	msg_blk->rtt_nom_wr_park5	= 0;
-	msg_blk->rtt_nom_wr_park6	= 0;
-	msg_blk->rtt_nom_wr_park7	= 0;
+	msg_blk->d4misc			= U(0x1);
+	msg_blk->cs_setup_gddec		= U(0x1);
+	msg_blk->rtt_nom_wr_park0	= 0U;
+	msg_blk->rtt_nom_wr_park1	= 0U;
+	msg_blk->rtt_nom_wr_park2	= 0U;
+	msg_blk->rtt_nom_wr_park3	= 0U;
+	msg_blk->rtt_nom_wr_park4	= 0U;
+	msg_blk->rtt_nom_wr_park5	= 0U;
+	msg_blk->rtt_nom_wr_park6	= 0U;
+	msg_blk->rtt_nom_wr_park7	= 0U;
 	msg_blk->mr0			= input->mr[0];
 	msg_blk->mr1			= input->mr[1];
 	msg_blk->mr2			= input->mr[2];
@@ -862,19 +912,20 @@ static int phy_gen2_msg_init(void *msg_1d,
 	msg_blk->mr4			= input->mr[4];
 	msg_blk->mr5			= input->mr[5];
 	msg_blk->mr6			= input->mr[6];
-	if (msg_blk->mr4 & 0x1c0)
+	if ((msg_blk->mr4 & U(0x1c0)) != 0U) {
 		ERROR("Setting DRAM CAL mode is not supported\n");
+	}
 
-	msg_blk->alt_cas_l		= 0;
-	msg_blk->alt_wcas_l		= 0;
+	msg_blk->alt_cas_l		= 0U;
+	msg_blk->alt_wcas_l		= 0U;
 
-	msg_blk->dramfreq		= input->basic.frequency * 2;
+	msg_blk->dramfreq		= input->basic.frequency * 2U;
 	msg_blk->pll_bypass_en		= input->basic.pll_bypass;
-	msg_blk->dfi_freq_ratio		= input->basic.dfi_freq_ratio == 0 ? 1 :
-					  input->basic.dfi_freq_ratio == 1 ? 2 :
-					  4;
+	msg_blk->dfi_freq_ratio		= input->basic.dfi_freq_ratio == 0U ? 1U :
+					  input->basic.dfi_freq_ratio == 1U ? 2U :
+					  4U;
 	msg_blk->bpznres_val		= input->adv.ext_cal_res_val;
-	msg_blk->disabled_dbyte		= 0;
+	msg_blk->disabled_dbyte		= 0U;
 
 	debug("msg_blk->dram_type = 0x%x\n", msg_blk->dram_type);
 	debug("msg_blk->sequence_ctrl = 0x%x\n", msg_blk->sequence_ctrl);
@@ -898,7 +949,7 @@ static int phy_gen2_msg_init(void *msg_1d,
 	if (input->basic.dimm_type == RDIMM ||
 	    input->basic.dimm_type == LRDIMM) {
 		msg_blk_r = (struct ddr4r1d *)msg_blk;
-		if (msg_blk_r->cs_present_d0) {
+		if (msg_blk_r->cs_present_d0 != 0U) {
 			msg_blk_r->f0rc00_d0 = input->rcw[0];
 			msg_blk_r->f0rc01_d0 = input->rcw[1];
 			msg_blk_r->f0rc02_d0 = input->rcw[2];
@@ -917,7 +968,7 @@ static int phy_gen2_msg_init(void *msg_1d,
 			msg_blk_r->f0rc0f_d0 = input->rcw[15];
 			msg_blk_r->f0rc3x_d0 = input->rcw3x;
 		}
-		if (msg_blk_r->cs_present_d1) {
+		if (msg_blk_r->cs_present_d1 != 0) {
 			msg_blk_r->f0rc00_d1 = input->rcw[0];
 			msg_blk_r->f0rc01_d1 = input->rcw[1];
 			msg_blk_r->f0rc02_d1 = input->rcw[2];
@@ -946,22 +997,23 @@ static int phy_gen2_msg_init(void *msg_1d,
 	}
 
 	/* below is different for 1D and 2D message block */
-	if (input->basic.train2d) {
+	if (input->basic.train2d != 0) {
 		memcpy(msg_blk_2d, msg_blk, sizeof(struct ddr4u1d));
 		/*High-Effort WrDQ1D is applicable to 2D traning also*/
-		msg_blk_2d->reserved00          |= 0x40;
-		msg_blk_2d->sequence_ctrl	= 0x0061;
-		msg_blk_2d->rx2d_train_opt	= 0;
-		msg_blk_2d->tx2d_train_opt	= 0;
-		msg_blk_2d->share2dvref_result	= 1;
-		msg_blk_2d->delay_weight2d      = 0x80;
-		msg_blk_2d->voltage_weight2d    = 0x20;
+		msg_blk_2d->reserved00          |= U(0x40);
+		msg_blk_2d->sequence_ctrl	= U(0x0061);
+		msg_blk_2d->rx2d_train_opt	= 0U;
+		msg_blk_2d->tx2d_train_opt	= 0U;
+		msg_blk_2d->share2dvref_result	= 1U;
+		msg_blk_2d->delay_weight2d	= U(0x20);
+		msg_blk_2d->voltage_weight2d	= U(0x80);
 		debug("rx2d_train_opt %d, tx2d_train_opt %d\n",
 				msg_blk_2d->rx2d_train_opt,
 				msg_blk_2d->tx2d_train_opt);
 	}
 
-	msg_blk->phy_cfg = ((msg_blk->mr3 & 0x8) || (msg_blk_2d->mr3 & 0x8)) ? 0
+	msg_blk->phy_cfg = (((msg_blk->mr3 & U(0x8)) != 0U) ||
+				((msg_blk_2d->mr3 & 0x8) != 0U)) ? 0U
 				: input->adv.is2ttiming;
 
 	return 0;
@@ -1019,10 +1071,11 @@ static void prog_atx_pre_drv_mode(uint16_t *phy,
 
 	for (anib = 0; anib < input->basic.num_anib; anib++) {
 		c_addr = anib << 12;
-		if (anib == ck_anib_inst[0] || anib == ck_anib_inst[1])
+		if (anib == ck_anib_inst[0] || anib == ck_anib_inst[1]) {
 			atx_pre_drv_mode = 0;
-		else
+		} else {
 			atx_pre_drv_mode = 3;
+		}
 		atx_slew_rate = atx_pre_drv_mode << csr_atx_pre_drv_mode_lsb |
 				atx_pre_n << csr_atx_pre_n_lsb		     |
 				atx_pre_p << csr_atx_pre_p_lsb;
@@ -1037,8 +1090,9 @@ static void prog_enable_cs_multicast(uint16_t *phy,
 	uint32_t addr = t_master | csr_enable_cs_multicast_addr;
 
 	if (input->basic.dimm_type != RDIMM &&
-	    input->basic.dimm_type != LRDIMM)
+	    input->basic.dimm_type != LRDIMM) {
 		return;
+	}
 
 	phy_io_write16(phy, addr, input->adv.cast_cs_to_cid);
 }
@@ -1049,10 +1103,10 @@ static void prog_dfi_rd_data_cs_dest_map(uint16_t *phy,
 					 const struct ddr4lr1d *msg)
 {
 	const struct ddr4lr1d *msg_blk;
-	uint16_t dfi_xxdestm0 = 0;
-	uint16_t dfi_xxdestm1 = 0;
-	uint16_t dfi_xxdestm2 = 0;
-	uint16_t dfi_xxdestm3 = 0;
+	uint16_t dfi_xxdestm0 = 0U;
+	uint16_t dfi_xxdestm1 = 0U;
+	uint16_t dfi_xxdestm2 = 0U;
+	uint16_t dfi_xxdestm3 = 0U;
 	uint16_t dfi_rd_data_cs_dest_map;
 	uint16_t dfi_wr_data_cs_dest_map;
 	__unused const soc_info_t *soc_info;
@@ -1060,10 +1114,10 @@ static void prog_dfi_rd_data_cs_dest_map(uint16_t *phy,
 #ifdef ERRATA_DDR_A011396
 	/* Only apply to DDRC 5.05.00 */
 	soc_info = get_soc_info();
-	if ((soc_info->svr_reg.bf.maj_ver == 1) && (ip_rev == 0x50500)) {
+	if ((soc_info->svr_reg.bf.maj_ver == 1U) && (ip_rev == U(0x50500))) {
 		phy_io_write16(phy,
 				t_master | csr_dfi_rd_data_cs_dest_map_addr,
-				0);
+				0U);
 		return;
 	}
 #endif
@@ -1074,9 +1128,9 @@ static void prog_dfi_rd_data_cs_dest_map(uint16_t *phy,
 	case UDIMM:
 	case SODIMM:
 	case NODIMM:
-		if ((msg_blk->msg_misc & 0x40) != 0) {
-			dfi_rd_data_cs_dest_map = 0xa0;
-			dfi_wr_data_cs_dest_map = 0xa0;
+		if ((msg_blk->msg_misc & U(0x40)) != 0U) {
+			dfi_rd_data_cs_dest_map = U(0xa0);
+			dfi_wr_data_cs_dest_map = U(0xa0);
 
 			phy_io_write16(phy,
 				t_master | csr_dfi_rd_data_cs_dest_map_addr,
@@ -1087,9 +1141,9 @@ static void prog_dfi_rd_data_cs_dest_map(uint16_t *phy,
 		}
 		break;
 	case LRDIMM:
-		if (msg->cs_present_d1) {
-			dfi_xxdestm2 = 1;
-			dfi_xxdestm3 = 1;
+		if (msg->cs_present_d1 != 0U) {
+			dfi_xxdestm2 = 1U;
+			dfi_xxdestm3 = 1U;
 		}
 
 		dfi_rd_data_cs_dest_map =
@@ -1143,20 +1197,21 @@ static void prog_pll_ctrl2(uint16_t *phy,
 	int pll_ctrl2;
 	uint32_t addr = t_master | csr_pll_ctrl2_addr;
 
-	if (input->basic.frequency / 2 < 235)
+	if (input->basic.frequency / 2 < 235) {
 		pll_ctrl2 = 0x7;
-	else if (input->basic.frequency / 2 < 313)
+	} else if (input->basic.frequency / 2 < 313) {
 		pll_ctrl2 = 0x6;
-	else if (input->basic.frequency / 2 < 469)
+	} else if (input->basic.frequency / 2 < 469) {
 		pll_ctrl2 = 0xb;
-	else if (input->basic.frequency / 2 < 625)
+	} else if (input->basic.frequency / 2 < 625) {
 		pll_ctrl2 = 0xa;
-	else if (input->basic.frequency / 2 < 938)
+	} else if (input->basic.frequency / 2 < 938) {
 		pll_ctrl2 = 0x19;
-	else if (input->basic.frequency / 2 < 1067)
+	} else if (input->basic.frequency / 2 < 1067) {
 		pll_ctrl2 = 0x18;
-	else
+	} else {
 		pll_ctrl2 = 0x19;
+	}
 
 	phy_io_write16(phy, addr, pll_ctrl2);
 
@@ -1167,7 +1222,7 @@ static void prog_dll_lck_param(uint16_t *phy, const struct input *input)
 {
 	uint32_t addr = t_master | csr_dll_lockparam_addr;
 
-	phy_io_write16(phy, addr, 0x212);
+	phy_io_write16(phy, addr, U(0x212));
 	debug("dll_lck_param = 0x%x\n", phy_io_read16(phy, addr));
 }
 
@@ -1175,7 +1230,7 @@ static void prog_dll_gain_ctl(uint16_t *phy, const struct input *input)
 {
 	uint32_t addr = t_master | csr_dll_gain_ctl_addr;
 
-	phy_io_write16(phy, addr, 0x61);
+	phy_io_write16(phy, addr, U(0x61));
 	debug("dll_gain_ctl = 0x%x\n", phy_io_read16(phy, addr));
 }
 
@@ -1185,7 +1240,7 @@ static void prog_pll_pwr_dn(uint16_t *phy,
 	uint32_t addr;
 
 	addr = t_master | csr_pll_pwr_dn_addr;
-	phy_io_write16(phy, addr, 0);
+	phy_io_write16(phy, addr, 0U);
 
 	debug("pll_pwrdn = 0x%x\n", phy_io_read16(phy, addr));
 }
@@ -1196,10 +1251,11 @@ static void prog_ard_ptr_init_val(uint16_t *phy,
 	int ard_ptr_init_val;
 	uint32_t addr = t_master | csr_ard_ptr_init_val_addr;
 
-	if (input->basic.frequency >= 933)
+	if (input->basic.frequency >= 933) {
 		ard_ptr_init_val = 0x2;
-	else
+	} else {
 		ard_ptr_init_val = 0x1;
+	}
 
 	phy_io_write16(phy, addr, ard_ptr_init_val);
 }
@@ -1238,20 +1294,22 @@ static void prog_proc_odt_time_ctl(uint16_t *phy,
 	int proc_odt_time_ctl;
 	uint32_t addr = t_master | csr_proc_odt_time_ctl_addr;
 
-	if (input->adv.wdqsext) {
+	if (input->adv.wdqsext != 0) {
 		proc_odt_time_ctl = 0x3;
 	} else if (input->basic.frequency <= 933) {
 		proc_odt_time_ctl = 0xa;
 	} else if (input->basic.frequency <= 1200) {
-		if (input->adv.d4rx_preamble_length == 1)
+		if (input->adv.d4rx_preamble_length == 1) {
 			proc_odt_time_ctl = 0x2;
-		else
+		} else {
 			proc_odt_time_ctl = 0x6;
+		}
 	} else {
-		if (input->adv.d4rx_preamble_length == 1)
+		if (input->adv.d4rx_preamble_length == 1) {
 			proc_odt_time_ctl = 0x3;
-		else
+		} else {
 			proc_odt_time_ctl = 0x7;
+		}
 	}
 	phy_io_write16(phy, addr, proc_odt_time_ctl);
 }
@@ -1282,10 +1340,11 @@ static int map_impedance(int strength)
 	const struct impedance_mapping *tbl = map;
 	int val = 0;
 
-	if (strength == 0)
+	if (strength == 0) {
 		return 0;
+	}
 
-	while (tbl->ohm) {
+	while (tbl->ohm != 0U) {
 		if (strength < tbl->ohm) {
 			val = tbl->code;
 			break;
@@ -1301,16 +1360,17 @@ static int map_odtstren_p(int strength, int hard_macro_ver)
 	int val = -1;
 
 	if (hard_macro_ver == 4) {
-		if (strength == 0)
+		if (strength == 0) {
 			val = 0;
-		else if (strength == 120)
+		} else if (strength == 120) {
 			val = 0x8;
-		else if (strength == 60)
+		} else if (strength == 60) {
 			val = 0x18;
-		else if (strength == 40)
+		} else if (strength == 40) {
 			val = 0x38;
-		else
+		} else {
 			printf("error: unsupported ODTStrenP %d\n", strength);
+		}
 	} else {
 		val = map_impedance(strength);
 	}
@@ -1328,8 +1388,9 @@ static void prog_tx_odt_drv_stren(uint16_t *phy,
 
 	odtstren_p = map_odtstren_p(input->adv.odtimpedance,
 				input->basic.hard_macro_ver);
-	if (odtstren_p < 0)
+	if (odtstren_p < 0) {
 		return;
+	}
 
 	odtstren_n = 0;	/* always high-z */
 	tx_odt_drv_stren = odtstren_n << csr_odtstren_n_lsb | odtstren_p;
@@ -1349,17 +1410,18 @@ static int map_drvstren_fsdq_p(int strength, int hard_macro_ver)
 	int val = -1;
 
 	if (hard_macro_ver == 4) {
-		if (strength == 0)
+		if (strength == 0) {
 			val = 0x07;
-		else if (strength == 120)
+		} else if (strength == 120) {
 			val = 0x0F;
-		else if (strength == 60)
+		} else if (strength == 60) {
 			val = 0x1F;
-		else if (strength == 40)
+		} else if (strength == 40) {
 			val = 0x3F;
-		else
+		} else {
 			printf("error: unsupported drv_stren_fSDq_p %d\n",
 			       strength);
+		}
 	} else {
 		val = map_impedance(strength);
 	}
@@ -1372,17 +1434,18 @@ static int map_drvstren_fsdq_n(int strength, int hard_macro_ver)
 	int val = -1;
 
 	if (hard_macro_ver == 4) {
-		if (strength == 0)
+		if (strength == 0) {
 			val = 0x00;
-		else if (strength == 120)
+		} else if (strength == 120) {
 			val = 0x08;
-		else if (strength == 60)
+		} else if (strength == 60) {
 			val = 0x18;
-		else if (strength == 40)
+		} else if (strength == 40) {
 			val = 0x38;
-		else
+		} else {
 			printf("error: unsupported drvStrenFSDqN %d\n",
 			       strength);
+		}
 	} else {
 		val = map_impedance(strength);
 	}
@@ -1421,31 +1484,33 @@ static int map_adrv_stren_p(int strength, int hard_macro_ver)
 	int val = -1;
 
 	if (hard_macro_ver == 4) {
-		if (strength == 120)
+		if (strength == 120) {
 			val = 0x1c;
-		else if (strength == 60)
+		} else if (strength == 60) {
 			val = 0x1d;
-		else if (strength == 40)
+		} else if (strength == 40) {
 			val = 0x1f;
-		else
+		} else {
 			printf("error: unsupported aDrv_stren_p %d\n",
 			       strength);
+		}
 	} else {
-		if (strength == 120)
+		if (strength == 120) {
 			val = 0x00;
-		else if (strength == 60)
+		} else if (strength == 60) {
 			val = 0x01;
-		else if (strength == 40)
+		} else if (strength == 40) {
 			val = 0x03;
-		else if (strength == 30)
+		} else if (strength == 30) {
 			val = 0x07;
-		else if (strength == 24)
+		} else if (strength == 24) {
 			val = 0x0f;
-		else if (strength == 20)
+		} else if (strength == 20) {
 			val = 0x1f;
-		else
+		} else {
 			printf("error: unsupported aDrv_stren_p %d\n",
 			       strength);
+		}
 	}
 
 	return val;
@@ -1456,29 +1521,31 @@ static int map_adrv_stren_n(int strength, int hard_macro_ver)
 	int val = -1;
 
 	if (hard_macro_ver == 4) {
-		if (strength == 120)
+		if (strength == 120) {
 			val = 0x00;
-		else if (strength == 60)
+		} else if (strength == 60) {
 			val = 0x01;
-		else if (strength == 40)
+		} else if (strength == 40) {
 			val = 0x03;
-		else
+		} else {
 			printf("Error: unsupported ADrvStrenP %d\n", strength);
+		}
 	} else {
-		if (strength == 120)
+		if (strength == 120) {
 			val = 0x00;
-		else if (strength == 60)
+		} else if (strength == 60) {
 			val = 0x01;
-		else if (strength == 40)
+		} else if (strength == 40) {
 			val = 0x03;
-		else if (strength == 30)
+		} else if (strength == 30) {
 			val = 0x07;
-		else if (strength == 24)
+		} else if (strength == 24) {
 			val = 0x0f;
-		else if (strength == 20)
+		} else if (strength == 20) {
 			val = 0x1f;
-		else
+		} else {
 			printf("Error: unsupported ADrvStrenP %d\n", strength);
+		}
 	}
 
 	return val;
@@ -1518,10 +1585,11 @@ static void prog_dfi_mode(uint16_t *phy,
 	int dfi_mode;
 	uint32_t addr;
 
-	if (input->basic.dfi1exists == 1)
+	if (input->basic.dfi1exists == 1) {
 		dfi_mode = 0x5;	/* DFI1 exists but disabled */
-	else
+	} else {
 		dfi_mode = 0x1;	/* DFI1 does not physically exists */
+	}
 	addr = t_master | csr_dfi_mode_addr;
 	phy_io_write16(phy, addr, dfi_mode);
 }
@@ -1567,8 +1635,9 @@ static void prog_cal_uclk_info(uint16_t *phy,
 	uint32_t addr;
 
 	cal_uclk_ticks_per1u_s = input->basic.frequency >> 1;
-	if (cal_uclk_ticks_per1u_s < 24)
+	if (cal_uclk_ticks_per1u_s < 24) {
 		cal_uclk_ticks_per1u_s = 24;
+	}
 
 	addr = t_master | csr_cal_uclk_info_addr;
 	phy_io_write16(phy, addr, cal_uclk_ticks_per1u_s);
@@ -1657,7 +1726,7 @@ static void prog_mem_alert_control(uint16_t *phy,
 	int malertdisable_val_defval = 1;
 	uint32_t addr;
 
-	if (input->basic.dram_type ==  DDR4 && input->adv.mem_alert_en == 1) {
+	if (input->basic.dram_type == DDR4 && input->adv.mem_alert_en == 1) {
 		malertpu_en = 1;
 		malertrx_en = 1;
 		malertpu_stren = input->adv.mem_alert_puimp;
@@ -1715,12 +1784,13 @@ static void prog_dfi_xlat(uint16_t *phy,
 	/* fIXME: Shall unused P1, P2, P3 be bypassed? */
 	pllbypass_dat = input->basic.pll_bypass; /* only [0] is used */
 	for (loop_vector = 0; loop_vector < 8; loop_vector++) {
-		if (loop_vector == 0)
+		if (loop_vector == 0) {
 			dfifreqxlat_dat = pllbypass_dat + 0x5555;
-		else if (loop_vector == 7)
+		} else if (loop_vector == 7) {
 			dfifreqxlat_dat = 0xf000;
-		else
+		} else {
 			dfifreqxlat_dat = 0x5555;
+		}
 		addr = t_master | (csr_dfi_freq_xlat0_addr + loop_vector);
 		phy_io_write16(phy, addr, dfifreqxlat_dat);
 	}
@@ -1830,8 +1900,9 @@ static int c_init_phy_config(uint16_t **phy_ptr,
 
 	for (i = 0; i < NUM_OF_DDRC; i++) {
 		phy = phy_ptr[i];
-		if (!phy)
+		if (phy == NULL) {
 			continue;
+		}
 
 		debug("Initialize PHY %d config\n", i);
 		prog_dfi_phyupd(phy, input);
@@ -1882,22 +1953,22 @@ static int c_init_phy_config(uint16_t **phy_ptr,
 static uint32_t get_mail(uint16_t *phy, int stream)
 {
 	int timeout;
-	uint32_t mail = 0;
+	uint32_t mail = 0U;
 
 	timeout = TIMEOUTDEFAULT;
-	while (--timeout &&
-	       (phy_io_read16(phy, t_apbonly | csr_uct_shadow_regs)
-		& uct_write_prot_shadow_mask)) {
+	while (((--timeout) != 0) &&
+	       ((phy_io_read16(phy, t_apbonly | csr_uct_shadow_regs)
+		& uct_write_prot_shadow_mask) != 0)) {
 		mdelay(10);
 	}
-	if (!timeout) {
+	if (timeout == 0) {
 		ERROR("Timeout getting mail from PHY\n");
 		return 0xFFFF;
 	}
 
 	mail = phy_io_read16(phy, t_apbonly |
 			     csr_uct_write_only_shadow);
-	if (stream) {
+	if (stream != 0) {
 		mail |= phy_io_read16(phy, t_apbonly |
 				      csr_uct_dat_write_only_shadow) << 16;
 	}
@@ -1906,16 +1977,17 @@ static uint32_t get_mail(uint16_t *phy, int stream)
 	phy_io_write16(phy, t_apbonly | csr_dct_write_prot, 0);
 
 	timeout = TIMEOUTDEFAULT;
-	while (--timeout &&
-	       !(phy_io_read16(phy, t_apbonly | csr_uct_shadow_regs)
-		 & uct_write_prot_shadow_mask)) {
+	while (((--timeout) != 0) &&
+	       ((phy_io_read16(phy, t_apbonly | csr_uct_shadow_regs)
+		 & uct_write_prot_shadow_mask) == 0)) {
 		mdelay(1);
 	}
-	if (!timeout)
+	if (timeout == 0) {
 		ERROR("Timeout ack PHY mail\n");
+	}
 
 	/* completed */
-	phy_io_write16(phy, t_apbonly | csr_dct_write_prot, 1);
+	phy_io_write16(phy, t_apbonly | csr_dct_write_prot, 1U);
 
 	return mail;
 }
@@ -1928,7 +2000,7 @@ static const char *lookup_msg(uint32_t index, int train2d)
 	const struct phy_msg *messages;
 	const char *ptr = NULL;
 
-	if (train2d) {
+	if (train2d != 0) {
 		messages = messages_2d;
 		size = ARRAY_SIZE(messages_2d);
 	} else {
@@ -1946,18 +2018,6 @@ static const char *lookup_msg(uint32_t index, int train2d)
 }
 #endif
 
-const struct ddrphy_fw_ver_tbl ddrphyfw_tbl[] = {
-    {0x1000, "2018.10"},
-    {0x1001, "2019.04"},
-    {0x1003, "2019.11"},
-    {0x1007, "2020.06"},
-    {0x100d, "2020.06-SP1"},
-    {0xFFFFFFFF, "UNKNOWN"},
-};
-
-#define DDRPHY_FW_VERSION_TABLE_SIZE (ARRAY_SIZE(ddrphyfw_tbl))
-
-#define FW_VER_MSGID_4_1D 0x00b50001
 #define MAX_ARGS 32
 static void decode_stream_message(uint16_t *phy, int train2d)
 {
@@ -1966,128 +2026,116 @@ static void decode_stream_message(uint16_t *phy, int train2d)
 	__unused const char *format;
 	__unused uint32_t args[MAX_ARGS];
 	__unused int i;
-    __unused static uint32_t fwver_found = 0;
 
-	index = get_mail(phy, 1);
-	if ((index & 0xffff) > MAX_ARGS)	/* up to MAX_ARGS args so far */
-		ERROR("index (%x) > MAX_ARGS in %s\n",index, __func__);
-
-	for (i = 0; i < (index & 0xffff) && i < MAX_ARGS; i++)
-		args[i] = get_mail(phy, 1);
-
-    if (!fwver_found && (FW_VER_MSGID_4_1D == index)) {
-        fwver_found = 1; /* 0-NO, 1-YES */
-        for (i = 0; i < (DDRPHY_FW_VERSION_TABLE_SIZE-1); i++) {
-            if (args[0] == ddrphyfw_tbl[i].pmu_fwversion) {
-                break;
-            }
-        }
-
-        NOTICE("DDR PMU Firmware vision-0x%x (vA-%s)\n",
-                args[0], ddrphyfw_tbl[i].fwverstr);
-    }
 #ifdef DDR_PHY_DEBUG
-    else {
-        format = lookup_msg(index, train2d);
-        if (format) {
-            printf("0x%08x: ", index);
-            printf(format, args[0], args[1], args[2], args[3], args[4],
-                    args[5], args[6], args[7], args[8], args[9], args[10],
-                    args[11], args[12], args[13], args[14], args[15],
-                    args[16], args[17], args[18], args[19], args[20],
-                    args[21], args[22], args[23], args[24], args[25],
-                    args[26], args[27], args[28], args[29], args[30],
-                    args[31]);
-        }
-    }
-#endif /* DDR_PHY_DEBUG */
+	index = get_mail(phy, 1);
+	if ((index & 0xffff) > MAX_ARGS) {	/* up to MAX_ARGS args so far */
+		printf("Program error in %s\n", __func__);
+	}
+	for (i = 0; i < (index & 0xffff) && i < MAX_ARGS; i++) {
+		args[i] = get_mail(phy, 1);
+	}
+
+	format = lookup_msg(index, train2d);
+	if (format != NULL) {
+		printf("0x%08x: ", index);
+		printf(format, args[0], args[1], args[2], args[3], args[4],
+		       args[5], args[6], args[7], args[8], args[9], args[10],
+		       args[11], args[12], args[13], args[14], args[15],
+		       args[16], args[17], args[18], args[19], args[20],
+		       args[21], args[22], args[23], args[24], args[25],
+		       args[26], args[27], args[28], args[29], args[30],
+		       args[31]);
+	}
+#endif
 }
 
 static int wait_fw_done(uint16_t *phy, int train2d)
 {
-	uint32_t mail = 0;
+	uint32_t mail = 0U;
 
-	while (mail == 0x0) {
+	while (mail == U(0x0)) {
 		mail = get_mail(phy, 0);
 		switch (mail) {
-		case 0x7:
+		case U(0x7):
 			debug("%s Training completed\n", train2d ? "2D" : "1D");
 			break;
-		case 0xff:
+		case U(0xff):
 			debug("%s Training failure\n", train2d ? "2D" : "1D");
 			break;
-		case 0x0:
+		case U(0x0):
 			debug("End of initialization\n");
-			mail = 0;
+			mail = 0U;
 			break;
-		case 0x1:
+		case U(0x1):
 			debug("End of fine write leveling\n");
-			mail = 0;
+			mail = 0U;
 			break;
-		case 0x2:
+		case U(0x2):
 			debug("End of read enable training\n");
-			mail = 0;
+			mail = 0U;
 			break;
-		case 0x3:
+		case U(0x3):
 			debug("End of read delay center optimization\n");
-			mail = 0;
+			mail = 0U;
 			break;
-		case 0x4:
+		case U(0x4):
 			debug("End of write delay center optimization\n");
-			mail = 0;
+			mail = 0U;
 			break;
-		case 0x5:
+		case U(0x5):
 			debug("End of 2D read delay/voltage center optimztn\n");
-			mail = 0;
+			mail = 0U;
 			break;
-		case 0x6:
+		case U(0x6):
 			debug("End of 2D write delay/voltage center optmztn\n");
-			mail = 0;
+			mail = 0U;
 			break;
-		case 0x8:
+		case U(0x8):
 			decode_stream_message(phy, train2d);
-			mail = 0;
+			mail = 0U;
 			break;
-		case 0x9:
+		case U(0x9):
 			debug("End of max read latency training\n");
-			mail = 0;
+			mail = 0U;
 			break;
-		case 0xa:
+		case U(0xa):
 			debug("End of read dq deskew training\n");
-			mail = 0;
+			mail = 0U;
 			break;
-		case 0xc:
+		case U(0xc):
 			debug("End of LRDIMM Specific training, including:\n");
 			debug("/tDWL, MREP, MRD and MWD\n");
-			mail = 0;
+			mail = 0U;
 			break;
-		case 0xd:
+		case U(0xd):
 			debug("End of CA training\n");
-			mail = 0;
+			mail = 0U;
 			break;
-		case 0xfd:
+		case U(0xfd):
 			debug("End of MPR read delay center optimization\n");
-			mail = 0;
+			mail = 0U;
 			break;
-		case 0xfe:
+		case U(0xfe):
 			debug("End of Write leveling coarse delay\n");
-			mail = 0;
+			mail = 0U;
 			break;
-		case 0xffff:
+		case U(0xffff):
 			debug("Timed out\n");
 			break;
 		default:
-			mail = 0;
+			mail = 0U;
 			break;
 		}
 	}
 
-	if (mail == 0x7)
+	if (mail == U(0x7)) {
 		return 0;
-	else if (mail == 0xff)
+	} else if (mail == U(0xff)) {
 		return -EIO;
-	else if (mail == 0xffff)
+	} else if (mail == U(0xffff)) {
 		return -ETIMEDOUT;
+	}
 
 	debug("PHY_GEN2 FW: Unxpected mail = 0x%x\n", mail);
 
@@ -2102,8 +2150,9 @@ static int g_exec_fw(uint16_t **phy_ptr, int train2d, struct input *input)
 
 	for (i = 0; i < NUM_OF_DDRC; i++) {
 		phy = phy_ptr[i];
-		if (!phy)
+		if (phy == NULL) {
 			continue;
+		}
 		debug("Applying PLL optimal settings\n");
 		prog_pll_ctrl2(phy, input);
 		prog_pll_ctrl(phy, input);
@@ -2135,15 +2184,16 @@ static inline int send_fw(uint16_t *phy,
 			   uint16_t *img,
 			   uint32_t size)
 {
-	int i;
+	uint32_t i;
 
-	if (size % 2) {
+	if ((size % 2U) != 0U) {
 		ERROR("Wrong image size 0x%x\n", size);
 		return -EINVAL;
 	}
 
-	for (i = 0; i < size / 2; i++)
+	for (i = 0U; i < size / 2; i++) {
 		phy_io_write16(phy, dst + i, *(img + i));
+	}
 
 	return 0;
 }
@@ -2186,12 +2236,8 @@ static int load_fw(uint16_t **phy_ptr,
 
 	size = PHY_GEN2_MAX_IMAGE_SIZE;
 	image_buf = (uintptr_t)phy_gen2_fw_img_buf;
-	mmap_add_dynamic_region(phy_gen2_fw_img_buf,
-			phy_gen2_fw_img_buf,
-			PHY_GEN2_MAX_IMAGE_SIZE,
-			MT_MEMORY | MT_RW | MT_SECURE);
 	ret = img_loadr(imem_id, &image_buf, &size);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Failed to load %d firmware.\n", imem_id);
 		return ret;
 	}
@@ -2200,8 +2246,9 @@ static int load_fw(uint16_t **phy_ptr,
 
 	for (i = 0; i < NUM_OF_DDRC; i++) {
 		phy = phy_ptr[i];
-		if (!phy)
+		if (phy == NULL) {
 			continue;
+		}
 
 		if (warm_boot_flag != DDR_WARM_BOOT) {
 			if (train2d == 0) {
@@ -2215,14 +2262,15 @@ static int load_fw(uint16_t **phy_ptr,
 
 		ret = send_fw(phy, PHY_GEN2_IMEM_ADDR,
 			      (uint16_t *)image_buf, size);
-		if (ret)
+		if (ret != 0) {
 			return ret;
+		}
 	}
 
 	size = PHY_GEN2_MAX_IMAGE_SIZE;
 	image_buf = (uintptr_t)phy_gen2_fw_img_buf;
 	ret = img_loadr(dmem_id, &image_buf, &size);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Failed to load %d firmware.\n", dmem_id);
 		return ret;
 	}
@@ -2233,17 +2281,20 @@ static int load_fw(uint16_t **phy_ptr,
 
 	for (i = 0; i < NUM_OF_DDRC; i++) {
 		phy = phy_ptr[i];
-		if (!phy)
+		if (phy == NULL) {
 			continue;
+		}
 
 		ret = send_fw(phy, PHY_GEN2_DMEM_ADDR, msg, len);
-		if (ret)
+		if (ret != 0) {
 			return ret;
+		}
 
 		ret = send_fw(phy, PHY_GEN2_DMEM_ADDR + len / 2,
 			      (uint16_t *)image_buf, size);
-		if (ret)
+		if (ret != 0) {
 			return ret;
+		}
 	}
 
 	return ret;
@@ -2251,7 +2302,7 @@ static int load_fw(uint16_t **phy_ptr,
 
 static void parse_odt(const unsigned int val,
 		       const int read,
-		       const unsigned int i,
+		       const int i,
 		       const unsigned int cs_d0,
 		       const unsigned int cs_d1,
 		       unsigned int *odt)
@@ -2259,7 +2310,7 @@ static void parse_odt(const unsigned int val,
 	int shift = read ? 4 : 0;
 	int j;
 
-	if (i > 3) {
+	if (i < 0 || i > 3) {
 		printf("Error: invalid chip-select value\n");
 		return;
 	}
@@ -2269,44 +2320,57 @@ static void parse_odt(const unsigned int val,
 		break;
 	case DDR_ODT_ALL_OTHER_CS:
 		for (j = 0; j < DDRC_NUM_CS; j++) {
-			if (i == j)
+			if (i == j) {
 				continue;
-			if (!((cs_d0 | cs_d1) & (1 << j)))
+			}
+			if (((cs_d0 | cs_d1) & (1 << j)) == 0) {
 				continue;
+			}
 			odt[j] |= (1 << i) << shift;
 		}
 		break;
 	case DDR_ODT_CS_AND_OTHER_DIMM:
 		odt[i] |= (1 << i) << 4;
-		/* fall through */
+		/* fallthrough */
 	case DDR_ODT_OTHER_DIMM:
 		for (j = 0; j < DDRC_NUM_CS; j++) {
-			if (((cs_d0 & (1 << i)) && (cs_d1 & (1 << j))) ||
-			    ((cs_d1 & (1 << i)) && (cs_d0 & (1 << j))))
+			if ((((cs_d0 & (1 << i)) != 0) &&
+						((cs_d1 & (1 << j)) != 0)) ||
+			    (((cs_d1 & (1 << i)) != 0) &&
+						((cs_d0 & (1 << j)) != 0))) {
 				odt[j] |= (1 << i) << shift;
+			}
 		}
 		break;
 	case DDR_ODT_ALL:
 		for (j = 0; j < DDRC_NUM_CS; j++) {
-			if (!((cs_d0 | cs_d1) & (1 << j)))
+			if (((cs_d0 | cs_d1) & (1 << j)) == 0) {
 				continue;
+			}
 			odt[j] |= (1 << i) << shift;
 		}
 		break;
 	case DDR_ODT_SAME_DIMM:
 		for (j = 0; j < DDRC_NUM_CS; j++) {
-			if (((cs_d0 & (1 << i)) && (cs_d0 & (1 << j))) ||
-			    ((cs_d1 & (1 << i)) && (cs_d1 & (1 << j))))
+			if ((((cs_d0 & (1 << i)) != 0) &&
+						((cs_d0 & (1 << j)) != 0)) ||
+			    (((cs_d1 & (1 << i)) != 0) &&
+						((cs_d1 & (1 << j)) != 0))) {
 				odt[j] |= (1 << i) << shift;
+			}
 		}
 		break;
 	case DDR_ODT_OTHER_CS_ONSAMEDIMM:
 		for (j = 0; j < DDRC_NUM_CS; j++) {
-			if (i == j)
+			if (i == j) {
 				continue;
-			if (((cs_d0 & (1 << i)) && (cs_d0 & (1 << j))) ||
-			    ((cs_d1 & (1 << i)) && (cs_d1 & (1 << j))))
+			}
+			if ((((cs_d0 & (1 << i)) != 0) &&
+						((cs_d0 & (1 << j)) != 0)) ||
+			    (((cs_d1 & (1 << i)) != 0) &&
+						((cs_d1 & (1 << j)) != 0))) {
 				odt[j] |= (1 << i) << shift;
+			}
 		}
 		break;
 	case DDR_ODT_NEVER:
@@ -2435,7 +2499,7 @@ int compute_ddr_phy(struct ddr_info *priv)
 #endif
 #endif
 
-	if (!dimm_param) {
+	if (dimm_param == NULL) {
 		ERROR("Empty DIMM parameters.\n");
 		return -EINVAL;
 	}
@@ -2446,8 +2510,7 @@ int compute_ddr_phy(struct ddr_info *priv)
 
 	input.basic.dram_type = DDR4;
 	/* FIXME: Add condition for LRDIMM */
-	input.basic.dimm_type = dimm_param->rdimm ?
-				 RDIMM : UDIMM;
+	input.basic.dimm_type = (dimm_param->rdimm != 0) ? RDIMM : UDIMM;
 	input.basic.num_dbyte = dimm_param->primary_sdram_width / 8 +
 				 dimm_param->ec_sdram_width / 8;
 	input.basic.num_active_dbyte_dfi0 = input.basic.num_dbyte;
@@ -2465,20 +2528,21 @@ int compute_ddr_phy(struct ddr_info *priv)
 	input.cs_d1 = conf->cs_on_dimm[1];
 #endif
 	input.mirror = dimm_param->mirrored_dimm;
-	input.mr[0] = regs->sdram_mode[0] & 0xffff;
-	input.mr[1] = regs->sdram_mode[0] >> 16;
-	input.mr[2] = regs->sdram_mode[1] >> 16;
-	input.mr[3] = regs->sdram_mode[1] & 0xffff;
-	input.mr[4] = regs->sdram_mode[8] >> 16;
-	input.mr[5] = regs->sdram_mode[8] & 0xffff;
-	input.mr[6] = regs->sdram_mode[9] >> 16;
+	input.mr[0] = regs->sdram_mode[0] & U(0xffff);
+	input.mr[1] = regs->sdram_mode[0] >> 16U;
+	input.mr[2] = regs->sdram_mode[1] >> 16U;
+	input.mr[3] = regs->sdram_mode[1] & U(0xffff);
+	input.mr[4] = regs->sdram_mode[8] >> 16U;
+	input.mr[5] = regs->sdram_mode[8] & U(0xffff);
+	input.mr[6] = regs->sdram_mode[9] >> 16U;
 	input.vref = popts->vref_phy;
-	debug("Vref_phy = %d percent\n", (input.vref * 100) >> 7);
-	for (i = 0; i < DDRC_NUM_CS; i++) {
-		if (!(regs->cs[i].config & SDRAM_CS_CONFIG_EN))
+	debug("Vref_phy = %d percent\n", (input.vref * 100U) >> 7U);
+	for (i = 0U; i < DDRC_NUM_CS; i++) {
+		if ((regs->cs[i].config & SDRAM_CS_CONFIG_EN) == 0U) {
 			continue;
-		odt_rd = (regs->cs[i].config >> 20) & 0x7;
-		odt_wr = (regs->cs[i].config >> 16) & 0x7;
+		}
+		odt_rd = (regs->cs[i].config >> 20U) & U(0x7);
+		odt_wr = (regs->cs[i].config >> 16U) & U(0x7);
 		parse_odt(odt_rd, true, i, input.cs_d0, input.cs_d1,
 			   input.odt);
 		parse_odt(odt_wr, false, i, input.cs_d0, input.cs_d1,
@@ -2486,26 +2550,26 @@ int compute_ddr_phy(struct ddr_info *priv)
 	}
 
 	/* Do not set sdram_cfg[RD_EN] or sdram_cfg2[RCW_EN] for RDIMM */
-	if (dimm_param->rdimm) {
-		regs->sdram_cfg[0] &= ~(1 << 28);
-		regs->sdram_cfg[1] &= ~(1 << 2);
-		input.rcw[0] = (regs->sdram_rcw[0] >> 28) & 0xf;
-		input.rcw[1] = (regs->sdram_rcw[0] >> 24) & 0xf;
-		input.rcw[2] = (regs->sdram_rcw[0] >> 20) & 0xf;
-		input.rcw[3] = (regs->sdram_rcw[0] >> 16) & 0xf;
-		input.rcw[4] = (regs->sdram_rcw[0] >> 12) & 0xf;
-		input.rcw[5] = (regs->sdram_rcw[0] >> 8) & 0xf;
-		input.rcw[6] = (regs->sdram_rcw[0] >> 4) & 0xf;
-		input.rcw[7] = (regs->sdram_rcw[0] >> 0) & 0xf;
-		input.rcw[8] = (regs->sdram_rcw[1] >> 28) & 0xf;
-		input.rcw[9] = (regs->sdram_rcw[1] >> 24) & 0xf;
-		input.rcw[10] = (regs->sdram_rcw[1] >> 20) & 0xf;
-		input.rcw[11] = (regs->sdram_rcw[1] >> 16) & 0xf;
-		input.rcw[12] = (regs->sdram_rcw[1] >> 12) & 0xf;
-		input.rcw[13] = (regs->sdram_rcw[1] >> 8) & 0xf;
-		input.rcw[14] = (regs->sdram_rcw[1] >> 4) & 0xf;
-		input.rcw[15] = (regs->sdram_rcw[1] >> 0) & 0xf;
-		input.rcw3x = (regs->sdram_rcw[2] >> 8) & 0xff;
+	if (dimm_param->rdimm != 0U) {
+		regs->sdram_cfg[0] &= ~(1 << 28U);
+		regs->sdram_cfg[1] &= ~(1 << 2U);
+		input.rcw[0] = (regs->sdram_rcw[0] >> 28U) & U(0xf);
+		input.rcw[1] = (regs->sdram_rcw[0] >> 24U) & U(0xf);
+		input.rcw[2] = (regs->sdram_rcw[0] >> 20U) & U(0xf);
+		input.rcw[3] = (regs->sdram_rcw[0] >> 16U) & U(0xf);
+		input.rcw[4] = (regs->sdram_rcw[0] >> 12U) & U(0xf);
+		input.rcw[5] = (regs->sdram_rcw[0] >> 8U) & U(0xf);
+		input.rcw[6] = (regs->sdram_rcw[0] >> 4U) & U(0xf);
+		input.rcw[7] = (regs->sdram_rcw[0] >> 0U) & U(0xf);
+		input.rcw[8] = (regs->sdram_rcw[1] >> 28U) & U(0xf);
+		input.rcw[9] = (regs->sdram_rcw[1] >> 24U) & U(0xf);
+		input.rcw[10] = (regs->sdram_rcw[1] >> 20U) & U(0xf);
+		input.rcw[11] = (regs->sdram_rcw[1] >> 16U) & U(0xf);
+		input.rcw[12] = (regs->sdram_rcw[1] >> 12U) & U(0xf);
+		input.rcw[13] = (regs->sdram_rcw[1] >> 8U) & U(0xf);
+		input.rcw[14] = (regs->sdram_rcw[1] >> 4U) & U(0xf);
+		input.rcw[15] = (regs->sdram_rcw[1] >> 0U) & U(0xf);
+		input.rcw3x = (regs->sdram_rcw[2] >> 8U) & U(0xff);
 	}
 
 	input.adv.odtimpedance = popts->odt ? popts->odt : 60;
@@ -2519,25 +2583,16 @@ int compute_ddr_phy(struct ddr_info *priv)
 
 	debug("Initializing message block\n");
 	ret = phy_gen2_msg_init(&msg_1d, &msg_2d, &input);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Init msg failed (error code %d)\n", ret);
 		return ret;
 	}
 
 	ret = c_init_phy_config(priv->phy, priv->ip_rev, &input, &msg_1d);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Init PHY failed (error code %d)\n", ret);
 		return ret;
 	}
-
-    /* get phy fw version */
-    phy_io_write16(priv->phy[0], t_apbonly | csr_micro_cont_mux_sel_addr, 0);
-
-    NOTICE("DDR PMU Hardware version-0x%x\n",
-            phy_io_read16(priv->phy[0], t_drtub | csr_pubrev));
-
-    phy_io_write16(priv->phy[0], t_apbonly | csr_micro_cont_mux_sel_addr, 1);
-
 #ifdef NXP_WARM_BOOT
 	debug("Warm boot flag value %0x\n", priv->warm_boot_flag);
 	if (priv->warm_boot_flag == DDR_WARM_BOOT) {
@@ -2561,20 +2616,30 @@ int compute_ddr_phy(struct ddr_info *priv)
 #endif
 	} else {
 #endif
+		/* Mapping IMG buffer firstly */
+		ret = mmap_add_dynamic_region(priv->phy_gen2_fw_img_buf,
+			priv->phy_gen2_fw_img_buf,
+			PHY_GEN2_MAX_IMAGE_SIZE,
+			MT_MEMORY | MT_RW | MT_SECURE);
+		if (ret != 0) {
+			ERROR("Failed to add dynamic memory region.\n");
+			return ret;
+		}
 
 		debug("Load 1D firmware\n");
 		ret = load_fw(priv->phy, &input, 0, &msg_1d,
 			      sizeof(struct ddr4u1d), priv->phy_gen2_fw_img_buf,
 					priv->img_loadr, priv->warm_boot_flag);
-		if (ret) {
+		if (ret != 0) {
 			ERROR("Loading firmware failed (error code %d)\n", ret);
 			return ret;
 		}
 
 		debug("Execute firmware\n");
 		ret = g_exec_fw(priv->phy, 0, &input);
-		if (ret)
+		if (ret != 0) {
 			ERROR("Execution FW failed (error code %d)\n", ret);
+		}
 
 #ifdef NXP_APPLY_MAX_CDD
 		soc_info = get_soc_info();
@@ -2589,7 +2654,7 @@ int compute_ddr_phy(struct ddr_info *priv)
 		}
 #endif
 
-		if (!ret && input.basic.train2d) {
+		if ((ret == 0) && (input.basic.train2d != 0)) {
 			/* 2D training starts here */
 			debug("Load 2D firmware\n");
 			ret = load_fw(priv->phy, &input, 1, &msg_2d,
@@ -2597,12 +2662,12 @@ int compute_ddr_phy(struct ddr_info *priv)
 				      priv->phy_gen2_fw_img_buf,
 				      priv->img_loadr,
 				      priv->warm_boot_flag);
-			if (ret) {
+			if (ret != 0) {
 				ERROR("Loading fw failed (err code %d)\n", ret);
 			} else {
 				debug("Execute 2D firmware\n");
 				ret = g_exec_fw(priv->phy, 1, &input);
-				if (ret) {
+				if (ret != 0) {
 					ERROR("Execution FW failed (err %d)\n",
 					       ret);
 				}
@@ -2633,7 +2698,7 @@ int compute_ddr_phy(struct ddr_info *priv)
 	} /* else */
 #endif
 
-	if (!ret) {
+	if (ret == 0) {
 		debug("Load PIE\n");
 		i_load_pie(priv->phy, &input, &msg_1d);
 

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2014-2016, Freescale Semiconductor, Inc.
- * Copyright 2017-2020 NXP
+ * Copyright 2017-2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -38,7 +38,7 @@ static const uint8_t barker_code[CSF_BARKER_LEN] = { 0x68, 0x39, 0x27, 0x81 };
 
 /* Flag to indicate if values are there in rotpk_hash_table */
 bool rotpk_not_dpld =  true;
-uint8_t rotpk_hash_table[MAX_KEY_ENTRIES][SHA256_BYTES];
+uint8_t rotpk_hash_table[MAX_KEY_ENTRIES][SHA256_BYTES] __aligned(CACHE_WRITEBACK_GRANULE);
 uint32_t num_rotpk_hash_entries;
 
 /*
@@ -61,33 +61,38 @@ static int deploy_rotpk_hash_table(void *srk_buffer, uint16_t num_srk)
 							+ SFP_FUSE_REGS_OFFSET);
 
 
-	if (num_srk > MAX_KEY_ENTRIES)
+	if (num_srk > MAX_KEY_ENTRIES) {
 		return -1;
+	}
 
 	ret = hash_init(algo, &ctx);
-	if (ret)
+	if (ret != 0) {
 		return -1;
+	}
 
 	/* Update hash with that of SRK table */
-	ret = hash_update(algo, ctx,
-		      (uint8_t *)((uint8_t *)srk_buffer),
-		      num_srk * sizeof(struct srk_table));
-	if (ret)
+	ret = hash_update(algo, ctx, (uint8_t *)((uint8_t *)srk_buffer),
+			  num_srk * sizeof(struct srk_table));
+	if (ret != 0) {
 		return -1;
+	}
 
 	/* Copy hash at destination buffer */
 	ret = hash_final(algo, ctx, hash, digest_size);
-	if (ret)
+	if (ret != 0) {
 		return -1;
+	}
 
 	/* Add comparison of hash with SFP hash here */
-	for (i = 0; i < SHA256_BYTES/4; i++)
+	for (i = 0; i < SHA256_BYTES/4; i++) {
 		srk_hash[i] =
 			mmio_read_32((uintptr_t)&sfp_ccsr_regs->srk_hash[i]);
+	}
 
 	VERBOSE("SRK table HASH\n");
-	for (i = 0; i < 8; i++)
+	for (i = 0; i < 8; i++) {
 		VERBOSE("%x\n", *((uint32_t *)hash + i));
+	}
 
 	if (memcmp(hash, srk_hash, SHA256_BYTES) != 0) {
 		ERROR("Error in installing ROTPK table\n");
@@ -96,27 +101,31 @@ static int deploy_rotpk_hash_table(void *srk_buffer, uint16_t num_srk)
 	}
 
 	/* Hash table already deployed */
-	if (rotpk_not_dpld == false)
+	if (rotpk_not_dpld == false) {
 		return 0;
+	}
 
 	for (i = 0; i < num_srk; i++) {
 		ret = hash_init(algo, &ctx);
-		if (ret)
+		if (ret != 0) {
 			return -1;
+		}
 
 		/* Update hash with that of SRK table */
 		ret = hash_update(algo, ctx, srktbl[i].pkey, srktbl[i].key_len);
-		if (ret)
+		if (ret != 0) {
 			return -1;
+		}
 
 		/* Copy hash at destination buffer */
 		ret = hash_final(algo, ctx, rotpk_hash_table[i], digest_size);
-		if (ret)
+		if (ret != 0) {
 			return -1;
-
+		}
 		VERBOSE("Table key %d HASH\n", i);
-		for (j = 0; j < 8; j++)
+		for (j = 0; j < 8; j++) {
 			VERBOSE("%x\n", *((uint32_t *)rotpk_hash_table[i] + j));
+		}
 	}
 	rotpk_not_dpld = false;
 	num_rotpk_hash_entries = num_srk;
@@ -129,8 +138,8 @@ static int deploy_rotpk_hash_table(void *srk_buffer, uint16_t num_srk)
  * single hash of ESBC header and ESBC image
  */
 int calc_img_hash(struct csf_hdr *hdr,
-			  void *img_addr, uint32_t img_size,
-			  uint8_t *img_hash, uint32_t *hash_len)
+		  void *img_addr, uint32_t img_size,
+		  uint8_t *img_hash, uint32_t *hash_len)
 {
 	void *ctx;
 	int ret = 0;
@@ -139,37 +148,42 @@ int calc_img_hash(struct csf_hdr *hdr,
 
 	ret = hash_init(algo, &ctx);
 	/* Copy hash at destination buffer */
-	if (ret)
+	if (ret != 0) {
 		return -1;
+	}
 
 	/* Update hash for CSF Header */
-	ret = hash_update(algo, ctx,
-		(uint8_t *)hdr, sizeof(struct csf_hdr));
-	if (ret)
+	ret = hash_update(algo, ctx, (uint8_t *)hdr, sizeof(struct csf_hdr));
+	if (ret != 0) {
 		return -1;
+	}
 
 	/* Update hash with that of SRK table */
 	ret = hash_update(algo, ctx,
-		      (uint8_t *)((uint8_t *)hdr + hdr->srk_tbl_off),
-		      hdr->len_kr.num_srk * sizeof(struct srk_table));
-	if (ret)
+			  (uint8_t *)((uint8_t *)hdr + hdr->srk_tbl_off),
+			  hdr->len_kr.num_srk * sizeof(struct srk_table));
+	if (ret != 0) {
 		return -1;
+	}
 
 	/* Update hash for actual Image */
 	ret = hash_update(algo, ctx, (uint8_t *)(img_addr), img_size);
-	if (ret)
+	if (ret != 0) {
 		return -1;
+	}
 
 	/* Copy hash at destination buffer */
 	ret = hash_final(algo, ctx, img_hash, digest_size);
-	if (ret)
+	if (ret != 0) {
 		return -1;
+	}
 
 	*hash_len = digest_size;
 
 	VERBOSE("IMG encoded HASH\n");
-	for (int i = 0; i < 8; i++)
+	for (int i = 0; i < 8; i++) {
 		VERBOSE("%x\n", *((uint32_t *)img_hash + i));
+	}
 
 	return 0;
 }
@@ -177,11 +191,13 @@ int calc_img_hash(struct csf_hdr *hdr,
 /* This function checks if selected key is revoked or not.*/
 static uint32_t is_key_revoked(uint32_t keynum, uint32_t rev_flag)
 {
-	if (keynum == UNREVOCABLE_KEY)
+	if (keynum == UNREVOCABLE_KEY) {
 		return 0;
+	}
 
-	if ((uint32_t)(1 << (REVOC_KEY_ALIGN - keynum)) & rev_flag)
+	if (((uint32_t)(1 << (REVOC_KEY_ALIGN - keynum)) & rev_flag) != 0) {
 		return 1;
+	}
 
 	return 0;
 }
@@ -190,11 +206,11 @@ static uint32_t is_key_revoked(uint32_t keynum, uint32_t rev_flag)
  * Check if key is not revoked
  * and return the key , key length and key_type
  */
-static uint32_t get_key(struct csf_hdr *hdr, uint8_t **key, uint32_t *len,
+static int32_t get_key(struct csf_hdr *hdr, uint8_t **key, uint32_t *len,
 			enum sig_alg *key_type)
 {
 	int i = 0;
-	uint32_t ret = 0;
+	uint32_t ret = 0U;
 	uint32_t key_num, key_revoc_flag;
 	void *esbc = hdr;
 	struct srk_table *srktbl = (void *)((uint8_t *)esbc + hdr->srk_tbl_off);
@@ -213,10 +229,10 @@ static uint32_t get_key(struct csf_hdr *hdr, uint8_t **key, uint32_t *len,
 
 	/*
 	 * Check the key number field. It should be not greater than
-	 * number of entreis in SRK table
+	 * number of entries in SRK table.
 	 */
 	key_num = hdr->len_kr.srk_sel;
-	if (key_num == 0 || key_num > hdr->len_kr.num_srk) {
+	if ((key_num == 0) || (key_num > hdr->len_kr.num_srk)) {
 		ERROR("Invalid Key number\n");
 		return -1;
 	}
@@ -226,14 +242,14 @@ static uint32_t get_key(struct csf_hdr *hdr, uint8_t **key, uint32_t *len,
 
 	/* Check if selected key has been revoked */
 	ret = is_key_revoked(key_num, key_revoc_flag);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Selected key has been revoked\n");
 		return -1;
 	}
 
 	/* Check for valid key length - allowed key sized 1k, 2k and 4K */
 	for (i = 0; i < hdr->len_kr.num_srk; i++) {
-		if (!CHECK_KEY_LEN(srktbl[i].key_len)) {
+		if (CHECK_KEY_LEN(srktbl[i].key_len) == 0) {
 			ERROR("Invalid key length\n");
 			return -1;
 		}
@@ -247,11 +263,12 @@ static uint32_t get_key(struct csf_hdr *hdr, uint8_t **key, uint32_t *len,
 	sb = check_boot_mode_secure(&mode);
 	if (sb) {
 		ret = deploy_rotpk_hash_table(srktbl, hdr->len_kr.num_srk);
-		if (ret) {
+		if (ret != 0) {
 			ERROR("ROTPK FAILURE\n");
 			/* For ITS =1 , return failure */
-			if (mode)
+			if (mode != 0) {
 				return -1;
+			}
 			ERROR("SECURE BOOT DEV-ENV MODE:\n");
 			ERROR("\tCHECK ROTPK !\n");
 			ERROR("\tCONTINUING ON FAILURE...\n");
@@ -283,27 +300,28 @@ int validate_esbc_header(void *img_hdr, void **img_key, uint32_t *key_len,
 {
 	struct csf_hdr *hdr = img_hdr;
 	uint8_t *s;
-	uint32_t ret = 0;
-	void *esbc = (uint8_t *)(uintptr_t)img_hdr;
+	int32_t ret = 0;
+	void *esbc = (uint8_t *)img_hdr;
 	uint8_t *key;
 	uint32_t klen;
 
 	/* check barker code */
-	if (memcmp(hdr->barker, barker_code, CSF_BARKER_LEN)) {
+	if (memcmp(hdr->barker, barker_code, CSF_BARKER_LEN) != 0) {
 		ERROR("Wrong barker code in header\n");
 		return -1;
 	}
 
 	ret = get_key(hdr, &key, &klen, algo);
-	if (ret != 0)
+	if (ret != 0) {
 		return -1;
+	}
 
 	/* check signaure */
-	if (klen == 2 * hdr->sign_len) {
+	if (klen == (2 * hdr->sign_len)) {
 		/* check signature length */
-		if (!((hdr->sign_len == RSA_1K_KEY_SZ_BYTES) ||
+		if (((hdr->sign_len == RSA_1K_KEY_SZ_BYTES) ||
 		    (hdr->sign_len == RSA_2K_KEY_SZ_BYTES) ||
-		    (hdr->sign_len == RSA_4K_KEY_SZ_BYTES))) {
+		    (hdr->sign_len == RSA_4K_KEY_SZ_BYTES)) == 0) {
 			ERROR("Wrong Signature length in header\n");
 			return -1;
 		}
@@ -314,13 +332,13 @@ int validate_esbc_header(void *img_hdr, void **img_key, uint32_t *key_len,
 
 	/* modulus most significant bit should be set */
 
-	if ((key[0] & 0x80) == 0) {
+	if ((key[0] & 0x80) == 0U) {
 		ERROR("RSA Public key MSB not set\n");
 		return -1;
 	}
 
 	/* modulus value should be odd */
-	if ((key[klen / 2 - 1] & 0x1) == 0) {
+	if ((key[klen / 2 - 1] & 0x1) == 0U) {
 		ERROR("Public key Modulus in header not odd\n");
 		return -1;
 	}
@@ -334,7 +352,7 @@ int validate_esbc_header(void *img_hdr, void **img_key, uint32_t *key_len,
 	}
 
 	/* Populate the return addresses */
-	*img_sign =  (void *)(s);
+	*img_sign = (void *)(s);
 
 	/* Save the length of signature */
 	*sign_len = hdr->sign_len;

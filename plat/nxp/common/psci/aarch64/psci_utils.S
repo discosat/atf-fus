@@ -1,6 +1,6 @@
 
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -8,9 +8,12 @@
 
 #include <asm_macros.S>
 #include <assert_macros.S>
-#include <bl31_data.h>
+
 #include <lib/psci/psci.h>
+
+#include <bl31_data.h>
 #include <plat_psci.h>
+
 
 #define RESET_RETRY_CNT   800
 #define PSCI_ABORT_CNT	100

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -28,16 +28,16 @@ extern uint32_t num_rotpk_hash_entries;
 int plat_get_rotpk_info(void *cookie, void **key_ptr, unsigned int *key_len,
 			unsigned int *flags)
 {
-	uint32_t mode = 0;
+	uint32_t mode = 0U;
 	*flags = ROTPK_NOT_DEPLOYED;
 
 	/* ROTPK hash table must be available for secure boot */
 	if (rotpk_not_dpld == true) {
-		if (check_boot_mode_secure(&mode)
-		    == true) {
+		if (check_boot_mode_secure(&mode) == true) {
 			/* Production mode, don;t continue further */
-			if (mode == 1)
+			if (mode == 1U) {
 				return -EAUTH;
+			}
 
 			/* For development mode, rotpk flag false
 			 * indicates that SRK hash comparison might
@@ -70,7 +70,7 @@ int plat_get_nv_ctr(void *cookie, unsigned int *nv_ctr)
 	 * No support for non-volatile counter. Update the ROT key to protect
 	 * the system against rollback.
 	 */
-	*nv_ctr = 0;
+	*nv_ctr = 0U;
 
 	return 0;
 }

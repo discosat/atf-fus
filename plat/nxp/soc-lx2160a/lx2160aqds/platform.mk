@@ -20,6 +20,10 @@ DDR_ECC_EN	:=	yes
 DDR_ADDR_DEC	:=	yes
 APPLY_MAX_CDD	:=	yes
 
+# DDR Errata
+ERRATA_DDR_A011396	:= 1
+ERRATA_DDR_A050450	:= 1
+
  # On-Board Flash Details
 FLASH_TYPE	:=	MT35XU512A
 XSPI_FLASH_SZ	:=	0x10000000
@@ -41,7 +45,7 @@ SUPPORTED_BOOT_MODE	:=	flexspi_nor	\
 				emmc
 
 # Adding platform board build info
-include plat/nxp/common/plat_common_def.mk
+include plat/nxp/common/plat_make_helper/plat_common_def.mk
 
 # Adding SoC build info
 include plat/nxp/soc-lx2160a/soc.mk

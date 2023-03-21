@@ -1,8 +1,7 @@
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
- *
  */
 
 #ifndef PLATFORM_DEF_H

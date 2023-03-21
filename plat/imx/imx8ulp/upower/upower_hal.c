@@ -132,7 +132,7 @@ int upower_read_temperature(uint32_t sensor_id, int32_t *temperature)
 {
 	int ret, ret_val;
 	upwr_resp_t err_code;
-	uint64_t t;
+	int64_t t;
 
 	ret = upwr_tpm_get_temperature(sensor_id, NULL);
 	if (ret)
@@ -145,6 +145,57 @@ int upower_read_temperature(uint32_t sensor_id, int32_t *temperature)
 
 	t = ret_val & 0xff;
 	*temperature = (2673049 * t * t * t / 10000000 + 3734262 * t * t / 100000 + 4487042 * t / 100 - 4698694) / 100000;
+
+	return 0;
+}
+
+int upower_pmic_i2c_write(uint32_t reg_addr, uint32_t reg_val)
+{
+	int ret, ret_val;
+	upwr_resp_t err_code;
+
+	ret = upwr_xcp_i2c_access(0x32, 1, 1, reg_addr, reg_val, NULL);
+	if (ret) {
+		NOTICE("pmic i2c read failed ret %d\n", ret);
+		return ret;
+	}
+
+	upower_wait_resp();
+	ret = upwr_poll_req_status(UPWR_SG_EXCEPT, NULL, &err_code, &ret_val, 1000);
+	if (ret != UPWR_REQ_OK) {
+		NOTICE("i2c poll Faliure %d, err_code %d, ret_val 0x%x\n", ret, err_code, ret_val);
+		return ret;
+	}
+
+	VERBOSE("PMIC write reg[0x%x], val[0x%x]\n", reg_addr, reg_val);
+
+	return 0;
+}
+
+int upower_pmic_i2c_read(uint32_t reg_addr, uint32_t *reg_val)
+{
+	int ret, ret_val;
+	upwr_resp_t err_code;
+
+	if (!reg_val)
+		return -1;
+
+	ret = upwr_xcp_i2c_access(0x32, -1, 1, reg_addr, 0, NULL);
+	if (ret) {
+		NOTICE("pmic i2c read failed ret %d\n", ret);
+		return ret;
+	}
+
+	upower_wait_resp();
+	ret = upwr_poll_req_status(UPWR_SG_EXCEPT, NULL, &err_code, &ret_val, 1000);
+	if (ret != UPWR_REQ_OK) {
+		NOTICE("i2c poll Faliure %d, err_code %d, ret_val 0x%x\n", ret, err_code, ret_val);
+		return ret;
+	}
+
+	*reg_val = ret_val;
+
+	VERBOSE("PMIC read reg[0x%x], val[0x%x]\n", reg_addr, *reg_val);
 
 	return 0;
 }

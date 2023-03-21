@@ -1,12 +1,12 @@
 /*
- * Copyright 2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
  */
 
-#ifndef __PLAT_DEFAULT_DEF_H__
-#define __PLAT_DEFAULT_DEF_H__
+#ifndef PLAT_DEFAULT_DEF_H
+#define PLAT_DEFAULT_DEF_H
 
 /*
  * Platform binary types for linking
@@ -27,7 +27,7 @@
  *		one platform to other platform.
  * DRAMn Bank:
  *
- * Excepted few, all the platforms have 2GB size as DRAM0 BANK.
+ * Except a few, all the platforms have 2GB size as DRAM0 BANK.
  * Hence common for all the platforms.
  * For platforms where DRAM0 Size is < 2GB, it is defined in platform_def.h
  */
@@ -40,24 +40,6 @@
 #define NXP_NS_DRAM_ADDR	NXP_DRAM0_ADDR
 #endif
 
-/*
- * DRAM layout
- *
- * high--+---------------------------------------------+
- *       |                                             |
- *       |   Secure EL1 Payload Shared Memory (2 MB)   |
- *       |                                             |
- *       +---------------------------------------------+
- *       |                                             |
- *       |            Secure Memory (64 MB)            |
- *       |                                             |
- *       +---------------------------------------------+
- *       |                                             |
- *       |             Non Secure Memory               |
- *       |                                             |
- * low---+---------------------------------------------+
- *
- */
 /* 1 MB is reserved for dma of sd */
 #ifndef NXP_SD_BLOCK_BUF_SIZE
 #define NXP_SD_BLOCK_BUF_SIZE	(1 * 1024 * 1024)
@@ -73,10 +55,16 @@
 #define NXP_SP_SHRD_DRAM_SIZE	(2 * 1024 * 1024)
 #endif
 
+/* 6M Offset from DRAM0 end for DTB overlay */
+#ifndef	BL32_FDT_OVERLAY_OFFSET
+#define	BL32_FDT_OVERLAY_OFFSET	(6 * 1024 * 1024)
+#endif
+
+
 #ifndef NXP_NS_DRAM_SIZE
 /* Non secure memory */
 #define NXP_NS_DRAM_SIZE	(PLAT_DEF_DRAM0_SIZE - \
-				 (NXP_SECURE_DRAM_SIZE + NXP_SP_SHRD_DRAM_SIZE))
+				(NXP_SECURE_DRAM_SIZE + NXP_SP_SHRD_DRAM_SIZE))
 #endif
 
 #ifndef NXP_SD_BLOCK_BUF_ADDR
@@ -88,13 +76,13 @@
 #define NXP_SECURE_DRAM_ADDR 0
 #else
 #define NXP_SECURE_DRAM_ADDR	(NXP_NS_DRAM_ADDR + PLAT_DEF_DRAM0_SIZE - \
-				 (NXP_SECURE_DRAM_SIZE + NXP_SP_SHRD_DRAM_SIZE))
+				(NXP_SECURE_DRAM_SIZE + NXP_SP_SHRD_DRAM_SIZE))
 #endif
 #endif
 
 #ifndef NXP_SP_SHRD_DRAM_ADDR
 #define NXP_SP_SHRD_DRAM_ADDR	(NXP_NS_DRAM_ADDR + PLAT_DEF_DRAM0_SIZE - \
-				 NXP_SP_SHRD_DRAM_SIZE)
+				NXP_SP_SHRD_DRAM_SIZE)
 #endif
 
 #ifndef BL31_BASE
@@ -187,4 +175,8 @@
 #define BL32_IRQ_SEC_PHY_TIMER	29
 #endif
 
-#endif	/*	__PLAT_DEFAULT_DEF_H__	*/
+#ifndef BL32_FDT_OVERLAY_ADDR
+#define BL32_FDT_OVERLAY_ADDR	NXP_SECURE_DRAM_ADDR - BL32_FDT_OVERLAY_OFFSET
+#endif
+
+#endif	/*	PLAT_DEFAULT_DEF_H	*/

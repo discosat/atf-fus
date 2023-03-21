@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -108,7 +108,7 @@ static int instantiate_rng(void)
 
 	/* Finally, generate the requested random data bytes */
 	ret = run_descriptor_jr(jobdesc);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Error in running descriptor\n");
 		ret = -1;
 	}
@@ -144,14 +144,14 @@ hw_rng_generate(uint32_t *add_input, uint32_t add_input_len,
 	/* create the hw_rng descriptor */
 	ret = cnstr_rng_jobdesc(jobdesc->desc, state_handle,
 				add_input, add_input_len, out, out_len);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Descriptor construction failed\n");
 		ret = -1;
 		goto out;
 	}
 	/* Finally, generate the requested random data bytes */
 	ret = run_descriptor_jr(jobdesc);
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Error in running descriptor\n");
 		ret = -1;
 	}
@@ -173,7 +173,7 @@ int hw_rng_instantiate(void)
 	uint32_t state_handle;
 
 	ret = is_hw_rng_instantiated(&state_handle);
-	if (ret) {
+	if (ret != 0) {
 		NOTICE("RNG already instantiated\n");
 		return 0;
 	}
@@ -187,7 +187,7 @@ int hw_rng_instantiate(void)
 		 */
 		ret = instantiate_rng();
 	} while ((ret == -1) && (ent_delay < RTSDCTL_ENT_DLY_MAX));
-	if (ret) {
+	if (ret != 0) {
 		ERROR("RNG: Failed to instantiate RNG\n");
 		return ret;
 	}
@@ -223,12 +223,12 @@ int get_rand_bytes_hw(uint8_t *bytes, int byte_len)
 	 * Therefore, before generating data, instantiate the hash_drbg
 	 */
 	ret_code = is_hw_rng_instantiated(&state_handle);
-	if (!ret_code) {
+	if (ret_code == 0) {
 		INFO("Instantiating the HW RNG\n");
 
 		/* Instantiate the hw RNG */
 		ret_code = hw_rng_instantiate();
-		if (ret_code) {
+		if (ret_code != 0) {
 			ERROR("HW RNG Instantiate failed\n");
 			return ret_code;
 		}
@@ -236,13 +236,13 @@ int get_rand_bytes_hw(uint8_t *bytes, int byte_len)
 	/* If  HW RNG is still not instantiated, something must have gone wrong,
 	 * it must be in the error state, we will not generate any random data
 	 */
-	if (!is_hw_rng_instantiated(&state_handle)) {
+	if (is_hw_rng_instantiated(&state_handle) == 0) {
 		ERROR("HW RNG is in an Error state, and cannot be used\n");
 		return -1;
 	}
 	/* Generate a random 256-bit value, as 32 bytes */
 	ret_code = hw_rng_generate(0, 0, bytes, byte_len, state_handle);
-	if (ret_code) {
+	if (ret_code != 0) {
 		ERROR("HW RNG Generate failed\n");
 		return ret_code;
 	}

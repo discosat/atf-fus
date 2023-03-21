@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -10,9 +10,10 @@
 
 #include <stdbool.h>
 
+#include <dcfg.h>
 #include <lib/el3_runtime/cpu_data.h>
+
 #include <platform_def.h>
-#include "dcfg.h"
 
 #ifdef IMAGE_BL31
 
@@ -112,7 +113,7 @@ typedef struct {
 
 typedef struct {
 	uint64_t num_dram_regions;
-	uint64_t total_dram_size;
+	int64_t total_dram_size;
 	region_info_t region[NUM_DRAM_REGIONS];
 } dram_regions_info_t;
 
@@ -139,12 +140,7 @@ struct soc_type {
 	uint8_t num_clusters;
 	uint8_t cores_per_cluster;
 };
-
-/*
- * Get cluster number and Core number per cluster.
- * Must be called after dcfg is initialized(dcfg_init).
- */
-void get_cluster_info(struct soc_type *soc_list, uint8_t ps_count,
+void get_cluster_info(const struct soc_type *soc_list, uint8_t ps_count,
 		uint8_t *num_clusters, uint8_t *cores_per_cluster);
 
 #define SOC_ENTRY(n, v, ncl, nc) {	\
@@ -153,4 +149,5 @@ void get_cluster_info(struct soc_type *soc_list, uint8_t ps_count,
 		.num_clusters = (ncl),	\
 		.cores_per_cluster = (nc)}
 
+void plat_set_dt_address(entry_point_info_t *image_info);
 #endif /* PLAT_COMMON_H */

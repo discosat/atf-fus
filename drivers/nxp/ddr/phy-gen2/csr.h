@@ -1,11 +1,11 @@
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2021 NXP
  * SPDX-License-Identifier: BSD-3-Clause
  *
  */
 
-#ifndef _CSR_H_
-#define _CSR_H_
+#ifndef CSR_H
+#define CSR_H
 
 #define t_anib					0
 #define t_dbyte					0x10000
@@ -75,7 +75,6 @@
 #define csr_pll_ctrl1_addr			0xc7
 #define csr_pll_test_mode_addr			0xca
 #define csr_pll_ctrl4_addr			0xcc
-#define csr_pubrev                  0xee
 #define csr_dfi_freq_xlat0_addr			0xf0
 #define csr_acsm_ctrl0_addr			0xf0
 #define csr_dfi_freq_ratio_addr			0xfa

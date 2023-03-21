@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -13,8 +13,8 @@
 #include <qspi.h>
 
 int qspi_io_setup(uintptr_t nxp_qspi_flash_addr,
-			 size_t nxp_qspi_flash_size,
-			 uintptr_t fip_offset)
+		  size_t nxp_qspi_flash_size,
+		  uintptr_t fip_offset)
 {
 	uint32_t qspi_mcr_val = qspi_in32(CHS_QSPI_MCR);
 

@@ -6,6 +6,8 @@
  */
 
 #include <assert.h>
+#include <inttypes.h>
+#include <stdint.h>
 
 #ifdef LS_EL3_INTERRUPT_HANDLER
 #include <ls_interrupt_mgmt.h>
@@ -65,11 +67,14 @@ entry_point_info_t *bl31_plat_get_next_image_ep_info(uint32_t type)
 	next_image_info->spsr   = SPSR_FOR_EL2H;
 	next_image_info->h.attr = NON_SECURE;
 #endif
-
-	if (next_image_info->pc)
+#if defined(SPD_opteed)
+	plat_set_dt_address(next_image_info);
+#endif
+	if (next_image_info->pc != 0U) {
 		return next_image_info;
-	else
+	} else {
 		return NULL;
+	}
 }
 
 /*
@@ -115,17 +120,17 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 	 * Copy BL33 and BL32 (if present), entry point information.
 	 * They are stored in Secure RAM, in BL2's address space.
 	 */
-	while (bl_params) {
+	while (bl_params != NULL) {
 		if (bl_params->image_id == BL31_IMAGE_ID) {
 			bl31_image_ep_info = *bl_params->ep_info;
 			dram_regions_info_t *loc_dram_regions_info =
-			 (dram_regions_info_t *) bl31_image_ep_info.args.arg3;
+			(dram_regions_info_t *) bl31_image_ep_info.args.arg3;
 
 			dram_regions_info.num_dram_regions =
 					loc_dram_regions_info->num_dram_regions;
 			dram_regions_info.total_dram_size =
 					loc_dram_regions_info->total_dram_size;
-			VERBOSE("Number of DRAM Regions = %llx\n",
+			VERBOSE("Number of DRAM Regions = %" PRIx64 "\n",
 					dram_regions_info.num_dram_regions);
 
 			for (i = 0; i < dram_regions_info.num_dram_regions;
@@ -134,24 +139,27 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 					loc_dram_regions_info->region[i].addr;
 				dram_regions_info.region[i].size =
 					loc_dram_regions_info->region[i].size;
-				VERBOSE("DRAM%d Size = %llx\n", i,
+				VERBOSE("DRAM%d Size = %" PRIx64 "\n", i,
 					dram_regions_info.region[i].size);
 			}
 			rcw_porsr1 = bl31_image_ep_info.args.arg4;
 		}
 
-		if (bl_params->image_id == BL32_IMAGE_ID)
+		if (bl_params->image_id == BL32_IMAGE_ID) {
 			bl32_image_ep_info = *bl_params->ep_info;
+		}
 
-		if (bl_params->image_id == BL33_IMAGE_ID)
+		if (bl_params->image_id == BL33_IMAGE_ID) {
 			bl33_image_ep_info = *bl_params->ep_info;
+		}
 
 		bl_params = bl_params->next_params_info;
 	}
 #endif /* TEST_BL31 */
 
-	if (bl33_image_ep_info.pc == 0)
+	if (bl33_image_ep_info.pc == 0) {
 		panic();
+	}
 
 	/*
 	 * perform basic initialization on the soc

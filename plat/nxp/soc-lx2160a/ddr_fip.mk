@@ -66,5 +66,32 @@ ifeq (${MBEDTLS_DIR},)
 include plat/nxp/soc-lx2160a/ddr_sb.mk
 else
 include plat/nxp/soc-lx2160a/ddr_tbbr.mk
+
+# Variables for use with Certificate Generation Tool
+CRTTOOLPATH	?=	tools/cert_create
+CRTTOOL		?=	${CRTTOOLPATH}/cert_create${BIN_EXT}
+
+ifneq (${GENERATE_COT},0)
+ddr_certificates: ${DDR_CRT_DEPS} ${CRTTOOL}
+	${Q}${CRTTOOL} ${DDR_CRT_ARGS}
+	@${ECHO_BLANK_LINE}
+	@echo "Built $@ successfully"
+	@echo "DDR certificates can be found in ${BUILD_PLAT}"
+	@${ECHO_BLANK_LINE}
 endif
 endif
+endif
+
+# Variables for use with Firmware Image Package
+FIPTOOLPATH	?=	tools/fiptool
+FIPTOOL		?=	${FIPTOOLPATH}/fiptool${BIN_EXT}
+
+${BUILD_PLAT}/${DDR_FIP_NAME}: ${DDR_FIP_DEPS} ${FIPTOOL}
+	$(eval ${CHECK_DDR_FIP_CMD})
+	${Q}${FIPTOOL} create ${DDR_FIP_ARGS} $@
+	${Q}${FIPTOOL} info $@
+	@${ECHO_BLANK_LINE}
+	@echo "Built $@ successfully"
+	@${ECHO_BLANK_LINE}
+
+fip_ddr: ${BUILD_PLAT}/${DDR_FIP_NAME}

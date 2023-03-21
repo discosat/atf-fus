@@ -15,6 +15,7 @@
 #include <imx_sip_svc.h>
 #include <lib/mmio.h>
 #include <lib/el3_runtime/context_mgmt.h>
+#include <lib/mmio.h>
 #include <sci/sci.h>
 
 #if defined(PLAT_imx8qm) || defined(PLAT_imx8qx) || defined(PLAT_imx8dx) || defined(PLAT_imx8dxl)

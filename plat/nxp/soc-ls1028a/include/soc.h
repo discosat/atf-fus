@@ -28,9 +28,9 @@
 #define SVR_LS1028AE		0x870B00
 
 /* Number of cores in platform */
-#define PLATFORM_CORE_COUNT		 2
-#define NUMBER_OF_CLUSTERS		 1
-#define CORES_PER_CLUSTER	 	 2
+#define PLATFORM_CORE_COUNT		2
+#define NUMBER_OF_CLUSTERS		1
+#define CORES_PER_CLUSTER		2
 
 /* Set to 0 if the clusters are not symmetrical */
 #define SYMMETRICAL_CLUSTERS		1
@@ -146,4 +146,4 @@ void _soc_set_start_addr(unsigned long addr);
 void _set_platform_security(void);
 #endif
 
-#endif
+#endif /* SOC_H */

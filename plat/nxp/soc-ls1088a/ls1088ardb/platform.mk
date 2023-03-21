@@ -1,5 +1,5 @@
 #
-# Copyright 2018, 2021 NXP
+# Copyright 2022 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -17,13 +17,14 @@ DDR_ECC_EN	:=      yes
 QSPI_FLASH_SZ	:=      0x4000000
 
 # Adding Platform files build files
-BL2_SOURCES	+=	${BOARD_PATH}/ddr_init.c
+BL2_SOURCES	+=	${BOARD_PATH}/ddr_init.c \
+			${BOARD_PATH}/platform.c
 
 SUPPORTED_BOOT_MODE	:=	qspi	\
 				sd
 
 # Adding platform board build info
-include plat/nxp/common/plat_common_def.mk
+include plat/nxp/common/plat_make_helper/plat_common_def.mk
 
 # Adding SoC build info
 include plat/nxp/soc-ls1088a/soc.mk

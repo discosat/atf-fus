@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <common/debug.h>
 #include <ddr.h>
@@ -53,34 +54,35 @@ int bist(const struct ccsr_ddr *ddr, int timeout)
 	unsigned int cs0_config;
 	unsigned int csn_bnds[4];
 	int ret = 0;
-	int i;
+	uint32_t i;
 #ifdef CONFIG_DDR_ADDR_DEC
 	uint32_t dec_9 = ddr_in32(&ddr->dec[9]);
-	uint32_t pos = 0;
-	uint32_t map_save = 0;
-	uint32_t temp32 = 0;
+	uint32_t pos = 0U;
+	uint32_t map_save = 0U;
+	uint32_t temp32 = 0U;
 	uint32_t map, shift, highest;
 #endif
 
 	cs0_config = ddr_in32(&ddr->csn_cfg[0]);
-	if (cs0_config & CTLR_INTLV_MASK) {
+	if ((cs0_config & CTLR_INTLV_MASK) != 0U) {
 		/* set bnds to non-interleaving */
-		for (i = 0; i < 4; i++) {
+		for (i = 0U; i < 4U; i++) {
 			csn_bnds[i] = ddr_in32(&ddr->bnds[i].a);
 			ddr_out32(&ddr->bnds[i].a,
-				  (csn_bnds[i] & 0xfffefffe) >> 1);
+				  (csn_bnds[i] & U(0xfffefffe)) >> 1U);
 		}
 		ddr_out32(&ddr->csn_cfg[0], cs0_config & ~CTLR_INTLV_MASK);
 #ifdef CONFIG_DDR_ADDR_DEC
-		if (dec_9 & 0x1) {
-			highest = (dec_9 >> 26) == 0x3F ? 0 : dec_9 >> 26;
-			pos = 37;
-			for (i = 0; i < 36; i++) {      /* Go through all 37 */
-				if (!(i % 4))
-					temp32 = ddr_in32(&ddr->dec[i >> 2]);
-				shift = (3 - i % 4) * 8 + 2;
-				map = (temp32 >> shift) & 0x3F;
-				if (map > highest && map != 0x3F) {
+		if ((dec_9 & 0x1U) != 0U) {
+			highest = (dec_9 >> 26U) == U(0x3F) ? 0U : dec_9 >> 26U;
+			pos = 37U;
+			for (i = 0U; i < 36U; i++) {      /* Go through all 37 */
+				if ((i % 4U) == 0U) {
+					temp32 = ddr_in32(&ddr->dec[i >> 2U]);
+				}
+				shift = (3U - i % 4U) * 8U + 2U;
+				map = (temp32 >> shift) & U(0x3F);
+				if (map > highest && map != U(0x3F)) {
 					highest = map;
 					pos = i;
 				}
@@ -88,47 +90,51 @@ int bist(const struct ccsr_ddr *ddr, int timeout)
 			debug("\nFound highest position %d, mapping to %d, ",
 			      pos, highest);
 			map_save = ddr_in32(&ddr->dec[pos >> 2]);
-			shift = (3 - pos % 4) * 8 + 2;
+			shift = (3U - pos % 4U) * 8U + 2U;
 			debug("in dec[%d], bit %d (0x%x)\n",
-			      pos >> 2, shift, map_save);
-			temp32 = map_save & ~(0x3F << shift);
-			temp32 |= 8 << shift;
-			ddr_out32(&ddr->dec[pos >> 2], temp32);
-			timeout <<= 2;	/* increase timeout value */
+			      pos >> 2U, shift, map_save);
+			temp32 = map_save & ~(U(0x3F) << shift);
+			temp32 |= 8U << shift;
+			ddr_out32(&ddr->dec[pos >> 2U], temp32);
+			timeout <<= 2U;
 			debug("Increase wait time to %d ms\n", timeout * 10);
 		}
 #endif
 	}
-	for (i = 0; i < 10; i++)
+	for (i = 0U; i < 10U; i++) {
 		ddr_out32(&ddr->mtp[i], test_pattern[i]);
+	}
 	mtcr = BIST_CR;
 	ddr_out32(&ddr->mtcr, mtcr);
 	do {
 		mdelay(10);
 		mtcr = ddr_in32(&ddr->mtcr);
-	} while (timeout-- > 0 && (mtcr & BIST_CR_EN));
-	if (timeout <= 0)
+	} while (timeout-- > 0 && ((mtcr & BIST_CR_EN) != 0));
+	if (timeout <= 0) {
 		ERROR("Timeout\n");
-	else
+	} else {
 		debug("Timer remains %d\n", timeout);
+	}
 
 	err_detect = ddr_in32(&ddr->err_detect);
 	err_sbe = ddr_in32(&ddr->err_sbe);
-	if (err_detect || (err_sbe & 0xffff)) {
+	if (err_detect != 0U || ((err_sbe & U(0xffff)) != 0U)) {
 		ERROR("ECC error detected\n");
 		ret = -EIO;
 	}
 
-	if (cs0_config & CTLR_INTLV_MASK) {
-		for (i = 0; i < 4; i++)
+	if ((cs0_config & CTLR_INTLV_MASK) != 0) {
+		for (i = 0U; i < 4U; i++) {
 			ddr_out32(&ddr->bnds[i].a, csn_bnds[i]);
+		}
 		ddr_out32(&ddr->csn_cfg[0], cs0_config);
 #ifdef CONFIG_DDR_ADDR_DEC
-		if (dec_9 & 0x1)
+		if ((dec_9 & U(0x1)) != 0U) {
 			ddr_out32(&ddr->dec[pos >> 2], map_save);
+		}
 #endif
 	}
-	if (mtcr & BIST_CR_STAT) {
+	if ((mtcr & BIST_CR_STAT) != 0) {
 		ERROR("Built-in self test failed\n");
 		ret = -EIO;
 	} else {
@@ -141,14 +147,14 @@ int bist(const struct ccsr_ddr *ddr, int timeout)
 void dump_ddrc(unsigned int *ddr)
 {
 #ifdef DDR_DEBUG
-	int i;
+	uint32_t i;
 	unsigned long val;
 
-	for (i = 0; i < 0x400; i++, ddr++) {
+	for (i = 0U; i < U(0x400); i++, ddr++) {
 		val = ddr_in32(ddr);
-		if (!val)	/* skip zeros */
-			continue;
-		debug("*0x%lx = 0x%lx\n", (unsigned long)ddr, val);
+		if (val != 0U) {	/* skip zeros */
+			debug("*0x%lx = 0x%lx\n", (unsigned long)ddr, val);
+		}
 	}
 #endif
 }
@@ -163,10 +169,11 @@ static void set_wait_for_bits_clear(const void *ptr,
 	ddr_out32(ptr, value);
 	do {
 		udelay(100);
-	} while (timeout-- > 0 && (ddr_in32(ptr) & bits));
+	} while (timeout-- > 0 && ((ddr_in32(ptr) & bits) != 0));
 
-	if (timeout <= 0)
+	if (timeout <= 0) {
 		ERROR("wait for clear timeout.\n");
+	}
 }
 #endif
 
@@ -194,23 +201,24 @@ int ddrc_set_regs(const unsigned long clk,
 	unsigned int tmp;
 #ifdef ERRATA_DDR_A009942
 	unsigned int check;
-	unsigned int cpo_min = 0xff;
-	unsigned int cpo_max = 0;
+	unsigned int cpo_min = U(0xff);
+	unsigned int cpo_max = 0U;
 #endif
 #endif
 
-	if (twopass == 2)
+	if (twopass == 2U) {
 		goto after_reset;
+	}
 
 	/* Set cdr1 first in case 0.9v VDD is enabled for some SoCs*/
 	ddr_out32(&ddr->ddr_cdr1, regs->cdr[0]);
 
 	ddr_out32(&ddr->sdram_clk_cntl, regs->clk_cntl);
 
-	for (i = 0; i < DDRC_NUM_CS; i++) {
-		if (mod_bnds) {
+	for (i = 0U; i < DDRC_NUM_CS; i++) {
+		if (mod_bnds != 0U) {
 			ddr_out32(&ddr->bnds[i].a,
-				  (regs->cs[i].bnds & 0xfffefffe) >> 1);
+				  (regs->cs[i].bnds & U(0xfffefffe)) >> 1U);
 		} else {
 			ddr_out32(&ddr->bnds[i].a, regs->cs[i].bnds);
 		}
@@ -228,8 +236,9 @@ int ddrc_set_regs(const unsigned long clk,
 	ddr_out32(&ddr->timing_cfg_8, regs->timing_cfg[8]);
 	ddr_out32(&ddr->timing_cfg_9, regs->timing_cfg[9]);
 	ddr_out32(&ddr->zq_cntl, regs->zq_cntl);
-	for (i = 0; i < 4; i++)
+	for (i = 0U; i < 4U; i++) {
 		ddr_out32(&ddr->dq_map[i], regs->dq_map[i]);
+	}
 	ddr_out32(&ddr->sdram_cfg_3, regs->sdram_cfg[2]);
 	ddr_out32(&ddr->sdram_mode, regs->sdram_mode[0]);
 	ddr_out32(&ddr->sdram_mode_2, regs->sdram_mode[1]);
@@ -255,8 +264,9 @@ int ddrc_set_regs(const unsigned long clk,
 	ddr_out32(&ddr->sdram_interval, regs->interval);
 #endif
 	ddr_out32(&ddr->sdram_data_init, regs->data_init);
-	if (regs->eor)
+	if (regs->eor != 0) {
 		ddr_out32(&ddr->eor, regs->eor);
+	}
 
 	ddr_out32(&ddr->wrlvl_cntl, regs->wrlvl_cntl[0]);
 #ifndef NXP_DDR_EMU
@@ -265,10 +275,12 @@ int ddrc_set_regs(const unsigned long clk,
 	 * because emulator doesn't have skew between bytes.
 	 */
 
-	if (regs->wrlvl_cntl[1])
+	if (regs->wrlvl_cntl[1] != 0) {
 		ddr_out32(&ddr->ddr_wrlvl_cntl_2, regs->wrlvl_cntl[1]);
-	if (regs->wrlvl_cntl[2])
+	}
+	if (regs->wrlvl_cntl[2] != 0) {
 		ddr_out32(&ddr->ddr_wrlvl_cntl_3, regs->wrlvl_cntl[2]);
+	}
 #endif
 
 	ddr_out32(&ddr->ddr_sr_cntr, regs->ddr_sr_cntr);
@@ -285,8 +297,8 @@ int ddrc_set_regs(const unsigned long clk,
 
 #ifdef ERRATA_DDR_A009803
 	/* part 1 of 2 */
-	if (regs->sdram_cfg[1] & SDRAM_CFG2_AP_EN) {
-		if (regs->sdram_cfg[0] & SDRAM_CFG_RD_EN) {
+	if ((regs->sdram_cfg[1] & SDRAM_CFG2_AP_EN) != 0) {
+		if ((regs->sdram_cfg[0] & SDRAM_CFG_RD_EN) != 0) {
 			ddr_out32(&ddr->ddr_sdram_rcw_2,
 				  regs->sdram_rcw[1] & ~0xf0);
 		}
@@ -305,24 +317,27 @@ int ddrc_set_regs(const unsigned long clk,
 		ddr_out32(&ddr->debug[3], 0x124a02c0);
 	}
 
-	for (i = 0; i < 4; i++) {
-		if (regs->tx_cfg[i])
+	for (i = 0U; i < 4U; i++) {
+		if (regs->tx_cfg[i] != 0) {
 			ddr_out32(&ddr->tx_cfg[i], regs->tx_cfg[i]);
+		}
 	}
-	for (i = 0; i < 64; i++) {
-		if (regs->debug[i]) {
+	for (i = 0U; i < 64U; i++) {
+		if (regs->debug[i] != 0) {
 #ifdef ERRATA_DDR_A009942
-			if (i == 28)
+			if (i == 28U) {
 				continue;
+			}
 #endif
 			ddr_out32(&ddr->debug[i], regs->debug[i]);
 		}
 	}
 #ifdef CONFIG_DDR_ADDR_DEC
-	if (regs->dec[9] & 1) {
-		for (i = 0; i < 10; i++)
+	if ((regs->dec[9] & 1) != 0U) {
+		for (i = 0U; i < 10U; i++) {
 			ddr_out32(&ddr->dec[i], regs->dec[i]);
-		if (mod_bnds) {
+		}
+		if (mod_bnds != 0) {
 			debug("Disable address decoding\n");
 			ddr_out32(&ddr->dec[9], 0);
 		}
@@ -344,13 +359,13 @@ int ddrc_set_regs(const unsigned long clk,
 #endif
 
 #ifdef ERRATA_DDR_A009942
-	ddr_freq = clk / 1000000;
+	ddr_freq = clk / 1000000U;
 	tmp = ddr_in32(&ddr->debug[28]);
-	tmp &= 0xff0fff00;
-	tmp |= ddr_freq <= 1333 ? 0x0080006a :
-		(ddr_freq <= 1600 ? 0x0070006f :
-		 (ddr_freq <= 1867 ? 0x00700076 : 0x0060007b));
-	if (regs->debug[28]) {
+	tmp &= U(0xff0fff00);
+	tmp |= ddr_freq <= 1333U ? U(0x0080006a) :
+		(ddr_freq <= 1600U ? U(0x0070006f) :
+		 (ddr_freq <= 1867U ? U(0x00700076) : U(0x0060007b)));
+	if (regs->debug[28] != 0) {
 		tmp &= ~0xff;
 		tmp |= regs->debug[28] & 0xff;
 	} else {
@@ -360,7 +375,7 @@ int ddrc_set_regs(const unsigned long clk,
 #endif
 
 #ifdef ERRATA_DDR_A010165
-	ddr_freq = clk / 1000000;
+	ddr_freq = clk / 1000000U;
 	if ((ddr_freq > 1900) && (ddr_freq < 2300)) {
 		tmp = ddr_in32(&ddr->debug[28]);
 		ddr_out32(&ddr->debug[28], tmp | 0x000a0000);
@@ -384,8 +399,8 @@ int ddrc_set_regs(const unsigned long clk,
 	 * for PHY_INIT_CMPLT = 1 , then wait at least 100us (micro seconds),
 	 * then set the MEM_EN = 1
 	 */
-	for (i = 0; i < DDRC_NUM_CS; i++) {
-		if (mod_bnds && !i) {
+	for (i = 0U; i < DDRC_NUM_CS; i++) {
+		if (mod_bnds != 0U && i == 0U) {
 			ddr_out32(&ddr->csn_cfg[i],
 					(regs->cs[i].config & ~CTLR_INTLV_MASK));
 		} else {
@@ -399,7 +414,7 @@ after_reset:
 	temp_sdram_cfg &= ~(SDRAM_CFG_MEM_EN);
 	ddr_out32(&ddr->sdram_cfg, temp_sdram_cfg);
 
-	if (get_ddrc_version(ddr) < 0x50500) {
+	if (get_ddrc_version(ddr) < U(0x50500)) {
 		/*
 		 * 500 painful micro-seconds must elapse between
 		 * the DDR clock setup and the DDR config enable.
@@ -413,7 +428,7 @@ after_reset:
 	} else {
 		/* wait for PHY complete */
 		timeout = 40;
-		while (!(ddr_in32(&ddr->ddr_dsr2) & 0x4) &&
+		while (((ddr_in32(&ddr->ddr_dsr2) & 0x4) != 0) &&
 		       (timeout > 0)) {
 			udelay(500);
 			timeout--;
@@ -438,8 +453,9 @@ after_reset:
 
 	total_mem_per_ctrl = 0;
 	for (i = 0; i < DDRC_NUM_CS; i++) {
-		if (!(regs->cs[i].config & 0x80000000))
+		if ((regs->cs[i].config & 0x80000000) == 0) {
 			continue;
+		}
 		total_mem_per_ctrl += 1 << (
 			((regs->cs[i].config >> 14) & 0x3) + 2 +
 			((regs->cs[i].config >> 8) & 0x7) + 12 +
@@ -462,14 +478,14 @@ after_reset:
 	timeout = ((total_mem_per_ctrl_adj << (6 - bus_width)) * 100 /
 		   (clk >> 20)) << 2;
 	total_mem_per_ctrl_adj >>= 4;	/* shift down to gb size */
-	if (ddr_in32(&ddr->sdram_cfg_2) & SDRAM_CFG2_D_INIT) {
+	if ((ddr_in32(&ddr->sdram_cfg_2) & SDRAM_CFG2_D_INIT) != 0) {
 		debug("total size %d GB\n", total_mem_per_ctrl_adj);
 		debug("Need to wait up to %d ms\n", timeout * 10);
 
 		do {
 			mdelay(10);
 		} while (timeout-- > 0 &&
-			 (ddr_in32(&ddr->sdram_cfg_2) & SDRAM_CFG2_D_INIT));
+			 ((ddr_in32(&ddr->sdram_cfg_2) & SDRAM_CFG2_D_INIT)) != 0);
 
 		if (timeout <= 0) {
 			if (ddr_in32(&ddr->debug[1]) & 0x3d00) {
@@ -481,13 +497,14 @@ after_reset:
 		}
 	}
 
-	if (mod_bnds) {
+	if (mod_bnds != 0U) {
 		debug("Restore original bnds\n");
-		for (i = 0; i < DDRC_NUM_CS; i++)
+		for (i = 0U; i < DDRC_NUM_CS; i++) {
 			ddr_out32(&ddr->bnds[i].a, regs->cs[i].bnds);
+		}
 		ddr_out32(&ddr->csn_cfg[0], regs->cs[0].config);
 #ifdef CONFIG_DDR_ADDR_DEC
-		if (regs->dec[9] & 0x1) {
+		if ((regs->dec[9] & U(0x1)) != 0U) {
 			debug("Restore address decoding\n");
 			ddr_out32(&ddr->dec[9], regs->dec[9]);
 		}
@@ -496,16 +513,17 @@ after_reset:
 
 #ifdef ERRATA_DDR_A009803
 	/* Part 2 of 2 */
-	if (regs->sdram_cfg[1] & SDRAM_CFG2_AP_EN) {
+	if ((regs->sdram_cfg[1] & SDRAM_CFG2_AP_EN) != 0) {
 		timeout = 400;
 		do {
 			mdelay(1);
-		} while (timeout-- > 0 && !(ddr_in32(&ddr->debug[1]) & 0x2));
+		} while (timeout-- > 0 && ((ddr_in32(&ddr->debug[1]) & 0x2) == 0));
 
-		if (regs->sdram_cfg[0] & SDRAM_CFG_RD_EN) {
-			for (i = 0; i < DDRC_NUM_CS; i++) {
-				if (!(regs->cs[i].config & SDRAM_CS_CONFIG_EN))
+		if ((regs->sdram_cfg[0] & SDRAM_CFG_RD_EN) != 0) {
+			for (i = 0U; i < DDRC_NUM_CS; i++) {
+				if ((regs->cs[i].config & SDRAM_CS_CONFIG_EN) == 0) {
 					continue;
+				}
 				set_wait_for_bits_clear(&ddr->sdram_md_cntl,
 						MD_CNTL_MD_EN |
 						MD_CNTL_CS_SEL(i) |
@@ -528,7 +546,7 @@ after_reset:
 	timeout = 400;
 	do {
 		mdelay(1);
-	} while (timeout-- > 0 && !(ddr_in32(&ddr->debug[1]) & 0x2));
+	} while (timeout-- > 0 && ((ddr_in32(&ddr->debug[1]) & 0x2) == 0));
 	tmp = (regs->sdram_cfg[0] >> 19) & 0x3;
 	check = (tmp == DDR_DBUS_64) ? 4 : ((tmp == DDR_DBUS_32) ? 2 : 1);
 	for (i = 0; i < check; i++) {
@@ -539,7 +557,7 @@ after_reset:
 		cpo_max = max(cpo_max,
 			      max((tmp >> 24) & 0xff, (tmp >> 8) & 0xff));
 	}
-	if (regs->sdram_cfg[0] & SDRAM_CFG_ECC_EN) {
+	if ((regs->sdram_cfg[0] & SDRAM_CFG_ECC_EN) != 0) {
 		tmp = ddr_in32(&ddr->debug[13]);
 		cpo_min = min(cpo_min, (tmp >> 24) & 0xff);
 		cpo_max = max(cpo_max, (tmp >> 24) & 0xff);
@@ -556,9 +574,9 @@ after_reset:
 			(cpo_min + cpo_max) / 2 + 0x27);
 	}
 #endif
-	if (run_bist()) {
-		if (ddr_in32(&ddr->debug[1]) &
-		    ((get_ddrc_version(ddr) == 0x50500) ? 0x3c00 : 0x3d00)) {
+	if (run_bist() != 0) {
+		if ((ddr_in32(&ddr->debug[1]) &
+		    ((get_ddrc_version(ddr) == 0x50500) ? 0x3c00 : 0x3d00)) != 0) {
 			ERROR("Found training error(s): 0x%x\n",
 			     ddr_in32(&ddr->debug[1]));
 			return -EIO;

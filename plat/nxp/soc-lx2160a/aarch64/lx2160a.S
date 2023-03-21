@@ -8,17 +8,19 @@
 .section .text, "ax"
 
 #include <asm_macros.S>
-#include <bl31_data.h>
+
 #include <lib/psci/psci.h>
 #include <nxp_timer.h>
 #include <plat_gic.h>
-#include <plat_psci.h>
 #include <pmu.h>
 
+#include <bl31_data.h>
+#include <plat_psci.h>
 #include <platform_def.h>
 
-.global soc_init_lowlevel
+.global soc_init_start
 .global soc_init_percpu
+.global soc_init_finish
 .global _set_platform_security
 .global _soc_set_start_addr
 
@@ -67,7 +69,8 @@
 #define  CPUACTLR_DIS_LS_HW_PRE	0x100000000000000
 #define  CPUACTLR_DIS_L2_TLB_PRE   0x200000
 
-/* Function initialize soc from low level.
+/* Function starts the initialization tasks of the soc,
+ * using secondary cores if they are available
  *
  * Called from C, saving the non-volatile regs
  * save these as pairs of registers to maintain the
@@ -77,7 +80,7 @@
  * out:
  * uses x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11
  */
-func soc_init_lowlevel
+func soc_init_start
 	stp  x4,  x5,  [sp, #-16]!
 	stp  x6,  x7,  [sp, #-16]!
 	stp  x8,  x9,  [sp, #-16]!
@@ -91,11 +94,15 @@ func soc_init_lowlevel
 	 */
 	bl  release_disabled  		/* 0-9 */
 
+	/* init the task flags */
+	bl  _init_task_flags   		/* 0-1 */
+
 	/* set SCRATCHRW7 to 0x0 */
 	ldr  x0, =DCFG_SCRATCHRW7_OFFSET
 	mov  x1, xzr
 	bl   _write_reg_dcfg
 
+1:
 	/* restore the aarch32/64 non-volatile registers */
 	ldp  x18, x30, [sp], #16
 	ldp  x12, x13, [sp], #16
@@ -104,7 +111,8 @@ func soc_init_lowlevel
 	ldp  x6,  x7,  [sp], #16
 	ldp  x4,  x5,  [sp], #16
 	ret
-endfunc soc_init_lowlevel
+endfunc soc_init_start
+
 
 /* Function performs any soc-specific initialization that is needed on
  * a per-core basis.
@@ -131,6 +139,20 @@ func soc_init_percpu
 	ldp  x4,  x30,  [sp], #16
 	ret
 endfunc soc_init_percpu
+
+
+/* Function completes the initialization tasks of the soc
+ * in:
+ * out:
+ * uses x0, x1, x2, x3, x4
+ */
+func soc_init_finish
+	stp  x4,  x30,  [sp, #-16]!
+
+	ldp   x4,  x30,  [sp], #16
+	ret
+endfunc soc_init_finish
+
 
 /* Function sets the security mechanisms in the SoC to implement the
  * Platform Security Policy

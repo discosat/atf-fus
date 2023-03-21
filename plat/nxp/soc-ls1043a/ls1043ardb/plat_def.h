@@ -8,14 +8,14 @@
 #define PLAT_DEF_H
 
 #include <arch.h>
-#include <policy.h>
 /*
  * Required without TBBR.
  * To include the defines for DDR PHY Images.
  */
 #include <tbbr_img_def.h>
 
-#include "soc.h"
+#include "policy.h"
+#include <soc.h>
 
 #define NXP_SPD_EEPROM0		0x51
 

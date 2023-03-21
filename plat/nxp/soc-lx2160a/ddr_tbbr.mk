@@ -1,5 +1,5 @@
 #
-# Copyright 2020 NXP
+# Copyright 2021 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -24,6 +24,10 @@
 #   NON_TRUSTED_WORLD_KEY
 #
 
+# Copy the tbbr.mk from PLAT_TOOL_PATH/cert_create_helper
+# to the ${PLAT_DIR}. So that cert_create is enabled
+# to create certificates for DDR
+$(shell cp ${PLAT_TOOL_PATH}/cert_create_helper/cert_create_tbbr.mk ${PLAT_DIR})
 
 # Certificate generation tool default parameters
 DDR_FW_CERT		:=	${BUILD_PLAT}/ddr_fw_key_cert.crt
@@ -67,15 +71,15 @@ $(eval $(call TOOL_ADD_PAYLOAD,${BUILD_PLAT}/ddr_fw_key.crt,--ddr-fw-key-cert,,D
 $(eval $(call TOOL_ADD_PAYLOAD,${BUILD_PLAT}/ddr_udimm_fw_content.crt,--ddr-udimm-fw-cert,,DDR_))
 $(eval $(call TOOL_ADD_PAYLOAD,${BUILD_PLAT}/ddr_rdimm_fw_content.crt,--ddr-rdimm-fw-cert,,DDR_))
 
-$(eval $(call TOOL_ADD_IMG,DDR_IMEM_UDIMM_1D, --ddr-immem-udimm-1d, DDR_))
-$(eval $(call TOOL_ADD_IMG,DDR_IMEM_UDIMM_2D, --ddr-immem-udimm-2d, DDR_))
-$(eval $(call TOOL_ADD_IMG,DDR_DMEM_UDIMM_1D, --ddr-dmmem-udimm-1d, DDR_))
-$(eval $(call TOOL_ADD_IMG,DDR_DMEM_UDIMM_2D, --ddr-dmmem-udimm-2d, DDR_))
+$(eval $(call TOOL_ADD_IMG,DDR_IMEM_UDIMM_1D,--ddr-immem-udimm-1d,DDR_))
+$(eval $(call TOOL_ADD_IMG,DDR_IMEM_UDIMM_2D,--ddr-immem-udimm-2d,DDR_))
+$(eval $(call TOOL_ADD_IMG,DDR_DMEM_UDIMM_1D,--ddr-dmmem-udimm-1d,DDR_))
+$(eval $(call TOOL_ADD_IMG,DDR_DMEM_UDIMM_2D,--ddr-dmmem-udimm-2d,DDR_))
 
-$(eval $(call TOOL_ADD_IMG,DDR_IMEM_RDIMM_1D, --ddr-immem-rdimm-1d, DDR_))
-$(eval $(call TOOL_ADD_IMG,DDR_IMEM_RDIMM_2D, --ddr-immem-rdimm-2d, DDR_))
-$(eval $(call TOOL_ADD_IMG,DDR_DMEM_RDIMM_1D, --ddr-dmmem-rdimm-1d, DDR_))
-$(eval $(call TOOL_ADD_IMG,DDR_DMEM_RDIMM_2D, --ddr-dmmem-rdimm-2d, DDR_))
+$(eval $(call TOOL_ADD_IMG,DDR_IMEM_RDIMM_1D,--ddr-immem-rdimm-1d,DDR_))
+$(eval $(call TOOL_ADD_IMG,DDR_IMEM_RDIMM_2D,--ddr-immem-rdimm-2d,DDR_))
+$(eval $(call TOOL_ADD_IMG,DDR_DMEM_RDIMM_1D,--ddr-dmmem-rdimm-1d,DDR_))
+$(eval $(call TOOL_ADD_IMG,DDR_DMEM_RDIMM_2D,--ddr-dmmem-rdimm-2d,DDR_))
 
 DDR_FIP_DEPS += ddr_certificates
 
@@ -89,4 +93,3 @@ ifneq (${GENERATE_COT},0)
                 endif
         endif
 endif
-

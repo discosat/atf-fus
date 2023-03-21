@@ -1,5 +1,5 @@
 #
-# Copyright 2017-2020 NXP
+# Copyright 2021 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -9,12 +9,11 @@
 
 DDR_DRIVERS_PATH	:=	drivers/nxp/ddr
 
-DDR_CNTLR_SOURCES	=	${DDR_DRIVERS_PATH}/fsl-mmdc/fsl_mmdc.c \
-				${DDR_DRIVERS_PATH}/nxp-ddr/utility.c	\
-				${DDR_DRIVERS_PATH}/nxp-ddr/ddr.c	\
-				${DDR_DRIVERS_PATH}/nxp-ddr/ddrc.c
+DDR_CNTLR_SOURCES	:=	${PLAT_DRIVERS_PATH}/ddr/fsl-mmdc/fsl_mmdc.c \
+				${PLAT_DRIVERS_PATH}/ddr/nxp-ddr/utility.c	\
+				${PLAT_DRIVERS_PATH}/ddr/nxp-ddr/ddr.c	\
+				${PLAT_DRIVERS_PATH}/ddr/nxp-ddr/ddrc.c
 
-PLAT_INCLUDES		+=	-I$(DDR_DRIVERS_PATH)/include	\
-				-I$(DDR_DRIVERS_PATH)/fsl-mmdc
+PLAT_INCLUDES		+=	-I$(PLAT_DRIVERS_INCLUDE_PATH)/ddr	\
+				-I$(PLAT_DRIVERS_INCLUDE_PATH)/ddr/fsl-mmdc
 #------------------------------------------------
-

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 NXP
+ * Copyright 2021 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -15,11 +15,12 @@
 #include <fspi_api.h>
 #endif
 #include <lib/mmio.h>
-#include <plat_nv_storage.h>
+#include <lib/psci/psci.h>
 #ifdef NXP_COINED_BB
 #include <snvs.h>
 #endif
 
+#include <plat_nv_storage.h>
 #include "plat_warm_rst.h"
 #include "platform_def.h"
 
@@ -27,22 +28,23 @@
 
 uint32_t is_warm_boot(void)
 {
-	int ret = mmio_read_32(NXP_RESET_ADDR + RST_RSTRQSR1_OFFSET)
+	uint32_t ret = mmio_read_32(NXP_RESET_ADDR + RST_RSTRQSR1_OFFSET)
 				& ~(RSTRQSR1_SWRR);
 
 	const nv_app_data_t *nv_app_data = get_nv_data();
 
-	if (ret == 0) {
+	if (ret == 0U) {
 		INFO("Not a SW(Warm) triggered reset.\n");
-		return 0;
+		return 0U;
 	}
 
 	ret = (nv_app_data->warm_rst_flag == WARM_BOOT_SUCCESS) ? 1 : 0;
 
-	if (ret)
+	if (ret != 0U) {
 		INFO("Warm Reset was triggered..\n");
-	else
+	} else {
 		INFO("Warm Reset was not triggered..\n");
+	}
 
 	return ret;
 }
@@ -62,10 +64,10 @@ int prep_n_execute_warm_reset(void)
 
 	ret = fspi_init(NXP_FLEXSPI_ADDR, NXP_FLEXSPI_FLASH_ADDR);
 
-	if (ret) {
+	if (ret != 0) {
 		ERROR("Failed to initialized driver flexspi-nor.\n");
 		ERROR("exiting warm-reset request.\n");
-		return -ENODEV;
+		return PSCI_E_INTERN_FAIL;
 	}
 
 	/* Sector starting from NV_STORAGE_BASE_ADDR is already
@@ -84,9 +86,10 @@ int prep_n_execute_warm_reset(void)
 	fspi_out32((NXP_FLEXSPI_ADDR + FSPI_IPCR0),
 		   (uint32_t) NV_STORAGE_BASE_ADDR);
 
-	while (!(fspi_in32(NXP_FLEXSPI_ADDR + FSPI_INTR)
-		& FSPI_INTR_IPTXWE_MASK))
+	while ((fspi_in32(NXP_FLEXSPI_ADDR + FSPI_INTR) &
+		FSPI_INTR_IPTXWE_MASK) == 0) {
 		;
+	}
 	/* Write TX FIFO Data Register */
 	fspi_out32(NXP_FLEXSPI_ADDR + FSPI_TFDR, (uint32_t) warm_reset);
 
@@ -94,7 +97,7 @@ int prep_n_execute_warm_reset(void)
 
 	/* IP Control Register1 - SEQID_WRITE operation, Size = 1 Byte */
 	fspi_out32(NXP_FLEXSPI_ADDR + FSPI_IPCR1,
-		   (uint32_t)(fspiWRITE_SEQ_ID << FSPI_IPCR1_ISEQID_SHIFT) |
+		   (uint32_t)(FSPI_WRITE_SEQ_ID << FSPI_IPCR1_ISEQID_SHIFT) |
 		   (uint16_t) sizeof(warm_reset));
 
 	/* Trigger XSPI-IP-Write cmd only if:
@@ -110,8 +113,9 @@ int prep_n_execute_warm_reset(void)
 	_soc_sys_warm_reset();
 
 	/* Expected behaviour is to do the power cycle */
-	while (1)
+	while (1 != 0)
 		;
+
 	return -1;
 }
 #endif

@@ -1,5 +1,5 @@
 #
-# Copyright 2018-2021 NXP
+# Copyright 2020-2021 NXP
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -27,7 +27,7 @@ SUPPORTED_BOOT_MODE	:=	flexspi_nor	\
 				emmc
 
 # Add platform board build info
-include plat/nxp/common/plat_common_def.mk
+include plat/nxp/common/plat_make_helper/plat_common_def.mk
 
 # Add SoC build info
 include plat/nxp/soc-ls1028a/soc.mk

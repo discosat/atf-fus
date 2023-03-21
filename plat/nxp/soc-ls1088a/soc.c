@@ -1,41 +1,39 @@
 /*
- * Copyright 2018-2021 NXP
+ * Copyright 2022 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include <arch.h>
 #include <assert.h>
+
+#include <arch.h>
 #include <caam.h>
 #include <cci.h>
 #include <common/debug.h>
 #include <dcfg.h>
-#include <errata.h>
 #ifdef I2C_INIT
 #include <i2c.h>
 #endif
 #include <lib/mmio.h>
 #include <lib/xlat_tables/xlat_tables_v2.h>
 #include <ls_interconnect.h>
-#include <ls_interrupt_mgmt.h>
-#if TRUSTED_BOARD_BOOT
 #include <nxp_smmu.h>
-#endif
 #include <nxp_timer.h>
-#include <plat_common.h>
 #include <plat_console.h>
 #include <plat_gic.h>
 #include <plat_tzc400.h>
-#include <platform_def.h>
 #include <pmu.h>
 #if defined(NXP_SFP_ENABLED)
 #include <sfp.h>
 #endif
-#include <soc.h>
+
+#include <errata.h>
 #ifdef CONFIG_OCRAM_ECC_EN
 #include <ocram.h>
 #endif
-
+#include <plat_common.h>
+#include <platform_def.h>
+#include <soc.h>
 
 static unsigned char _power_domain_tree_desc[NUMBER_OF_CLUSTERS + 2];
 static struct soc_type soc_list[] =  {
@@ -74,8 +72,9 @@ const unsigned char *plat_get_power_domain_tree_desc(void)
 	_power_domain_tree_desc[0] = 1;
 	_power_domain_tree_desc[1] = num_clusters;
 
-	for (i = 0; i < _power_domain_tree_desc[1]; i++)
+	for (i = 0; i < _power_domain_tree_desc[1]; i++) {
 		_power_domain_tree_desc[i + 2] = cores_per_cluster;
+	}
 
 
 	return _power_domain_tree_desc;
@@ -96,7 +95,7 @@ unsigned int plat_ls_get_cluster_core_count(u_register_t mpidr)
 /*
  * This function returns the total number of cores in the SoC
  */
-unsigned int get_tot_num_cores()
+unsigned int get_tot_num_cores(void)
 {
 	uint8_t num_clusters, cores_per_cluster;
 
@@ -253,6 +252,12 @@ void soc_early_init(void)
 				MT_DEVICE | MT_RW | MT_NS);
 	}
 
+    /*
+     * Unlock write access for SMMU SMMU_CBn_ACTLR in all Non-secure contexts.
+     */
+    smmu_cache_unlock(NXP_SMMU_ADDR);
+    INFO("SMMU Cache Unlocking is Configured.\n");
+
 #if TRUSTED_BOARD_BOOT
 	uint32_t mode;
 
@@ -262,8 +267,9 @@ void soc_early_init(void)
 	 * Later when platform security policy comes in picture,
 	 * this might get modified based on the policy
 	 */
-	if (check_boot_mode_secure(&mode) == true)
+	if (check_boot_mode_secure(&mode) == true) {
 		bypass_smmu(NXP_SMMU_ADDR);
+	}
 
 	/*
 	 * For Mbedtls currently crypto is not supported via CAAM
@@ -272,10 +278,11 @@ void soc_early_init(void)
 	 */
 #ifndef MBEDTLS_X509
 	/* Initialize the crypto accelerator if enabled */
-	if (is_sec_enabled() == false)
+	if (is_sec_enabled() == false) {
 		INFO("SEC is disabled.\n");
-	else
+	} else {
 		sec_init(NXP_CAAM_ADDR);
+	}
 #endif
 #endif
 
@@ -285,7 +292,7 @@ void soc_early_init(void)
 	i2c_init(NXP_I2C_ADDR);
 	dram_regions_info->total_dram_size = init_ddr();
 }
-#else
+#else /* !IMAGE_BL2 */
 
 void soc_early_platform_setup2(void)
 {
@@ -351,17 +358,18 @@ void soc_init(void)
 	_set_platform_security();
 
 	/* Initialize the crypto accelerator if enabled */
-	if (is_sec_enabled() == false)
+	if (is_sec_enabled() == false) {
 		INFO("SEC is disabled.\n");
-	else
+	} else {
 		sec_init(NXP_CAAM_ADDR);
+	}
 }
 
 void soc_runtime_setup(void)
 {
 
 }
-#endif
+#endif /* IMAGE_BL2 */
 
 /*
  * Function to return the SoC SYS CLK
@@ -390,4 +398,12 @@ unsigned int plat_get_syscnt_freq2(void)
 	counter_base_frequency = mmio_read_32(NXP_TIMER_ADDR + CNTFID_OFF);
 
 	return counter_base_frequency;
+}
+
+/*
+ * This function sets up DTB address to be passed to next boot stage
+ */
+void plat_set_dt_address(entry_point_info_t *image_info)
+{
+	image_info->args.arg3 = BL32_FDT_OVERLAY_ADDR;
 }

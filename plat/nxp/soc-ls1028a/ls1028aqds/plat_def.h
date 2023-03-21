@@ -8,15 +8,15 @@
 #define PLAT_DEF_H
 
 #include <arch.h>
-#include <policy.h>
-#include <soc.h>
-
 /*
  * Required without TBBR.
  * To include the defines for DDR PHY
  * Images.
  */
 #include <tbbr_img_def.h>
+
+#include <policy.h>
+#include <soc.h>
 
 #define NXP_SYSCLK_FREQ		100000000
 #define NXP_DDRCLK_FREQ		100000000

@@ -5,74 +5,51 @@
 #
 
 # SoC-specific build parameters
-SOC		:=	ls1043a
-PLAT_PATH	:=	plat/nxp
-PLAT_COMMON_PATH:=	plat/nxp/common
-PLAT_DRIVERS_PATH:=	drivers/nxp
-PLAT_SOC_PATH	:=	${PLAT_PATH}/soc-${SOC}
-BOARD_PATH	:=	${PLAT_SOC_PATH}/${BOARD}
-$(info board PAth = ${BOARD_PATH})
+SOC			:=	ls1043a
+PLAT_PATH		:=	plat/nxp
+PLAT_COMMON_PATH	:=	plat/nxp/common
+PLAT_DRIVERS_PATH	:=	drivers/nxp
+PLAT_SOC_PATH		:=	${PLAT_PATH}/soc-${SOC}
+BOARD_PATH		:=	${PLAT_SOC_PATH}/${BOARD}
+
 # get SoC-specific defnitions
 include ${PLAT_SOC_PATH}/soc.def
-include ${PLAT_COMMON_PATH}/soc_common_def.mk
-
-# SoC-specific
-NXP_WDOG_RESTART	:= no
-
-
-# Selecting dependent module,
-# Selecting dependent drivers, and
-# Adding defines.
-
-# for features enabled above.
-ifeq (${NXP_WDOG_RESTART}, yes)
-NXP_NV_SW_MAINT_LAST_EXEC_DATA := yes
-LS_EL3_INTERRUPT_HANDLER := yes
-$(eval $(call add_define, NXP_WDOG_RESTART))
-endif
-
+include ${PLAT_COMMON_PATH}/plat_make_helper/soc_common_def.mk
+include ${PLAT_COMMON_PATH}/plat_make_helper/plat_build_macros.mk
 
 # For Security Features
 DISABLE_FUSE_WRITE	:= 1
+$(eval $(call SET_NXP_MAKE_FLAG,SMMU_NEEDED,BL2))
 ifeq (${TRUSTED_BOARD_BOOT}, 1)
-$(eval $(call SET_FLAG,SMMU_NEEDED,BL2))
-$(eval $(call SET_FLAG,SFP_NEEDED,BL2))
-$(eval $(call SET_FLAG,SNVS_NEEDED,BL2))
-# Used by create_pbl tool to
-# create bl2_<boot_mode>_sec.pbl image
+$(eval $(call SET_NXP_MAKE_FLAG,SFP_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,SNVS_NEEDED,BL2))
 SECURE_BOOT	:= yes
 endif
-$(eval $(call SET_FLAG,CRYPTO_NEEDED,BL_COMM))
-
+$(eval $(call SET_NXP_MAKE_FLAG,CRYPTO_NEEDED,BL_COMM))
 
 # Selecting Drivers for SoC
-$(eval $(call SET_FLAG,DCFG_NEEDED,BL_COMM))
-$(eval $(call SET_FLAG,CSU_NEEDED,BL_COMM))
-$(eval $(call SET_FLAG,TIMER_NEEDED,BL_COMM))
-$(eval $(call SET_FLAG,INTERCONNECT_NEEDED,BL_COMM))
-$(eval $(call SET_FLAG,GIC_NEEDED,BL31))
-$(eval $(call SET_FLAG,CONSOLE_NEEDED,BL_COMM))
-$(eval $(call SET_FLAG,PMU_NEEDED,BL_COMM))
-
-$(eval $(call SET_FLAG,DDR_DRIVER_NEEDED,BL2))
-$(eval $(call SET_FLAG,TZASC_NEEDED,BL2))
-$(eval $(call SET_FLAG,I2C_NEEDED,BL2))
-$(eval $(call SET_FLAG,IMG_LOADR_NEEDED,BL2))
-
+$(eval $(call SET_NXP_MAKE_FLAG,DCFG_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,CSU_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,TIMER_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,INTERCONNECT_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,GIC_NEEDED,BL31))
+$(eval $(call SET_NXP_MAKE_FLAG,CONSOLE_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,PMU_NEEDED,BL_COMM))
+$(eval $(call SET_NXP_MAKE_FLAG,DDR_DRIVER_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,TZASC_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,I2C_NEEDED,BL2))
+$(eval $(call SET_NXP_MAKE_FLAG,IMG_LOADR_NEEDED,BL2))
 
 # Selecting PSCI & SIP_SVC support
-$(eval $(call SET_FLAG,PSCI_NEEDED,BL31))
-$(eval $(call SET_FLAG,SIPSVC_NEEDED,BL31))
+$(eval $(call SET_NXP_MAKE_FLAG,PSCI_NEEDED,BL31))
+$(eval $(call SET_NXP_MAKE_FLAG,SIPSVC_NEEDED,BL31))
 
 # Source File Addition
-# #####################
-
 PLAT_INCLUDES		+=	-I${PLAT_COMMON_PATH}/include/default\
 				-I${BOARD_PATH}\
 				-I${PLAT_COMMON_PATH}/include/default/ch_${CHASSIS}\
 				-I${PLAT_SOC_PATH}/include\
 				-I${PLAT_COMMON_PATH}/soc_errata
-
 
 ifeq (${SECURE_BOOT},yes)
 include ${PLAT_COMMON_PATH}/tbbr/tbbr.mk
@@ -106,7 +83,6 @@ endif
 # Adding source files for the above selected drivers.
 include ${PLAT_DRIVERS_PATH}/drivers.mk
 
-
 # Adding SoC specific files
 include ${PLAT_COMMON_PATH}/soc_errata/errata.mk
 
@@ -133,7 +109,6 @@ endif
 BL2_SOURCES		+=	${DDR_CNTLR_SOURCES}\
 				${TBBR_SOURCES}\
 				${FUSE_SOURCES}
-
 
 # Adding TFA setup files
 include ${PLAT_PATH}/common/setup/common.mk

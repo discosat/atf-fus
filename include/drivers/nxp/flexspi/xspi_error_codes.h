@@ -1,11 +1,14 @@
-// SPDX-License-Identifier: BSD-3-Clause
 /*
  * Copyright 2020 NXP
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  */
 
 /* error codes */
-#ifndef __XSPI_ERROR_CODES_H
-#define __XSPI_ERROR_CODES_H
+#ifndef XSPI_ERROR_CODES_H
+#define XSPI_ERROR_CODES_H
+
 #include <errno.h>
 
 typedef enum {
