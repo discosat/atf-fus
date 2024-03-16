@@ -19,11 +19,8 @@
 #define CCM_SRC_CTRL(n)		(CCM_SRC_CTRL_OFFSET + 0x10 * (n))
 #define CCM_CCGR(n)		(CCM_CCGR_OFFSET + 0x10 * (n))
 
-
-#if defined(LPA_ENABLE)
 bool imx_m4_lpa_active(void);
 bool imx_is_m4_enabled(void);
-#endif
 
 void rank_setting_update(void)
 {
@@ -110,16 +107,14 @@ void dram_enter_retention(void)
 	mmio_write_32(CCM_CCGR(5), 0);
 	mmio_write_32(CCM_SRC_CTRL(15), 2);
 
-#if defined(LPA_ENABLE)
-        if (imx_is_m4_enabled() && imx_m4_lpa_active()) {
-                /* disable the DRAM PLL */
-                mmio_clrbits_32(0x30360050, (0x1 << 9));
-        }
-#else
+	if (imx_is_m4_enabled() && imx_m4_lpa_active()) {
+		/* disable the DRAM PLL */
+		mmio_clrbits_32(IMX_ANAMIX_BASE + 0x50, BIT(9));
+	}
+
 	/* enable the phy iso */
 	mmio_setbits_32(IMX_GPC_BASE + DDRMIX_PGC, 1);
 	mmio_setbits_32(IMX_GPC_BASE + PU_PGC_DN_TRG, DDRMIX_PWR_REQ);
-#endif
 
 	VERBOSE("dram enter retention\n");
 }
@@ -143,10 +138,7 @@ void dram_exit_retention(void)
 	mmio_write_32(0x3038a088, (0x7 << 24) | (0x7 << 16));
 	mmio_write_32(0x3038a084, (0x4 << 24) | (0x3 << 16));
 
-#if !defined(LPA_ENABLE)
-	/* disable iso */
-	mmio_setbits_32(IMX_GPC_BASE + PU_PGC_UP_TRG, DDRMIX_PWR_REQ);
-#endif
+	mmio_setbits_32(IMX_ANAMIX_BASE + 0x50, BIT(9));
 
 	mmio_write_32(SRC_DDR1_RCR, 0x8F000006);
 

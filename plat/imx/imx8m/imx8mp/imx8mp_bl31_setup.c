@@ -30,10 +30,8 @@
 #include <platform_def.h>
 #include <plat_imx8.h>
 
-#if defined(LPA_ENABLE)
 #include <sema4.h>
 #define CPUCNT  (IMX_SRC_BASE + LPA_STATUS)
-#endif
 
 #define TRUSTY_PARAMS_LEN_BYTES      (4096*2)
 #ifdef SPD_trusty
@@ -208,9 +206,8 @@ static void bl31_tzc380_setup(void)
 void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 		u_register_t arg2, u_register_t arg3)
 {
-#if DEBUG_CONSOLE
 	static console_uart_t console;
-#endif
+
 	unsigned int val;
 	int i;
 
@@ -231,12 +228,12 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 	mmio_write_32(IMX_IOMUX_GPR_BASE + 0x2c, val | 0x3DFF0000);
 
 	imx8m_caam_init();
-#if DEBUG_CONSOLE
+
 	console_imx_uart_register(IMX_BOOT_UART_BASE, IMX_BOOT_UART_CLK_IN_HZ,
 		IMX_CONSOLE_BAUDRATE, &console);
 	/* This console is only used for boot stage */
-	console_set_scope(&console, CONSOLE_FLAG_BOOT);
-#endif
+	console_set_scope(&console, CONSOLE_FLAG_RUNTIME);
+
 	/*
 	 * tell BL3-1 where the non-secure software image is located
 	 * and the entry state information.
@@ -302,9 +299,7 @@ void bl31_plat_arch_setup(void)
 
 void bl31_platform_setup(void)
 {
-#if defined(LPA_ENABLE)
 	uint32_t value;
-#endif
 
 	generic_delay_timer_init();
 
@@ -323,12 +318,10 @@ void bl31_platform_setup(void)
 	mmio_setbits_32(IMX_SRC_BASE + 0xc,  SRC_SCR_M4_ENABLE_MASK);
 	mmio_clrbits_32(IMX_SRC_BASE + 0xc, SRC_SCR_M4C_NON_SCLR_RST_MASK);
 
-#if defined(LPA_ENABLE)
 	/* CPUCNT bits [15:0] used as flags for LPA, clearing it at boot */
 	value = mmio_read_32(CPUCNT);
 	mmio_write_32(CPUCNT, (value & ~0xFFFF) | 0x01);
 	sema4_init();
-#endif
 }
 
 entry_point_info_t *bl31_plat_get_next_image_ep_info(unsigned int type)

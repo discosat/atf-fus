@@ -26,14 +26,9 @@ DEFINE_BAKERY_LOCK(gpc_lock);
 
 #define FSL_SIP_CONFIG_GPC_PM_DOMAIN		0x03
 
-#if defined(LPA_ENABLE)
-#define M4_LPA_ACTIVE	0x0500
-#define M4_LPA_MASK     0x0F00
-#else
 #define M4_LPA_ACTIVE	0x5555
 #define DSP_LPA_ACTIVE	0xD
 #define	DSP_LPA_DRAM_ACTIVE 0x1D
-#endif
 #define M4_LPA_IDLE	0x0
 
 struct plat_gic_ctx imx_gicv3_ctx;
@@ -43,12 +38,6 @@ struct plat_gic_ctx imx_gicv3_ctx;
 #pragma weak imx_set_cpu_lpm
 #pragma weak imx_set_cluster_powerdown
 
-#if defined(LPA_ENABLE)
-bool imx_m4_lpa_active(void)
-{
-	return (mmio_read_32(IMX_SRC_BASE + LPA_STATUS) & M4_LPA_MASK)  == M4_LPA_ACTIVE;
-}
-#else
 bool imx_m4_lpa_active(void)
 {
 	uint32_t lpa_status;
@@ -58,7 +47,6 @@ bool imx_m4_lpa_active(void)
 	return (lpa_status == M4_LPA_ACTIVE || lpa_status == DSP_LPA_ACTIVE ||
 		lpa_status == DSP_LPA_DRAM_ACTIVE);
 }
-#endif
 
 bool imx_is_m4_enabled(void)
 {
@@ -277,7 +265,6 @@ void imx_set_sys_lpm(unsigned int last_core, bool retention)
 		mmio_clrsetbits_32(IMX_GPC_BASE + SLPCR, SLPCR_EN_DSM | SLPCR_VSTBY |
 			 SLPCR_SBYOS | SLPCR_BYPASS_PMIC_READY, SLPCR_A53_FASTWUP_STOP_MODE);
 
-#if defined(LPA_ENABLE)
 	if (imx_is_m4_enabled() && imx_m4_lpa_active()) {
 		uint32_t val;
 		val = mmio_read_32(IMX_GPC_BASE + SLPCR);
@@ -285,11 +272,13 @@ void imx_set_sys_lpm(unsigned int last_core, bool retention)
 		mmio_write_32(IMX_GPC_BASE + 0x14, val);
 		return;
 	}
-#endif
 
 	/* mask M4 DSM trigger if M4 is NOT enabled */
-	if (!imx_is_m4_enabled())
+	if (!imx_is_m4_enabled()) {
 		mmio_setbits_32(IMX_GPC_BASE + LPCR_M4, BIT(31));
+	} else {
+		mmio_setbits_32(IMX_GPC_BASE + SLPCR, SLPCR_A53_FASTWUP_STOP_MODE);
+	}
 
 	/* config wakeup irqs' mask in gpc */
 	imx_set_sys_wakeup(last_core, retention);
@@ -317,7 +306,7 @@ struct pll_override pll[MAX_PLL_NUM] = {
 	{.reg = 0x64, .override_mask = (1 << 10) | (1 << 8), },
 	{.reg = 0x74, .override_mask = (1 << 10) | (1 << 8), },
 	{.reg = 0x84, .override_mask = (1 << 10) | (1 << 8), },
-	{.reg = 0x94, .override_mask = 0x5555500, },
+	// {.reg = 0x94, .override_mask = 0x5555500, },  // SYS_PLL1 used by Cortex-M7
 	{.reg = 0x104, .override_mask = 0x5555500, },
 	{.reg = 0x114, .override_mask = 0x500, },
 };
